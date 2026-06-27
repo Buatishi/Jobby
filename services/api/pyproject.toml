@@ -36,7 +36,7 @@ strict = true
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["celery", "celery.*"]
+module = ["celery", "celery.*", "kombu", "kombu.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

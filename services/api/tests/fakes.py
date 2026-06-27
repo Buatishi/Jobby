@@ -12,6 +12,9 @@ class FakeTableQuery:
         self.table_name = table_name
         self.filters: dict[str, Any] = {}
         self.update_payload: dict[str, Any] | None = None
+        self.insert_payload: dict[str, Any] | None = None
+        self.upsert_payload: dict[str, Any] | None = None
+        self.should_delete = False
 
     def select(self, _columns: str) -> "FakeTableQuery":
         return self
@@ -27,8 +30,43 @@ class FakeTableQuery:
         self.update_payload = payload
         return self
 
+    def insert(self, payload: dict[str, Any]) -> "FakeTableQuery":
+        self.insert_payload = payload
+        return self
+
+    def upsert(self, payload: dict[str, Any]) -> "FakeTableQuery":
+        self.upsert_payload = payload
+        return self
+
+    def delete(self) -> "FakeTableQuery":
+        self.should_delete = True
+        return self
+
     async def execute(self) -> FakeResponse:
         rows = self.supabase.tables[self.table_name]
+
+        if self.insert_payload is not None:
+            inserted = self.insert_payload.copy()
+            inserted.setdefault("id", f"{self.table_name}-{len(rows) + 1}")
+            rows.append(inserted)
+            return FakeResponse([inserted.copy()])
+
+        if self.upsert_payload is not None:
+            upserted = self.upsert_payload.copy()
+            upserted.setdefault("id", f"{self.table_name}-{len(rows) + 1}")
+            rows.append(upserted)
+            return FakeResponse([upserted.copy()])
+
+        if self.should_delete:
+            kept_rows = []
+            deleted_rows = []
+            for row in rows:
+                if all(row.get(key) == value for key, value in self.filters.items()):
+                    deleted_rows.append(row.copy())
+                else:
+                    kept_rows.append(row)
+            self.supabase.tables[self.table_name] = kept_rows
+            return FakeResponse(deleted_rows)
 
         if self.update_payload is not None:
             updated_rows = []
@@ -81,14 +119,51 @@ class FakeSupabase:
                     "updated_at": None,
                 }
             ],
+            "uploaded_documents": [],
+            "skills": [],
         }
         self.completeness = 21
+        self.storage = FakeStorage()
 
     def table(self, table_name: str) -> FakeTableQuery:
         return FakeTableQuery(self, table_name)
 
     def rpc(self, function_name: str, _params: dict[str, Any]) -> FakeRpcQuery:
+        if function_name == "set_primary_uploaded_document":
+            user_id = _params["p_user_id"]
+            document_id = _params["p_document_id"]
+            selected_document = None
+            for document in self.tables["uploaded_documents"]:
+                if document.get("user_id") == user_id and document.get("type") == "cv":
+                    document["is_primary"] = False
+                if (
+                    document.get("id") == document_id
+                    and document.get("user_id") == user_id
+                ):
+                    selected_document = document
+            if selected_document is not None:
+                selected_document["is_primary"] = True
+                selected_document["status"] = "pending"
+                return FakeRpcQuery(selected_document.copy())
+            return FakeRpcQuery(None)
+
         if function_name != "compute_completeness":
             return FakeRpcQuery(None)
 
         return FakeRpcQuery(self.completeness)
+
+
+class FakeStorageBucket:
+    def __init__(self, storage: "FakeStorage") -> None:
+        self.storage = storage
+
+    async def download(self, storage_path: str) -> bytes:
+        return self.storage.files[storage_path]
+
+
+class FakeStorage:
+    def __init__(self) -> None:
+        self.files: dict[str, bytes] = {}
+
+    def from_(self, _bucket: str) -> FakeStorageBucket:
+        return FakeStorageBucket(self)

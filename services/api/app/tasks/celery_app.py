@@ -1,5 +1,3 @@
-from celery import Celery
+from app.tasks import celery_app
 
-from app.config import settings
-
-celery_app = Celery("jobmatch", broker=settings.redis_url, backend=settings.redis_url)
+__all__ = ["celery_app"]

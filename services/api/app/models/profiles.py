@@ -33,3 +33,35 @@ class MasterProfileUpdate(BaseModel):
 
     def to_update_payload(self) -> dict[str, Any]:
         return self.model_dump(exclude_unset=True)
+
+
+class UploadedDocumentCreate(BaseModel):
+    profile_id: str
+    type: str
+    storage_path: str
+    cv_slot: int | None = None
+    is_primary: bool = False
+    original_filename: str | None = None
+    mime_type: str | None = None
+    file_size: int | None = None
+
+
+class UploadedDocument(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    user_id: str
+    profile_id: str
+    type: str
+    cv_slot: int | None = None
+    is_primary: bool = False
+    storage_path: str
+    original_filename: str | None = None
+    mime_type: str | None = None
+    file_size: int | None = None
+    status: str = "pending"
+    parsed_data: dict[str, Any] | None = None
+    error_msg: str | None = None
+    task_id: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
