@@ -1,0 +1,94 @@
+from pathlib import Path
+
+import pytest
+
+from app.services.cv_parser import CVParsingError, CVStructuredData, extract_pdf_text
+from app.services.cv_parser.ai_structurer import ParsedSkill
+from app.services.cv_parser.merge_logic import merge_parsed_skills
+
+
+def _write_minimal_pdf(path: Path, text: str) -> None:
+    escaped_text = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
+        ),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (
+            f"<< /Length {len(f'BT /F1 24 Tf 72 720 Td ({escaped_text}) Tj ET')} >>\n"
+            f"stream\nBT /F1 24 Tf 72 720 Td ({escaped_text}) Tj ET\nendstream"
+        ).encode(),
+    ]
+
+    content = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for index, obj in enumerate(objects, start=1):
+        offsets.append(len(content))
+        content.extend(f"{index} 0 obj\n".encode())
+        content.extend(obj)
+        content.extend(b"\nendobj\n")
+
+    xref_offset = len(content)
+    content.extend(f"xref\n0 {len(objects) + 1}\n".encode())
+    content.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        content.extend(f"{offset:010d} 00000 n \n".encode())
+    content.extend(
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode()
+    )
+
+    path.write_bytes(bytes(content))
+
+
+@pytest.mark.asyncio
+async def test_extract_pdf_text_reads_valid_pdf(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cv.pdf"
+    _write_minimal_pdf(pdf_path, "Python FastAPI Supabase")
+
+    text = await extract_pdf_text(pdf_path)
+
+    assert "Python FastAPI Supabase" in text
+
+
+@pytest.mark.asyncio
+async def test_extract_pdf_text_rejects_invalid_pdf(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "cv.pdf"
+    pdf_path.write_text("not a real pdf", encoding="utf-8")
+
+    with pytest.raises(CVParsingError) as exc_info:
+        await extract_pdf_text(pdf_path)
+
+    assert exc_info.value.code == "PDF_READ_ERROR"
+
+
+def test_merge_parsed_skills_deduplicates_and_keeps_confirmed() -> None:
+    parsed_data = CVStructuredData(
+        skills=[
+            ParsedSkill(name="Python", category="technical", level="expert"),
+            ParsedSkill(name="FastAPI", category="technical", level="advanced"),
+        ]
+    )
+    existing_skills = [
+        {
+            "name": "python",
+            "category": "technical",
+            "level": "intermediate",
+            "confirmed": True,
+            "in_cv": False,
+        }
+    ]
+
+    merged = merge_parsed_skills(parsed_data, existing_skills)
+
+    python_skill = next(skill for skill in merged if skill["name"] == "python")
+    fastapi_skill = next(skill for skill in merged if skill["name"] == "FastAPI")
+    assert python_skill["level"] == "intermediate"
+    assert python_skill["confirmed"] is True
+    assert fastapi_skill["in_cv"] is True
+    assert len(merged) == 2

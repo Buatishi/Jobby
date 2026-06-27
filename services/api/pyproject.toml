@@ -1,0 +1,51 @@
+[tool.poetry]
+name = "jobmatch-api"
+version = "0.1.0"
+description = "FastAPI backend for JobMatch AI."
+authors = ["JobMatch AI Contributors"]
+readme = "README.md"
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+python = ">=3.13,<4.0"
+fastapi = ">=0.115"
+uvicorn = { extras = ["standard"], version = ">=0.32" }
+pydantic = ">=2"
+pydantic-settings = ">=2"
+celery = ">=5"
+redis = ">=5"
+supabase = ">=2"
+PyJWT = ">=2.10"
+httpx = ">=0.28"
+pdfplumber = ">=0.11"
+playwright = ">=1.49"
+
+[tool.poetry.group.dev.dependencies]
+mypy = ">=1.14"
+pytest = ">=8.3"
+pytest-asyncio = ">=0.25"
+ruff = ">=0.8"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = []
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
