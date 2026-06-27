@@ -46,6 +46,28 @@ pnpm --filter @jobmatch/web dev
 
 Open `http://localhost:3000`.
 
+## Deploy on Render
+
+Backend deploys are configured with `render.yaml` at the repository root.
+
+1. Create an Upstash Redis database and copy its TLS URL into `REDIS_URL`.
+2. In Render, create a new Blueprint from this repository.
+3. Render will create:
+   - `jobmatch-api` web service using `services/api/Dockerfile` on port `8000`.
+   - `jobmatch-worker-analysis` for Celery queues `parsing,analysis`.
+   - `jobmatch-worker-scraping` for the `scraping` queue. Keep this worker on a plan with at least 512MB RAM because Playwright runs there.
+4. Add the required environment variables in Render:
+   `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `REDIS_URL`,
+   `FRONTEND_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+   `RESEND_API_KEY`.
+
+Use an Upstash Redis TLS URL format like:
+
+```text
+rediss://default:<UPSTASH_REDIS_PASSWORD>@<UPSTASH_REDIS_HOST>:6379
+```
+
 ## GitHub Secrets
 
 Configure these repository secrets before enabling CI and preview deployments:
