@@ -55,7 +55,8 @@ Backend deploys are configured with `render.yaml` at the repository root.
 3. Render will create:
    - `jobmatch-api` web service using `services/api/Dockerfile` on port `8000`.
    - `jobmatch-worker-analysis` for Celery queues `parsing,analysis`.
-   - `jobmatch-worker-scraping` for the `scraping` queue. Keep this worker on a plan with at least 512MB RAM because Playwright runs there.
+   - `jobmatch-worker-scraping` for the `scraping` queue.
+     Por ahora todos los servicios usan el plan Free para validar deploys sin costo; antes de usar scraping en serio, subir este worker a un plan con al menos 512MB RAM porque Playwright corre ahí.
 4. Add the required environment variables in Render:
    `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
    `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `REDIS_URL`,

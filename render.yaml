@@ -4,7 +4,8 @@ services:
     runtime: docker
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: ./services/api
-    plan: starter
+    # Por ahora usamos free para validar deploys sin costo.
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: PORT
@@ -37,7 +38,8 @@ services:
     runtime: docker
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: ./services/api
-    plan: starter
+    # Por ahora usamos free para validar deploys sin costo.
+    plan: free
     dockerCommand: celery -A app.tasks:celery_app worker -Q parsing,analysis --loglevel=INFO
     envVars:
       - key: SUPABASE_URL
@@ -60,7 +62,8 @@ services:
     runtime: docker
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: ./services/api
-    plan: starter
+    # Por ahora usamos free para validar deploys sin costo.
+    plan: free
     dockerCommand: celery -A app.tasks:celery_app worker -Q scraping --loglevel=INFO
     envVars:
       - key: SUPABASE_URL
