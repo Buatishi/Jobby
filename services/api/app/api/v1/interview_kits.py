@@ -10,6 +10,11 @@ from app.models.interview_kits import (
     InterviewKitCreate,
     InterviewKitRatingUpdate,
 )
+from app.services.rate_limits import (
+    RateLimitExceededError,
+    RateLimitKind,
+    increment_rate_limit,
+)
 from app.tasks.analysis import enqueue_interview_kit
 
 router = APIRouter(prefix="/interview-kits", tags=["interview-kits"])
@@ -79,13 +84,28 @@ def _premium_required() -> HTTPException:
     )
 
 
+def _rate_limit_error(exc: RateLimitExceededError) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail={
+            "error": "Límite mensual de Interview Kits alcanzado",
+            "code": "INTERVIEW_KIT_RATE_LIMIT_EXCEEDED",
+            "details": {
+                "limit": exc.limit,
+                "reset_at": exc.reset_at.isoformat(),
+            },
+        },
+    )
+
+
 @router.post("", response_model=InterviewKit, status_code=202)
 async def create_interview_kit(
     payload: InterviewKitCreate,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> InterviewKit:
-    if await _fetch_user_tier(supabase, current_user.id) != "premium":
+    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    if user_tier != "premium":
         raise _premium_required()
 
     profile = await _fetch_profile(supabase, current_user.id)
@@ -98,6 +118,10 @@ async def create_interview_kit(
                 "details": {"completeness_pct": profile.get("completeness_pct", 0)},
             },
         )
+    try:
+        await increment_rate_limit(current_user.id, user_tier, RateLimitKind.KITS)
+    except RateLimitExceededError as exc:
+        raise _rate_limit_error(exc) from exc
 
     response = (
         await supabase.table("interview_kits")
@@ -193,10 +217,15 @@ async def regenerate_interview_kit(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> InterviewKit:
-    if await _fetch_user_tier(supabase, current_user.id) != "premium":
+    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    if user_tier != "premium":
         raise _premium_required()
-
     kit = await _fetch_kit(supabase, kit_id, current_user.id)
+    try:
+        await increment_rate_limit(current_user.id, user_tier, RateLimitKind.KITS)
+    except RateLimitExceededError as exc:
+        raise _rate_limit_error(exc) from exc
+
     data = await _execute(
         supabase.table("interview_kits")
         .update({"status": "pending", "error_msg": None})

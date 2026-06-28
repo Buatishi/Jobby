@@ -7,6 +7,9 @@ from urllib.parse import urlparse, urlunparse
 
 from app.database import get_supabase_client
 
+PlaywrightTimeoutError: type[Exception]
+async_playwright: Any
+
 try:
     from playwright.async_api import TimeoutError as PlaywrightTimeoutError
     from playwright.async_api import async_playwright
@@ -201,7 +204,10 @@ def _parse_company(text: str) -> dict[str, Any]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     company_name = lines[0] if lines else None
     industry = _line_after("industry", lines)
-    company_size = _line_after("company size", lines) or _line_after("employees", lines)
+    company_size = _line_after("company size", lines) or _line_after(
+        "employees",
+        lines,
+    )
     specialties_line = _line_after("specialties", lines)
     specialties = (
         [item.strip() for item in re.split(r",|·|\|", specialties_line) if item.strip()]

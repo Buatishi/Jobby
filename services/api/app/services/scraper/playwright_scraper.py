@@ -1,4 +1,7 @@
-from typing import Literal
+from typing import Any, Literal
+
+PlaywrightTimeoutError: type[Exception]
+async_playwright: Any
 
 try:
     from playwright.async_api import TimeoutError as PlaywrightTimeoutError

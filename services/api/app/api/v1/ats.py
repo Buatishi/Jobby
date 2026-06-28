@@ -9,6 +9,11 @@ from app.models.auth import CurrentUser
 from app.services.ats_analyzer.format_checker import check_cv_format
 from app.services.ats_analyzer.keyword_matcher import analyze_keywords
 from app.services.ats_analyzer.scoring import compute_ats_score
+from app.services.rate_limits import (
+    RateLimitExceededError,
+    RateLimitKind,
+    increment_rate_limit,
+)
 
 router = APIRouter(prefix="/ats", tags=["ats"])
 
@@ -59,6 +64,15 @@ async def _fetch_primary_cv(supabase: Any, user_id: str) -> dict[str, Any]:
     return data
 
 
+async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
+    data = await _execute(
+        supabase.table("users").select("tier").eq("id", user_id).single()
+    )
+    if isinstance(data, dict) and isinstance(data.get("tier"), str):
+        return str(data["tier"])
+    return "free"
+
+
 @router.get("/{job_id}", response_model=ATSReport)
 async def get_ats_report(
     job_id: str,
@@ -67,6 +81,22 @@ async def get_ats_report(
 ) -> ATSReport:
     job = await _fetch_job(supabase, job_id, current_user.id)
     primary_cv = await _fetch_primary_cv(supabase, current_user.id)
+    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    try:
+        await increment_rate_limit(current_user.id, user_tier, RateLimitKind.ATS)
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "Límite diario de ATS alcanzado",
+                "code": "ATS_RATE_LIMIT_EXCEEDED",
+                "details": {
+                    "limit": exc.limit,
+                    "reset_at": exc.reset_at.isoformat(),
+                },
+            },
+        ) from exc
+
     keyword_result = await analyze_keywords(job, primary_cv)
     format_issues = check_cv_format(primary_cv)
     ats_score = compute_ats_score(keyword_result.matches, format_issues)

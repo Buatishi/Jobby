@@ -114,7 +114,7 @@ async def _assert_interview_kit_limit(supabase: Any, user_id: str) -> None:
         created_at = str(row.get("created_at") or "")
         if created_at.startswith(f"{now.year:04d}-{now.month:02d}"):
             current_month_count += 1
-    if current_month_count >= 10:
+    if current_month_count > 10:
         raise ValueError("Interview Kits mensuales agotados.")
 
 

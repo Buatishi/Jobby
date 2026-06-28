@@ -7,6 +7,11 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.models.auth import CurrentUser
 from app.models.jobs import JobAnalysisRequest, JobAnalyzeResponse, JobDescription
+from app.services.rate_limits import (
+    RateLimitExceededError,
+    RateLimitKind,
+    increment_rate_limit,
+)
 from app.tasks.analysis import enqueue_job_analysis
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -83,6 +88,21 @@ async def analyze_job(
                 "details": {"completeness_pct": profile.get("completeness_pct", 0)},
             },
         )
+    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    try:
+        await increment_rate_limit(current_user.id, user_tier, RateLimitKind.JOBS)
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "Límite mensual de análisis de jobs alcanzado",
+                "code": "JOB_RATE_LIMIT_EXCEEDED",
+                "details": {
+                    "limit": exc.limit,
+                    "reset_at": exc.reset_at.isoformat(),
+                },
+            },
+        ) from exc
 
     job_id = str(uuid4())
     task_id = enqueue_job_analysis(

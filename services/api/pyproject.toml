@@ -19,6 +19,8 @@ PyJWT = ">=2.10"
 httpx = ">=0.28"
 pdfplumber = ">=0.11"
 playwright = ">=1.49"
+slowapi = ">=0.1.9"
+stripe = ">=11.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = ">=1.14"
@@ -37,7 +39,18 @@ strict = true
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["celery", "celery.*", "kombu", "kombu.*", "playwright", "playwright.*"]
+module = [
+    "celery",
+    "celery.*",
+    "kombu",
+    "kombu.*",
+    "playwright",
+    "playwright.*",
+    "slowapi",
+    "slowapi.*",
+    "stripe",
+    "stripe.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

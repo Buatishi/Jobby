@@ -13,10 +13,12 @@ from starlette.responses import Response
 from app.api.v1.router import api_router
 from app.config import settings
 from app.core.errors import http_error_handler, validation_error_handler
+from app.services.rate_limits import limiter
 
 logger = logging.getLogger("jobmatch.api")
 
 app = FastAPI(title="JobMatch AI API", version="0.1.0")
+app.state.limiter = limiter
 
 allowed_origins = ["http://localhost:3000"]
 if settings.frontend_url and settings.frontend_url not in allowed_origins:

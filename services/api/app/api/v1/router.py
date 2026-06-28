@@ -1,6 +1,15 @@
 from fastapi import APIRouter
 
-from app.api.v1 import ats, interview_kits, jobs, matches, profiles, tasks
+from app.api.v1 import (
+    ats,
+    billing,
+    interview_kits,
+    jobs,
+    matches,
+    profiles,
+    tasks,
+    webhooks,
+)
 from app.api.v1.routes import health
 
 api_router = APIRouter()
@@ -11,3 +20,5 @@ api_router.include_router(jobs.router)
 api_router.include_router(matches.router)
 api_router.include_router(ats.router)
 api_router.include_router(interview_kits.router)
+api_router.include_router(billing.router)
+api_router.include_router(webhooks.router)

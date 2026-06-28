@@ -37,7 +37,7 @@ export function PremiumGate({ className, compact = false }: PremiumGateProps) {
         </div>
       </div>
       <Button asChild>
-        <Link href="/upgrade">Upgrade a Premium</Link>
+        <Link href="/pricing">Upgrade a Premium</Link>
       </Button>
     </div>
   );
