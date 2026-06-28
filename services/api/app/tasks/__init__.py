@@ -7,7 +7,7 @@ celery_app = Celery(
     "jobmatch",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.parsing"],
+    include=["app.tasks.parsing", "app.tasks.analysis", "app.tasks.matching"],
 )
 
 celery_app.conf.update(
@@ -22,6 +22,8 @@ celery_app.conf.update(
     ),
     task_routes={
         "app.tasks.parsing.parse_cv_task": {"queue": "parsing"},
+        "app.tasks.analysis.job_analysis_task": {"queue": "analysis"},
+        "app.tasks.matching.match_task": {"queue": "analysis"},
     },
     broker_transport_options={"visibility_timeout": 3600},
     result_backend_transport_options={"visibility_timeout": 3600},

@@ -1,7 +1,7 @@
-import { ArrowRight, BriefcaseBusiness, Lightbulb, Link2 } from "lucide-react";
+import { BriefcaseBusiness, Lightbulb } from "lucide-react";
 
+import { JobInputForm } from "@/components/job-input-form";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,7 +13,7 @@ import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
 const employabilityScore = 74;
 const completenessPct = 68;
-const missingTip = "Agregá al menos 3 skills confirmadas para sumar +10 pts.";
+const missingTip = "Agrega al menos 3 skills confirmadas para sumar +10 pts.";
 const latestMatches: Array<{
   id: string;
   title: string;
@@ -34,7 +34,7 @@ export default function DashboardPage() {
             Tu panel de compatibilidad laboral
           </h1>
         </div>
-        <Badge variant="outline">Sprint 1 base</Badge>
+        <Badge variant="outline">Sprint 2</Badge>
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -42,7 +42,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Score global de empleabilidad</CardTitle>
             <CardDescription>
-              Resume tu preparación actual para aplicar con confianza.
+              Resume tu preparacion actual para aplicar con confianza.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -101,7 +101,7 @@ export default function DashboardPage() {
             <div className="mt-5 flex gap-3 rounded-lg border border-border p-4">
               <Lightbulb className="mt-0.5 h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm font-medium">Próximo campo más valioso</p>
+                <p className="text-sm font-medium">Proximo campo mas valioso</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {missingTip}
                 </p>
@@ -114,25 +114,13 @@ export default function DashboardPage() {
       <section className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle>Analizá un nuevo job</CardTitle>
+            <CardTitle>Analiza un nuevo job</CardTitle>
             <CardDescription>
-              Pegá una URL o el texto completo de la búsqueda laboral.
+              Pega una URL o el texto completo de la busqueda laboral.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-              <div className="relative">
-                <Link2 className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-                <textarea
-                  className="min-h-28 w-full resize-none rounded-md border border-input bg-background py-3 pl-11 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="https://... o pegá acá la descripción completa del puesto"
-                />
-              </div>
-              <Button className="h-12 self-end">
-                Analizar job
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
+            <JobInputForm />
           </CardContent>
         </Card>
       </section>
@@ -140,9 +128,9 @@ export default function DashboardPage() {
       <section className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle>Últimos 5 matches</CardTitle>
+            <CardTitle>Ultimos 5 matches</CardTitle>
             <CardDescription>
-              Los análisis recientes aparecerán acá cuando esté integrado Sprint 2.
+              Los analisis recientes apareceran aca cuando este integrado Sprint 2.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -166,9 +154,9 @@ export default function DashboardPage() {
             ) : (
               <div className="flex min-h-40 flex-col items-center justify-center rounded-lg border border-dashed border-border text-center">
                 <BriefcaseBusiness className="h-8 w-8 text-muted-foreground" />
-                <p className="mt-3 font-medium">Todavía no hay matches</p>
+                <p className="mt-3 font-medium">Todavia no hay matches</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Analizá tu primer job para ver scores, brechas y recomendaciones.
+                  Analiza tu primer job para ver scores, brechas y recomendaciones.
                 </p>
               </div>
             )}
