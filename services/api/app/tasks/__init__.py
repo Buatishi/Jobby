@@ -24,6 +24,7 @@ celery_app.conf.update(
         "app.tasks.parsing.parse_cv_task": {"queue": "parsing"},
         "app.tasks.analysis.job_analysis_task": {"queue": "analysis"},
         "app.tasks.analysis.match_task": {"queue": "analysis"},
+        "app.tasks.analysis.interview_kit_task": {"queue": "analysis"},
     },
     broker_transport_options={"visibility_timeout": 3600},
     result_backend_transport_options={"visibility_timeout": 3600},

@@ -1,15 +1,21 @@
 import asyncio
 import json
 import re
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import ValidationError
 
 from app.database import get_supabase_client
+from app.models.interview_kits import InterviewKitContent
 from app.models.jobs import StructuredJobDescription
-from app.services.ai_gateway import AIGateway
+from app.services.ai_gateway import AIGateway, PremiumRequiredError
+from app.services.ai_gateway.prompts.interview_kit_v1 import (
+    SYSTEM_PROMPT as INTERVIEW_KIT_SYSTEM_PROMPT,
+)
+from app.services.ai_gateway.prompts.interview_kit_v1 import build_user_prompt
 from app.services.match_engine import MatchResult, compute_match_score
-from app.services.scraper import scrape_url
+from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
 
 JobSource = Literal["url", "text"]
@@ -50,6 +56,68 @@ async def _fetch_job(supabase: Any, job_id: str) -> dict[str, Any]:
     return data
 
 
+async def _fetch_profile(supabase: Any, profile_id: str) -> dict[str, Any]:
+    data = await _execute(
+        supabase.table("master_profiles").select("*").eq("id", profile_id).single()
+    )
+    if not isinstance(data, dict):
+        raise ValueError(f"Profile {profile_id} not found.")
+    return data
+
+
+async def _fetch_interview_kit(supabase: Any, kit_id: str) -> dict[str, Any]:
+    data = await _execute(
+        supabase.table("interview_kits").select("*").eq("id", kit_id).single()
+    )
+    if not isinstance(data, dict):
+        raise ValueError(f"Interview kit {kit_id} not found.")
+    return data
+
+
+async def _fetch_profile_rows(
+    supabase: Any,
+    table_name: str,
+    profile_id: str,
+) -> list[dict[str, Any]]:
+    data = await _execute(
+        supabase.table(table_name).select("*").eq("profile_id", profile_id)
+    )
+    if isinstance(data, list):
+        return [row for row in data if isinstance(row, dict)]
+    return []
+
+
+async def _fetch_primary_cv(supabase: Any, user_id: str) -> dict[str, Any] | None:
+    data = await _execute(
+        supabase.table("uploaded_documents")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("type", "cv")
+        .eq("is_primary", True)
+        .single()
+    )
+    return data if isinstance(data, dict) else None
+
+
+async def _assert_interview_kit_limit(supabase: Any, user_id: str) -> None:
+    data = await _execute(
+        supabase.table("interview_kits").select("*").eq("user_id", user_id)
+    )
+    rows = (
+        [row for row in data if isinstance(row, dict)]
+        if isinstance(data, list)
+        else []
+    )
+    now = datetime.now(UTC)
+    current_month_count = 0
+    for row in rows:
+        created_at = str(row.get("created_at") or "")
+        if created_at.startswith(f"{now.year:04d}-{now.month:02d}"):
+            current_month_count += 1
+    if current_month_count >= 10:
+        raise ValueError("Interview Kits mensuales agotados.")
+
+
 def _system_prompt() -> str:
     return (
         "You extract structured job descriptions from Spanish or English job posts. "
@@ -86,6 +154,27 @@ def _embedding_input(job: StructuredJobDescription) -> str:
             " ".join(job.required_skills),
         ]
     ).strip()
+
+
+def _cv_text(primary_cv: dict[str, Any] | None) -> str:
+    if not primary_cv or not isinstance(primary_cv.get("parsed_data"), dict):
+        return "No disponible"
+    parsed_data = primary_cv["parsed_data"]
+    chunks: list[str] = []
+    for key in ("skills", "experiences", "educations", "languages", "certifications"):
+        chunks.append(f"{key}: {parsed_data.get(key, [])}")
+    return "\n".join(chunks)
+
+
+def _parse_interview_kit(content: str) -> InterviewKitContent:
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Claude returned invalid interview kit JSON.") from exc
+    try:
+        return InterviewKitContent.model_validate(parsed)
+    except ValidationError as exc:
+        raise ValueError("Interview kit JSON failed validation.") from exc
 
 
 def _reasoning_prompt(job: dict[str, Any], result: MatchResult) -> str:
@@ -251,4 +340,146 @@ def match_task(job_id: str, profile_id: str, user_id: str) -> dict[str, Any]:
 
 def enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
     async_result = match_task.delay(job_id, profile_id, user_id)
+    return str(async_result.id)
+
+
+async def run_interview_kit(
+    kit_id: str,
+    user_id: str,
+    supabase: Any | None = None,
+    gateway: AIGateway | None = None,
+) -> dict[str, Any]:
+    supabase_client = supabase or await get_supabase_client()
+    ai_gateway = gateway or AIGateway()
+    user_tier = await _fetch_user_tier(supabase_client, user_id)
+    if user_tier != "premium":
+        raise PremiumRequiredError("interview_kit")
+
+    await _assert_interview_kit_limit(supabase_client, user_id)
+    kit = await _fetch_interview_kit(supabase_client, kit_id)
+    await _execute(
+        supabase_client.table("interview_kits")
+        .update({"status": "processing", "error_msg": None})
+        .eq("id", kit_id)
+    )
+
+    try:
+        profile = await _fetch_profile(supabase_client, str(kit["profile_id"]))
+        job = await _fetch_job(supabase_client, str(kit["job_id"]))
+        skills = await _fetch_profile_rows(
+            supabase_client,
+            "skills",
+            str(kit["profile_id"]),
+        )
+        experiences = await _fetch_profile_rows(
+            supabase_client,
+            "experiences",
+            str(kit["profile_id"]),
+        )
+        primary_cv = await _fetch_primary_cv(supabase_client, user_id)
+        raw_metadata = kit.get("prep_notes")
+        metadata: dict[str, Any] = (
+            raw_metadata if isinstance(raw_metadata, dict) else {}
+        )
+        company_url = (
+            metadata.get("company_linkedin_url")
+            or job.get("source_url")
+            or ""
+        )
+        interviewer_url = metadata.get("interviewer_linkedin_url") or ""
+
+        company_data: dict[str, Any] | str = "No disponible"
+        if company_url:
+            company_data = await linkedin_scraper.scrape_company(
+                str(company_url),
+                db=supabase_client,
+                user_id=user_id,
+            )
+        person_data: dict[str, Any] = {}
+        if interviewer_url:
+            person_data = await linkedin_scraper.scrape_person(
+                str(interviewer_url),
+                db=supabase_client,
+                user_id=user_id,
+                candidate_context={
+                    "skills": [
+                        skill.get("name")
+                        for skill in skills
+                        if skill.get("name")
+                    ]
+                },
+            )
+
+        prompt = build_user_prompt(
+            nombre=str(profile.get("headline") or profile.get("id")),
+            cv_text=_cv_text(primary_cv),
+            skills=skills,
+            experiences=experiences,
+            company_name=str(job.get("company_name") or "No disponible"),
+            job_title=str(job.get("job_title") or "No disponible"),
+            job_description=str(job.get("raw_text") or job.get("job_title") or ""),
+            company_data_or_no_disponible=company_data,
+            interviewer_name=str(
+                metadata.get("interviewer_name")
+                or person_data.get("full_name")
+                or "No disponible"
+            ),
+            interviewer_role=str(
+                metadata.get("interviewer_role")
+                or person_data.get("current_role")
+                or "No disponible"
+            ),
+            role_type=str(person_data.get("role_type") or "Hiring Manager"),
+            background_summary=str(person_data.get("background_summary") or ""),
+        )
+        content = await ai_gateway.generate(
+            "interview_kit",
+            "premium",
+            prompt,
+            system=INTERVIEW_KIT_SYSTEM_PROMPT,
+            json_mode=True,
+        )
+        kit_content = _parse_interview_kit(content)
+        payload: dict[str, Any] = {
+            "title": f"Interview Kit - {job.get('job_title') or 'Puesto'}",
+            "questions": {
+                "model_answers": [
+                    answer.model_dump() for answer in kit_content.model_answers
+                ],
+                "candidate_questions": kit_content.candidate_questions,
+            },
+            "prep_notes": {
+                **metadata,
+                **kit_content.model_dump(),
+                "company_data": company_data,
+                "interviewer_data": person_data,
+            },
+            "status": "done",
+            "error_msg": None,
+            "ai_model_used": "claude-sonnet-4-5",
+        }
+        data = await _execute(
+            supabase_client.table("interview_kits").update(payload).eq("id", kit_id)
+        )
+        if isinstance(data, list) and data and isinstance(data[0], dict):
+            return data[0]
+        if isinstance(data, dict):
+            return data
+        return {**kit, **payload}
+    except Exception as exc:
+        await _execute(
+            supabase_client.table("interview_kits")
+            .update({"status": "failed", "error_msg": str(exc)})
+            .eq("id", kit_id)
+        )
+        raise
+
+
+@celery_app.task(name="app.tasks.analysis.interview_kit_task", queue="analysis")  # type: ignore[untyped-decorator]
+def interview_kit_task(kit_id: str, user_id: str) -> dict[str, Any]:
+    return asyncio.run(run_interview_kit(kit_id, user_id))
+
+
+def enqueue_interview_kit(kit_id: str, user_id: str) -> str:
+    async_result = interview_kit_task.delay(kit_id, user_id)
     return str(async_result.id)

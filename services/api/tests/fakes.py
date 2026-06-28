@@ -157,6 +157,8 @@ class FakeSupabase:
             "certifications": [],
             "job_descriptions": [],
             "job_matches": [],
+            "linkedin_scrape_cache": [],
+            "interview_kits": [],
         }
         self.completeness = 21
         self.storage = FakeStorage()
