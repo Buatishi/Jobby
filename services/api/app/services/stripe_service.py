@@ -55,6 +55,22 @@ def _subscription_is_active(payload: dict[str, Any]) -> bool:
     return str(payload.get("status")) in {"active", "trialing"}
 
 
+def _subscription_payload(subscription: Any) -> dict[str, Any]:
+    if isinstance(subscription, dict):
+        return subscription
+
+    metadata = getattr(subscription, "metadata", {}) or {}
+    customer = getattr(subscription, "customer", None)
+    status = getattr(subscription, "status", None)
+    client_reference_id = getattr(subscription, "client_reference_id", None)
+    return {
+        "metadata": dict(metadata) if isinstance(metadata, dict) else {},
+        "customer": customer,
+        "status": status,
+        "client_reference_id": client_reference_id,
+    }
+
+
 async def create_checkout_session(
     user_id: str,
     price_id: str,
@@ -119,11 +135,7 @@ async def handle_webhook(event: dict[str, Any], db: Any | None = None) -> None:
         subscription_id = payload.get("subscription")
         if not user_id and subscription_id:
             subscription = stripe.Subscription.retrieve(str(subscription_id))
-            subscription_payload = (
-                dict(subscription)
-                if not isinstance(subscription, dict)
-                else subscription
-            )
+            subscription_payload = _subscription_payload(subscription)
             user_id = _metadata_user_id(subscription_payload)
             stripe_customer_id = stripe_customer_id or _customer_id(
                 subscription_payload

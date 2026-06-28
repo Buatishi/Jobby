@@ -8,6 +8,7 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
+from app.services.scraper import playwright_scraper
 from app.services.scraper.playwright_scraper import ScraperBlockedError, scrape_url
 from app.tasks import analysis
 from tests.fakes import FakeSupabase
@@ -83,9 +84,16 @@ def test_analyze_job_enqueues_task_for_complete_profile(
         enqueued.append((job_id, user_id, source, url, raw_text))
         return "task-job-1"
 
+    async def fake_increment_rate_limit(*args: Any, **kwargs: Any) -> int:
+        return 1
+
     app.dependency_overrides[get_current_user] = _fake_current_user
     app.dependency_overrides[get_supabase_client] = fake_client
     monkeypatch.setattr("app.api.v1.jobs.enqueue_job_analysis", fake_enqueue)
+    monkeypatch.setattr(
+        "app.api.v1.jobs.increment_rate_limit",
+        fake_increment_rate_limit,
+    )
 
     response = client.post(
         "/api/v1/jobs/analyze",
@@ -198,6 +206,7 @@ async def test_scrape_url_returns_body_text(monkeypatch: pytest.MonkeyPatch) -> 
 
 @pytest.mark.asyncio
 async def test_scrape_url_raises_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(playwright_scraper, "PlaywrightTimeoutError", TimeoutError)
     monkeypatch.setattr(
         "app.services.scraper.playwright_scraper.async_playwright",
         lambda: FakePlaywrightContext(FakePage("", should_timeout=True)),

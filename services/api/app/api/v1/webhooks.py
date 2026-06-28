@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, cast
 
 import stripe
 from fastapi import APIRouter, HTTPException, Request, status
@@ -25,7 +25,7 @@ async def stripe_webhook(request: Request) -> dict[str, str]:
         )
 
     try:
-        event: Any = stripe.Webhook.construct_event(
+        event: Any = cast(Any, stripe.Webhook).construct_event(
             payload,
             signature,
             settings.stripe_webhook_secret,
