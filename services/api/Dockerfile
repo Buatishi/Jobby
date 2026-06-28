@@ -1,22 +1,27 @@
 FROM python:3.13-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=2.1.4 \
-    PORT=8000
-
 WORKDIR /app
 
-RUN python -m pip install --no-cache-dir "poetry==$POETRY_VERSION"
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+# Instalar Poetry
+RUN pip install poetry==1.8.3
+
+# Copiar archivos de dependencias primero (para cache de Docker)
+COPY pyproject.toml poetry.lock* ./
+
+# Instalar dependencias sin crear virtualenv (estamos en Docker)
 RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi
+    && poetry install --no-interaction --no-ansi --no-root
 
-RUN python -m playwright install --with-deps chromium
+# Copiar el resto del código
+COPY . .
 
-COPY app ./app
-
+# Exponer puerto
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Comando de inicio
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
