@@ -114,6 +114,33 @@ def test_set_primary_document_switches_atomically_and_requeues(
     assert fake_supabase.tables["uploaded_documents"][1]["status"] == "pending"
 
 
+def test_create_profile_skill_persists_confirmed_cv_skill(
+    client: TestClient,
+) -> None:
+    fake_supabase = FakeSupabase()
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.post(
+        "/api/v1/profiles/skills",
+        json={
+            "name": "FastAPI",
+            "category": "technical",
+            "level": "advanced",
+            "in_cv": True,
+            "confirmed": True,
+        },
+    )
+
+    assert response.status_code == 201
+    assert fake_supabase.tables["skills"][0]["profile_id"] == "profile-1"
+    assert fake_supabase.tables["skills"][0]["confirmed"] is True
+
+
 @pytest.mark.asyncio
 async def test_run_parse_cv_updates_document_status_and_parsed_data(
     monkeypatch: pytest.MonkeyPatch,

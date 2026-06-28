@@ -65,3 +65,35 @@ class UploadedDocument(BaseModel):
     task_id: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class SkillCreate(BaseModel):
+    name: str
+    category: str | None = None
+    level: str | None = None
+    in_cv: bool = False
+    confirmed: bool = False
+
+
+class RejectedSkillCreate(BaseModel):
+    name: str
+    source: str = "manual"
+    reason: str | None = None
+
+
+class ExperienceCreate(BaseModel):
+    company: str
+    title: str
+    description: str | None = None
+    achievements: list[str] = Field(default_factory=list)
+
+
+class EducationCreate(BaseModel):
+    institution: str
+    field_of_study: str | None = None
+    degree_level: str | None = None
+
+
+class LanguageCreate(BaseModel):
+    name: str
+    level: str | None = None

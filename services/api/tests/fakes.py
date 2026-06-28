@@ -15,6 +15,10 @@ class FakeTableQuery:
         self.insert_payload: dict[str, Any] | None = None
         self.upsert_payload: dict[str, Any] | None = None
         self.should_delete = False
+        self.single_row = False
+        self.limit_count: int | None = None
+        self.order_column: str | None = None
+        self.order_desc = False
 
     def select(self, _columns: str) -> "FakeTableQuery":
         return self
@@ -24,6 +28,16 @@ class FakeTableQuery:
         return self
 
     def single(self) -> "FakeTableQuery":
+        self.single_row = True
+        return self
+
+    def order(self, column: str, desc: bool = False) -> "FakeTableQuery":
+        self.order_column = column
+        self.order_desc = desc
+        return self
+
+    def limit(self, count: int) -> "FakeTableQuery":
+        self.limit_count = count
         return self
 
     def update(self, payload: dict[str, Any]) -> "FakeTableQuery":
@@ -76,11 +90,25 @@ class FakeTableQuery:
                     updated_rows.append(row.copy())
             return FakeResponse(updated_rows)
 
-        for row in rows:
-            if all(row.get(key) == value for key, value in self.filters.items()):
-                return FakeResponse(row.copy())
+        matching_rows = [
+            row.copy()
+            for row in rows
+            if all(row.get(key) == value for key, value in self.filters.items())
+        ]
 
-        return FakeResponse(None)
+        if self.order_column is not None:
+            matching_rows.sort(
+                key=lambda row: row.get(self.order_column) or "",
+                reverse=self.order_desc,
+            )
+
+        if self.limit_count is not None:
+            matching_rows = matching_rows[: self.limit_count]
+
+        if self.single_row:
+            return FakeResponse(matching_rows[0] if matching_rows else None)
+
+        return FakeResponse(matching_rows)
 
 
 class FakeRpcQuery:
@@ -99,6 +127,7 @@ class FakeSupabase:
                     "id": "user-1",
                     "supabase_uid": "auth-user-1",
                     "email": "person@example.com",
+                    "tier": "free",
                 }
             ],
             "master_profiles": [
@@ -121,6 +150,12 @@ class FakeSupabase:
             ],
             "uploaded_documents": [],
             "skills": [],
+            "rejected_skills": [],
+            "experiences": [],
+            "educations": [],
+            "languages": [],
+            "job_descriptions": [],
+            "job_matches": [],
         }
         self.completeness = 21
         self.storage = FakeStorage()

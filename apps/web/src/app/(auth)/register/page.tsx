@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { startWizard } from "@/lib/wizard/progress";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -46,7 +47,8 @@ export default function RegisterPage() {
       return;
     }
 
-    router.push("/dashboard");
+    startWizard();
+    router.push("/wizard/step-1");
     router.refresh();
   }
 

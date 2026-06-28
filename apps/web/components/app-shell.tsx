@@ -1,6 +1,7 @@
 import type { UserTier } from "@jobmatch/shared-types";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { WizardRedirectGuard } from "@/components/wizard-redirect-guard";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="min-h-screen bg-muted/30 lg:grid lg:grid-cols-[18rem_1fr]">
+      <WizardRedirectGuard />
       <AppSidebar
         pendingAnalysesCount={pendingAnalysesCount}
         userTier={userTier}

@@ -6,8 +6,13 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.models.auth import CurrentUser
 from app.models.profiles import (
+    EducationCreate,
+    ExperienceCreate,
+    LanguageCreate,
     MasterProfile,
     MasterProfileUpdate,
+    RejectedSkillCreate,
+    SkillCreate,
     UploadedDocument,
     UploadedDocumentCreate,
 )
@@ -70,6 +75,34 @@ async def _fetch_document(
 
 async def _update_completeness(supabase: Any, profile_id: str) -> None:
     await supabase.rpc("compute_completeness", {"p_id": profile_id}).execute()
+
+
+async def _insert_profile_row(
+    supabase: Any,
+    table_name: str,
+    profile_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    response = (
+        await supabase.table(table_name)
+        .insert({"profile_id": profile_id, **payload})
+        .execute()
+    )
+    data = getattr(response, "data", None)
+    if isinstance(data, list) and data:
+        created_row = data[0]
+        if isinstance(created_row, dict):
+            return created_row
+    if isinstance(data, dict):
+        return data
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail={
+            "error": "No se pudo guardar el dato del perfil",
+            "code": "PROFILE_DETAIL_CREATE_FAILED",
+            "details": {"table": table_name},
+        },
+    )
 
 
 @router.get("/me", response_model=MasterProfile)
@@ -206,3 +239,92 @@ async def delete_profile_document(
         .execute()
     )
     await _update_completeness(supabase, str(document["profile_id"]))
+
+
+@router.post("/skills", status_code=201)
+async def create_profile_skill(
+    payload: SkillCreate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> dict[str, Any]:
+    profile = await _fetch_profile(supabase, current_user.id)
+    skill = await _insert_profile_row(
+        supabase,
+        "skills",
+        str(profile["id"]),
+        {
+            "name": payload.name,
+            "category": payload.category,
+            "level": payload.level,
+            "in_cv": payload.in_cv,
+            "confirmed": payload.confirmed,
+        },
+    )
+    await _update_completeness(supabase, str(profile["id"]))
+    return skill
+
+
+@router.post("/rejected-skills", status_code=201)
+async def create_rejected_profile_skill(
+    payload: RejectedSkillCreate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> dict[str, Any]:
+    profile = await _fetch_profile(supabase, current_user.id)
+    return await _insert_profile_row(
+        supabase,
+        "rejected_skills",
+        str(profile["id"]),
+        payload.model_dump(),
+    )
+
+
+@router.post("/experiences", status_code=201)
+async def create_profile_experience(
+    payload: ExperienceCreate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> dict[str, Any]:
+    profile = await _fetch_profile(supabase, current_user.id)
+    experience = await _insert_profile_row(
+        supabase,
+        "experiences",
+        str(profile["id"]),
+        payload.model_dump(),
+    )
+    await _update_completeness(supabase, str(profile["id"]))
+    return experience
+
+
+@router.post("/educations", status_code=201)
+async def create_profile_education(
+    payload: EducationCreate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> dict[str, Any]:
+    profile = await _fetch_profile(supabase, current_user.id)
+    education = await _insert_profile_row(
+        supabase,
+        "educations",
+        str(profile["id"]),
+        payload.model_dump(),
+    )
+    await _update_completeness(supabase, str(profile["id"]))
+    return education
+
+
+@router.post("/languages", status_code=201)
+async def create_profile_language(
+    payload: LanguageCreate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> dict[str, Any]:
+    profile = await _fetch_profile(supabase, current_user.id)
+    language = await _insert_profile_row(
+        supabase,
+        "languages",
+        str(profile["id"]),
+        {"name": payload.name, "proficiency": payload.level},
+    )
+    await _update_completeness(supabase, str(profile["id"]))
+    return language

@@ -11,6 +11,7 @@ out/
 dist/
 build/
 coverage/
+*.tsbuildinfo
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
