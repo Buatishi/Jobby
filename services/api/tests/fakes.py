@@ -154,6 +154,7 @@ class FakeSupabase:
             "experiences": [],
             "educations": [],
             "languages": [],
+            "certifications": [],
             "job_descriptions": [],
             "job_matches": [],
         }
