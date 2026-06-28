@@ -1,0 +1,93 @@
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.database import get_supabase_client
+from app.dependencies import get_current_user
+from app.models.ats import ATSFormatIssue, ATSKeywordMatch, ATSReport
+from app.models.auth import CurrentUser
+from app.services.ats_analyzer.format_checker import check_cv_format
+from app.services.ats_analyzer.keyword_matcher import analyze_keywords
+from app.services.ats_analyzer.scoring import compute_ats_score
+
+router = APIRouter(prefix="/ats", tags=["ats"])
+
+
+async def _execute(query: Any) -> Any:
+    response = await query.execute()
+    return getattr(response, "data", None)
+
+
+async def _fetch_job(supabase: Any, job_id: str, user_id: str) -> dict[str, Any]:
+    data = await _execute(
+        supabase.table("job_descriptions")
+        .select("*")
+        .eq("id", job_id)
+        .eq("user_id", user_id)
+        .single()
+    )
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "Job no encontrado",
+                "code": "JOB_NOT_FOUND",
+                "details": {},
+            },
+        )
+    return data
+
+
+async def _fetch_primary_cv(supabase: Any, user_id: str) -> dict[str, Any]:
+    data = await _execute(
+        supabase.table("uploaded_documents")
+        .select("*")
+        .eq("user_id", user_id)
+        .eq("type", "cv")
+        .eq("is_primary", True)
+        .single()
+    )
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "CV primario no encontrado",
+                "code": "PRIMARY_CV_NOT_FOUND",
+                "details": {},
+            },
+        )
+    return data
+
+
+@router.get("/{job_id}", response_model=ATSReport)
+async def get_ats_report(
+    job_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> ATSReport:
+    job = await _fetch_job(supabase, job_id, current_user.id)
+    primary_cv = await _fetch_primary_cv(supabase, current_user.id)
+    keyword_result = await analyze_keywords(job, primary_cv)
+    format_issues = check_cv_format(primary_cv)
+    ats_score = compute_ats_score(keyword_result.matches, format_issues)
+
+    return ATSReport(
+        job_id=job_id,
+        ats_score=ats_score,
+        keyword_matches=[
+            ATSKeywordMatch(
+                keyword=match.keyword,
+                status=match.status,
+                matched_text=match.matched_text,
+            )
+            for match in keyword_result.matches
+        ],
+        format_issues=[
+            ATSFormatIssue(
+                code=issue.code,
+                message=issue.message,
+                penalty=issue.penalty,
+            )
+            for issue in format_issues
+        ],
+    )

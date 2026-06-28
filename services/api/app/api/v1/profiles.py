@@ -16,6 +16,8 @@ from app.models.profiles import (
     UploadedDocument,
     UploadedDocumentCreate,
 )
+from app.models.reality_gap import RealityGapReport, RealityGapSkill
+from app.services.reality_gap import score_reality_gap
 from app.tasks import parsing as parsing_tasks
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
@@ -328,3 +330,38 @@ async def create_profile_language(
     )
     await _update_completeness(supabase, str(profile["id"]))
     return language
+
+
+@router.get("/reality-gap", response_model=RealityGapReport)
+async def get_reality_gap(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> RealityGapReport:
+    profile = await _fetch_profile(supabase, current_user.id)
+    skills_response = (
+        await supabase.table("skills")
+        .select("*")
+        .eq("profile_id", profile["id"])
+        .eq("confirmed", True)
+        .execute()
+    )
+    rejected_response = (
+        await supabase.table("rejected_skills")
+        .select("*")
+        .eq("profile_id", profile["id"])
+        .execute()
+    )
+    skills_data = getattr(skills_response, "data", [])
+    rejected_data = getattr(rejected_response, "data", [])
+    scored = score_reality_gap(
+        [skill for skill in skills_data if isinstance(skill, dict)]
+        if isinstance(skills_data, list)
+        else [],
+        [skill for skill in rejected_data if isinstance(skill, dict)]
+        if isinstance(rejected_data, list)
+        else [],
+    )
+    return RealityGapReport(
+        profile_id=str(profile["id"]),
+        skills=[RealityGapSkill.model_validate(skill) for skill in scored],
+    )

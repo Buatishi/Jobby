@@ -102,10 +102,10 @@ async def test_run_job_analysis_saves_job_and_enqueues_match(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_supabase = FakeSupabase()
-    enqueued_matches: list[tuple[str, str]] = []
+    enqueued_matches: list[tuple[str, str, str]] = []
 
-    def fake_enqueue_match(job_id: str, profile_id: str) -> str:
-        enqueued_matches.append((job_id, profile_id))
+    def fake_enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
+        enqueued_matches.append((job_id, profile_id, user_id))
         return "match-task-1"
 
     monkeypatch.setattr(analysis, "enqueue_match", fake_enqueue_match)
@@ -123,7 +123,7 @@ async def test_run_job_analysis_saves_job_and_enqueues_match(
     assert result["id"] == "job-1"
     assert result["job_title"] == "Backend Engineer"
     assert fake_supabase.tables["job_descriptions"][0]["embedding"] == [0.2] * 1536
-    assert enqueued_matches == [("job-1", "profile-1")]
+    assert enqueued_matches == [("job-1", "profile-1", "user-1")]
 
 
 class FakeBody:

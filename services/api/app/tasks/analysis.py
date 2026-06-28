@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from typing import Any, Literal
 
 from pydantic import ValidationError
@@ -7,9 +8,9 @@ from pydantic import ValidationError
 from app.database import get_supabase_client
 from app.models.jobs import StructuredJobDescription
 from app.services.ai_gateway import AIGateway
+from app.services.match_engine import MatchResult, compute_match_score
 from app.services.scraper import scrape_url
 from app.tasks import celery_app
-from app.tasks.matching import enqueue_match
 
 JobSource = Literal["url", "text"]
 
@@ -29,6 +30,24 @@ async def _fetch_profile_id(supabase: Any, user_id: str) -> str:
     if not isinstance(data, dict):
         raise ValueError(f"Profile for user {user_id} not found.")
     return str(data["id"])
+
+
+async def _fetch_user_tier(supabase: Any, user_id: str) -> Literal["free", "premium"]:
+    data = await _execute(
+        supabase.table("users").select("tier").eq("id", user_id).single()
+    )
+    if isinstance(data, dict) and data.get("tier") == "premium":
+        return "premium"
+    return "free"
+
+
+async def _fetch_job(supabase: Any, job_id: str) -> dict[str, Any]:
+    data = await _execute(
+        supabase.table("job_descriptions").select("*").eq("id", job_id).single()
+    )
+    if not isinstance(data, dict):
+        raise ValueError(f"Job {job_id} not found.")
+    return data
 
 
 def _system_prompt() -> str:
@@ -67,6 +86,83 @@ def _embedding_input(job: StructuredJobDescription) -> str:
             " ".join(job.required_skills),
         ]
     ).strip()
+
+
+def _reasoning_prompt(job: dict[str, Any], result: MatchResult) -> str:
+    return (
+        "Explicá en bullets concretos por qué este candidato tiene un match "
+        f"score de {result.match_score} para este puesto.\n"
+        "Listá 3-5 recomendaciones accionables específicas "
+        "(ej: 'Agregá React al CV', 'Mencioná liderazgo').\n\n"
+        f"Puesto: {job.get('job_title')}\n"
+        f"Empresa: {job.get('company_name')}\n"
+        f"Score breakdown: {json.dumps(result.score_breakdown, ensure_ascii=False)}"
+    )
+
+
+def _recommendations_from_reasoning(reasoning: str) -> list[dict[str, str]]:
+    lines = [
+        re.sub(r"^[-*•\d.\s]+", "", line).strip()
+        for line in reasoning.splitlines()
+    ]
+    concrete_lines = [line for line in lines if line]
+    recommendations = concrete_lines[-5:] if len(concrete_lines) > 5 else concrete_lines
+    return [
+        {
+            "title": item[:80],
+            "description": item,
+            "priority": "high" if index == 0 else "medium",
+        }
+        for index, item in enumerate(recommendations[:5])
+    ]
+
+
+async def run_match(
+    job_id: str,
+    profile_id: str,
+    user_id: str,
+    supabase: Any | None = None,
+    gateway: AIGateway | None = None,
+) -> dict[str, Any]:
+    supabase_client = supabase or await get_supabase_client()
+    ai_gateway = gateway or AIGateway()
+    job = await _fetch_job(supabase_client, job_id)
+    user_tier = await _fetch_user_tier(supabase_client, user_id)
+    result = await compute_match_score(profile_id, job_id, supabase_client)
+    reasoning = await ai_gateway.generate(
+        "match_reasoning",
+        user_tier,
+        _reasoning_prompt(job, result),
+        system=(
+            "Sos un coach laboral bilingüe. Respondé en español, con bullets "
+            "concretos y recomendaciones específicas. No uses markdown complejo."
+        ),
+    )
+    recommendations = _recommendations_from_reasoning(reasoning)
+
+    payload: dict[str, Any] = {
+        "user_id": user_id,
+        "profile_id": profile_id,
+        "job_id": job_id,
+        "match_score": result.match_score,
+        "potential_score": result.potential_score,
+        "representation_score": result.representation_score,
+        "gap_origin": result.gap_origin,
+        "score_breakdown": {
+            **result.score_breakdown,
+            "reasoning": reasoning,
+        },
+        "recommendations": recommendations,
+        "ai_model_used": "claude-sonnet-4-5"
+        if user_tier == "premium"
+        else "deepseek-chat",
+    }
+    data = await _execute(supabase_client.table("job_matches").insert(payload))
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        return data
+    return payload
 
 
 async def run_job_analysis(
@@ -117,7 +213,7 @@ async def run_job_analysis(
         "embedding": embedding,
     }
     data = await _execute(supabase_client.table("job_descriptions").insert(payload))
-    enqueue_match(job_id, profile_id)
+    enqueue_match(job_id, profile_id, user_id)
 
     if isinstance(data, list) and data and isinstance(data[0], dict):
         return data[0]
@@ -145,4 +241,14 @@ def enqueue_job_analysis(
     raw_text: str | None,
 ) -> str:
     async_result = job_analysis_task.delay(job_id, user_id, source, url, raw_text)
+    return str(async_result.id)
+
+
+@celery_app.task(name="app.tasks.analysis.match_task", queue="analysis")  # type: ignore[untyped-decorator]
+def match_task(job_id: str, profile_id: str, user_id: str) -> dict[str, Any]:
+    return asyncio.run(run_match(job_id, profile_id, user_id))
+
+
+def enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
+    async_result = match_task.delay(job_id, profile_id, user_id)
     return str(async_result.id)
