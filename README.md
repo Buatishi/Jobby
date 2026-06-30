@@ -1,85 +1,149 @@
 # JobMatch AI
 
-Monorepo for the JobMatch AI frontend, backend, and shared TypeScript contracts.
+JobMatch AI is a monorepo for matching candidates against job descriptions, improving ATS coverage, and generating premium interview preparation kits.
 
-## Workspaces
+## Project Structure
 
-- `apps/web` - Next.js 15 frontend.
-- `services/api` - FastAPI backend.
-- `packages/shared-types` - shared TypeScript API types.
+- `apps/web` - Next.js 15 App Router frontend.
+- `services/api` - FastAPI backend, Celery workers, Supabase integration.
+- `packages/shared-types` - shared TypeScript contracts.
+- `services/api/migrations` - numbered Supabase SQL migrations.
+- `tests/load` - k6 load tests for backend workflows.
 
-## CI Commands
-
-- Frontend: `cd apps/web && pnpm install && pnpm typecheck && pnpm lint && pnpm build`
-- Backend: `cd services/api && poetry install && poetry run mypy app/ && poetry run pytest`
-- Shared types: `cd packages/shared-types && pnpm install && pnpm build`
-
-## Local Installation
+## Local Setup
 
 Prerequisites:
 
 - Node.js 22+
 - pnpm 9+
 - Python 3.13+
+- Poetry 1.8+
+- Docker Desktop
 
-Install everything from the repository root:
+Start local infrastructure:
 
 ```powershell
-cd C:\Users\juany\Documents\JobMatch
-.\scripts\install-all.ps1
+docker compose up -d
 ```
 
-Manual alternative:
+Create env files from `.env.example`, then install dependencies:
 
 ```powershell
-cd C:\Users\juany\Documents\JobMatch
-python -m pip install -r requirements.txt
-python -m playwright install chromium
 pnpm install
+cd services/api
+poetry install
+poetry run playwright install chromium
 ```
 
-Start the frontend:
+Run the app:
 
 ```powershell
-pnpm --filter @jobmatch/web dev
+cd services/api
+poetry run uvicorn app.main:app --reload
 ```
 
-Open `http://localhost:3000`.
+```powershell
+cd apps/web
+pnpm dev
+```
 
-## Deploy on Render
+Frontend runs at `http://localhost:3000`; backend runs at `http://localhost:8000`.
 
-Backend deploys are configured with `render.yaml` at the repository root.
+## Supabase Migrations
 
-1. Create an Upstash Redis database and copy its TLS URL into `REDIS_URL`.
-2. In Render, create a new Blueprint from this repository.
-3. Render will create:
-   - `jobmatch-api` web service using `services/api/Dockerfile` on port `8000`.
-   - `jobmatch-worker-analysis` for Celery queues `parsing,analysis`.
-   - `jobmatch-worker-scraping` for the `scraping` queue.
-     Por ahora todos los servicios usan el plan Free para validar deploys sin costo; antes de usar scraping en serio, subir este worker a un plan con al menos 512MB RAM porque Playwright corre ahí.
-4. Add the required environment variables in Render:
-   `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
-   `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `REDIS_URL`,
-   `FRONTEND_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
-   `RESEND_API_KEY`.
+Apply migrations in order from `services/api/migrations` using the Supabase SQL editor or CLI. Do not edit an already-applied migration; create a new numbered migration instead.
 
-Use an Upstash Redis TLS URL format like:
+Required Supabase setup:
+
+- Enable PostgreSQL extensions used by the migrations, including `pgcrypto` and `vector`.
+- Create the `cv-docs` Storage bucket.
+- Configure Auth providers and callback URLs for the frontend domain.
+- Apply RLS policies from the migration set before testing authenticated flows.
+
+## Checks
+
+Run before each PR:
+
+```powershell
+cd apps/web
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
+```powershell
+cd services/api
+poetry run ruff check app tests
+poetry run mypy app/
+poetry run pytest --basetemp=.pytest-tmp
+```
+
+```powershell
+cd packages/shared-types
+pnpm build
+```
+
+E2E tests:
+
+```powershell
+cd apps/web
+pnpm exec playwright test
+```
+
+Load tests:
+
+```powershell
+k6 run -e API_URL=http://localhost:8000 -e AUTH_TOKEN=<jwt> tests/load/jobmatch.k6.js
+```
+
+## Deploy
+
+Frontend deploys to Vercel from `apps/web`. Configure Supabase public keys, backend URL, Stripe price IDs, and Sentry DSN in Vercel environment variables.
+
+Backend deploys are configured for Render with `render.yaml` at the repository root. Railway is not the active backend target in this repo anymore; if you deploy there manually, mirror the same Dockerfile, worker commands, and environment variables from `render.yaml`.
+
+Render creates:
+
+- FastAPI web service from `services/api/Dockerfile` on port `8000`.
+- Celery worker for `parsing,analysis`.
+- Celery worker for `scraping`; move this off the free plan before real scraping because Playwright needs more memory.
+
+Use Upstash Redis with a TLS URL:
 
 ```text
 rediss://default:<UPSTASH_REDIS_PASSWORD>@<UPSTASH_REDIS_HOST>:6379
 ```
 
-## GitHub Secrets
+## Environment Variables
 
-Configure these repository secrets before enabling CI and preview deployments:
+Backend:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `REDIS_URL`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `RESEND_API_KEY`
+- `SENTRY_DSN`
+- `FRONTEND_URL`
+
+Frontend:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_API_URL`
 - `NEXT_PUBLIC_PRICE_MONTHLY`
 - `NEXT_PUBLIC_PRICE_YEARLY`
+- `NEXT_PUBLIC_STRIPE_PRICE_MONTHLY_ID`
+- `NEXT_PUBLIC_STRIPE_PRICE_YEARLY_ID`
+- `NEXT_PUBLIC_SENTRY_DSN`
+
+GitHub preview deploy secrets:
+
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
-
-Production deploy is intentionally not configured yet; preview deployments only run on pull requests.

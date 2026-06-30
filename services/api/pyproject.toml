@@ -21,6 +21,8 @@ pdfplumber = ">=0.11"
 playwright = ">=1.49"
 slowapi = ">=0.1.9"
 stripe = ">=11.0"
+resend = ">=2.0"
+sentry-sdk = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = ">=1.14"
@@ -50,6 +52,10 @@ module = [
     "slowapi.*",
     "stripe",
     "stripe.*",
+    "resend",
+    "resend.*",
+    "sentry_sdk",
+    "sentry_sdk.*",
 ]
 ignore_missing_imports = true
 
