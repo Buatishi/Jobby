@@ -23,4 +23,26 @@ describe("auth callback route", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("http://localhost:3000/dashboard");
   });
+
+  it("redirects OAuth provider errors back to login", async () => {
+    const supabase = {
+      auth: {
+        exchangeCodeForSession: async () => {
+          return { data: { session: null }, error: null };
+        }
+      }
+    } as unknown as Parameters<typeof exchangeAuthCode>[1];
+
+    const response = await exchangeAuthCode(
+      new URL(
+        "http://localhost:3000/api/auth/callback?error_description=Google%20OAuth%20failed"
+      ),
+      supabase
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3000/login?error=Google+OAuth+failed"
+    );
+  });
 });

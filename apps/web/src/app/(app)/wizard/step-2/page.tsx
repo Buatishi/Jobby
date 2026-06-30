@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileUp, RotateCcw } from "lucide-react";
+import { FileUp, RotateCcw, ShieldCheck } from "lucide-react";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { Button } from "@/components/ui/button";
@@ -132,19 +132,22 @@ export default function WizardStepTwoPage() {
       }
 
       setStatus("Registrando documento y encolando parsing...");
-      const document = await apiClient<DocumentResponse>("/api/v1/profiles/documents", {
-        method: "POST",
-        body: JSON.stringify({
-          profile_id: profile.id,
-          type: "cv",
-          cv_slot: 1,
-          is_primary: true,
-          storage_path: storagePath,
-          original_filename: selectedFile.name,
-          mime_type: selectedFile.type,
-          file_size: selectedFile.size
-        })
-      });
+      const document = await apiClient<DocumentResponse>(
+        "/api/v1/profiles/documents",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            profile_id: profile.id,
+            type: "cv",
+            cv_slot: 1,
+            is_primary: true,
+            storage_path: storagePath,
+            original_filename: selectedFile.name,
+            mime_type: selectedFile.type,
+            file_size: selectedFile.size
+          })
+        }
+      );
 
       if (!document.task_id) {
         throw new Error("El backend no devolvió el task de parsing.");
@@ -171,7 +174,7 @@ export default function WizardStepTwoPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <WizardProgress currentStep={2} />
+      <WizardProgress currentStep={2} completionPercent={35} />
       <Card>
         <CardHeader>
           <CardTitle>Subí tu CV</CardTitle>
@@ -180,6 +183,16 @@ export default function WizardStepTwoPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div className="rounded-md border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm">
+            <div className="flex gap-3">
+              <ShieldCheck className="mt-0.5 h-4 w-4 flex-none text-[#0F6E56]" />
+              <p className="text-muted-foreground">
+                El CV ayuda a que Jobby detecte evidencia real. Si todavía no
+                lo tenés listo, podés avanzar y cargarlo después desde tu perfil.
+              </p>
+            </div>
+          </div>
+
           <label className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center">
             <FileUp className="h-10 w-10 text-muted-foreground" />
             <span className="mt-3 font-medium">
@@ -235,7 +248,7 @@ export default function WizardStepTwoPage() {
               type="button"
               variant="ghost"
             >
-              Continuar sin bloquear
+              Cargar CV más tarde
             </Button>
           </div>
         </CardContent>

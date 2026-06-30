@@ -12,9 +12,18 @@ export type WizardSkillDraft = {
   rejected?: boolean;
 };
 
+export type WizardStepOneDraft = {
+  headline?: string;
+  summary?: string;
+  targetRole?: string;
+  targetSeniority?: string;
+  workModality?: string;
+};
+
 export type WizardProgress = {
   currentStep: WizardStep;
   completed: boolean;
+  stepOneDraft?: WizardStepOneDraft;
   taskId?: string;
   documentId?: string;
   parsedSkills?: WizardSkillDraft[];

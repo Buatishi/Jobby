@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Check, X } from "lucide-react";
+import { Check, Loader2, Lock, Wand2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -32,6 +33,17 @@ type ATSReport = {
   }>;
 };
 
+type ATSOptimizeResponse = {
+  job_id: string;
+  sections: Array<{
+    section_name: string;
+    original_excerpt: string;
+    rewritten_text: string;
+    added_keywords: string[];
+    rationale: string;
+  }>;
+};
+
 function statusLabel(status: KeywordStatus) {
   if (status === "literal") {
     return "✓";
@@ -46,6 +58,9 @@ export default function ATSReportPage() {
   const params = useParams<{ id: string }>();
   const [report, setReport] = useState<ATSReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [optimized, setOptimized] = useState<ATSOptimizeResponse | null>(null);
+  const [optimizerError, setOptimizerError] = useState<string | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   useEffect(() => {
     async function loadReport() {
@@ -71,6 +86,27 @@ export default function ATSReportPage() {
         .length ?? 0,
     [report?.keyword_matches]
   );
+
+  async function handleOptimize() {
+    setIsOptimizing(true);
+    setOptimizerError(null);
+    try {
+      setOptimized(
+        await apiClient<ATSOptimizeResponse>("/api/v1/ats/optimize", {
+          method: "POST",
+          body: JSON.stringify({ job_id: params.id })
+        })
+      );
+    } catch (requestError) {
+      setOptimizerError(
+        requestError instanceof Error
+          ? requestError.message
+          : "No se pudo optimizar el CV."
+      );
+    } finally {
+      setIsOptimizing(false);
+    }
+  }
 
   if (error) {
     return (
@@ -208,6 +244,88 @@ export default function ATSReportPage() {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      <section className="mt-4">
+        <details className="rounded-lg border border-border bg-background">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-6">
+            <div>
+              <h2 className="text-lg font-semibold">CV Optimizado</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Secciones reescritas para cubrir keywords faltantes sin inventar
+                experiencia.
+              </p>
+            </div>
+            <Badge variant="outline">Premium</Badge>
+          </summary>
+          <div className="border-t border-border p-6">
+            <Button
+              disabled={isOptimizing}
+              onClick={() => void handleOptimize()}
+              type="button"
+            >
+              {isOptimizing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Optimizando...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  Optimizar secciones del CV
+                </>
+              )}
+            </Button>
+
+            {optimizerError ? (
+              <div className="mt-4 flex items-start gap-3 rounded-md border border-border p-4 text-sm text-muted-foreground">
+                <Lock className="mt-0.5 h-4 w-4" />
+                <p>{optimizerError}</p>
+              </div>
+            ) : null}
+
+            {optimized ? (
+              <div className="mt-5 space-y-4">
+                {optimized.sections.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No detectamos secciones con baja cobertura para reescribir.
+                  </p>
+                ) : (
+                  optimized.sections.map((section) => (
+                    <div
+                      className="rounded-md border border-border p-4"
+                      key={section.section_name}
+                    >
+                      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                        <div>
+                          <h3 className="font-medium">{section.section_name}</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {section.rationale}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {section.added_keywords.map((keyword) => (
+                            <Badge key={keyword} variant="outline">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div className="rounded-md bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+                          {section.original_excerpt}
+                        </div>
+                        <div className="rounded-md border border-[#1D9E75] p-3 text-sm leading-6">
+                          {section.rewritten_text}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : null}
+          </div>
+        </details>
       </section>
     </main>
   );

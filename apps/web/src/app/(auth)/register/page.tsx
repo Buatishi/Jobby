@@ -37,7 +37,7 @@ export default function RegisterPage() {
           full_name: fullName,
           accepted_tos: true
         },
-        emailRedirectTo: `${origin}/api/auth/callback`
+        emailRedirectTo: `${origin}/api/auth/callback?next=/wizard/step-1`
       }
     });
     setIsSubmitting(false);
@@ -53,9 +53,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
+    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
+      <Link
+        className="fixed left-6 top-6 text-xl font-bold tracking-normal text-foreground transition hover:text-[#0F6E56]"
+        href="/"
+      >
+        jobby
+      </Link>
       <div className="space-y-2">
-        <p className="text-sm font-medium text-secondary">JobMatch AI</p>
+        <p className="text-sm font-medium text-secondary">jobby</p>
         <h1 className="text-3xl font-semibold">Registrarse</h1>
         <p className="text-muted-foreground">
           Creá tu cuenta y analizá tu primer job gratis.

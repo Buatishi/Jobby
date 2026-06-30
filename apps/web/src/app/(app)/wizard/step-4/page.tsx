@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2 } from "lucide-react";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { Button } from "@/components/ui/button";
@@ -88,15 +89,26 @@ export default function WizardStepFourPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <WizardProgress currentStep={4} />
+      <WizardProgress currentStep={4} completionPercent={85} />
       <Card>
         <CardHeader>
-          <CardTitle>Enriquecimiento</CardTitle>
+          <CardTitle>Enriquecé tu perfil</CardTitle>
           <CardDescription>
-            Agregá datos manuales para mejorar la primera lectura de tu perfil.
+            Sumá señales adicionales para mejorar el primer reporte. Este paso
+            es opcional y editable más adelante.
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-5 rounded-md border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm">
+            <div className="flex gap-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#0F6E56]" />
+              <p className="text-muted-foreground">
+                Ya podés usar el dashboard. Estos datos solo ayudan a que el
+                sistema entienda mejor experiencia, educación e idiomas.
+              </p>
+            </div>
+          </div>
+
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -155,7 +167,7 @@ export default function WizardStepFourPage() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button disabled={isSubmitting} type="submit">
-                {isSubmitting ? "Guardando..." : "Completar onboarding"}
+                {isSubmitting ? "Guardando..." : "Guardar y finalizar"}
               </Button>
               <Button
                 disabled={isSubmitting}

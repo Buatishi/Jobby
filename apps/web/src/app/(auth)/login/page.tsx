@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chrome } from "lucide-react";
 
@@ -14,6 +14,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+
+  useEffect(() => {
+    const oauthError = new URLSearchParams(window.location.search).get("error");
+    if (oauthError) {
+      setError(oauthError);
+    }
+  }, []);
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,24 +47,36 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     setError(null);
+    setIsOAuthLoading(true);
     const supabase = createSupabaseBrowserClient();
     const origin = window.location.origin;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/api/auth/callback`
+        redirectTo: `${origin}/api/auth/callback?next=/dashboard`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "select_account"
+        }
       }
     });
 
     if (oauthError) {
+      setIsOAuthLoading(false);
       setError(oauthError.message);
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
+    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
+      <Link
+        className="fixed left-6 top-6 text-xl font-bold tracking-normal text-foreground transition hover:text-[#0F6E56]"
+        href="/"
+      >
+        jobby
+      </Link>
       <div className="space-y-2">
-        <p className="text-sm font-medium text-secondary">JobMatch AI</p>
+        <p className="text-sm font-medium text-secondary">jobby</p>
         <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
         <p className="text-muted-foreground">
           Entrá para analizar jobs y revisar tus reportes.
@@ -101,12 +121,13 @@ export default function LoginPage() {
 
       <Button
         className="mt-3 w-full gap-2"
+        disabled={isOAuthLoading}
         onClick={handleGoogleLogin}
         type="button"
         variant="ghost"
       >
         <Chrome className="h-4 w-4" />
-        Continuar con Google
+        {isOAuthLoading ? "Abriendo Google..." : "Continuar con Google"}
       </Button>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">

@@ -10,10 +10,14 @@ export default async function AppLayout({
   children: React.ReactNode;
 }>) {
   const supabase = await createSupabaseServerClient();
-  await requireAuthenticatedSession(supabase);
+  const session = await requireAuthenticatedSession(supabase);
+  const userName =
+    typeof session.user.user_metadata.full_name === "string"
+      ? session.user.user_metadata.full_name
+      : session.user.email ?? undefined;
 
   return (
-    <AppShell pendingAnalysesCount={2} userTier="free">
+    <AppShell userName={userName} userTier="free">
       {children}
     </AppShell>
   );
