@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     stripe_secret_key: str = Field(default="", alias="STRIPE_SECRET_KEY")
     stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
     resend_api_key: str = Field(default="", alias="RESEND_API_KEY")
+    sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
     frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
 
     @property

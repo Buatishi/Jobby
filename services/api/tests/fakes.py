@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 
@@ -7,7 +9,7 @@ class FakeResponse:
 
 
 class FakeTableQuery:
-    def __init__(self, supabase: "FakeSupabase", table_name: str) -> None:
+    def __init__(self, supabase: FakeSupabase, table_name: str) -> None:
         self.supabase = supabase
         self.table_name = table_name
         self.filters: dict[str, Any] = {}
@@ -20,39 +22,39 @@ class FakeTableQuery:
         self.order_column: str | None = None
         self.order_desc = False
 
-    def select(self, _columns: str) -> "FakeTableQuery":
+    def select(self, _columns: str) -> FakeTableQuery:
         return self
 
-    def eq(self, column: str, value: Any) -> "FakeTableQuery":
+    def eq(self, column: str, value: Any) -> FakeTableQuery:
         self.filters[column] = value
         return self
 
-    def single(self) -> "FakeTableQuery":
+    def single(self) -> FakeTableQuery:
         self.single_row = True
         return self
 
-    def order(self, column: str, desc: bool = False) -> "FakeTableQuery":
+    def order(self, column: str, desc: bool = False) -> FakeTableQuery:
         self.order_column = column
         self.order_desc = desc
         return self
 
-    def limit(self, count: int) -> "FakeTableQuery":
+    def limit(self, count: int) -> FakeTableQuery:
         self.limit_count = count
         return self
 
-    def update(self, payload: dict[str, Any]) -> "FakeTableQuery":
+    def update(self, payload: dict[str, Any]) -> FakeTableQuery:
         self.update_payload = payload
         return self
 
-    def insert(self, payload: dict[str, Any]) -> "FakeTableQuery":
+    def insert(self, payload: dict[str, Any]) -> FakeTableQuery:
         self.insert_payload = payload
         return self
 
-    def upsert(self, payload: dict[str, Any]) -> "FakeTableQuery":
+    def upsert(self, payload: dict[str, Any]) -> FakeTableQuery:
         self.upsert_payload = payload
         return self
 
-    def delete(self) -> "FakeTableQuery":
+    def delete(self) -> FakeTableQuery:
         self.should_delete = True
         return self
 
@@ -80,6 +82,9 @@ class FakeTableQuery:
                 else:
                     kept_rows.append(row)
             self.supabase.tables[self.table_name] = kept_rows
+            if self.table_name == "users":
+                for deleted_row in deleted_rows:
+                    self.supabase.cascade_delete_user(str(deleted_row.get("id")))
             return FakeResponse(deleted_rows)
 
         if self.update_payload is not None:
@@ -162,6 +167,7 @@ class FakeSupabase:
         }
         self.completeness = 21
         self.storage = FakeStorage()
+        self.auth = FakeAuth()
 
     def table(self, table_name: str) -> FakeTableQuery:
         return FakeTableQuery(self, table_name)
@@ -190,13 +196,67 @@ class FakeSupabase:
 
         return FakeRpcQuery(self.completeness)
 
+    def cascade_delete_user(self, user_id: str) -> None:
+        profile_ids = {
+            row["id"]
+            for row in self.tables["master_profiles"]
+            if row.get("user_id") == user_id
+        }
+        for table_name, rows in self.tables.items():
+            if table_name == "users":
+                continue
+            self.tables[table_name] = [
+                row
+                for row in rows
+                if row.get("user_id") != user_id
+                and row.get("profile_id") not in profile_ids
+            ]
+
+
+class FakeAuthAdmin:
+    def __init__(self) -> None:
+        self.deleted_users: list[str] = []
+
+    async def delete_user(self, supabase_uid: str) -> None:
+        self.deleted_users.append(supabase_uid)
+
+
+class FakeAuth:
+    def __init__(self) -> None:
+        self.admin = FakeAuthAdmin()
+
 
 class FakeStorageBucket:
-    def __init__(self, storage: "FakeStorage") -> None:
+    def __init__(self, storage: FakeStorage) -> None:
         self.storage = storage
 
     async def download(self, storage_path: str) -> bytes:
         return self.storage.files[storage_path]
+
+    async def list(self, path: str) -> list[dict[str, Any]]:
+        prefix = f"{path.strip('/')}/"
+        names: set[str] = set()
+        for storage_path in self.storage.files:
+            if not storage_path.startswith(prefix):
+                continue
+            remainder = storage_path.removeprefix(prefix)
+            first_segment = remainder.split("/", 1)[0]
+            names.add(first_segment)
+        return [
+            {
+                "name": name,
+                "metadata": {} if "." in name else None,
+            }
+            for name in sorted(names)
+        ]
+
+    async def remove(self, storage_paths: list[str]) -> list[dict[str, str]]:
+        removed = []
+        for storage_path in storage_paths:
+            if storage_path in self.storage.files:
+                self.storage.files.pop(storage_path)
+                removed.append({"name": storage_path})
+        return removed
 
 
 class FakeStorage:

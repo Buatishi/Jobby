@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from app.database import get_supabase_client
 from app.models.interview_kits import InterviewKitContent
 from app.models.jobs import StructuredJobDescription
+from app.services.account_deletion import capture_exception
 from app.services.ai_gateway import AIGateway, PremiumRequiredError
 from app.services.ai_gateway.prompts.interview_kit_v1 import (
     SYSTEM_PROMPT as INTERVIEW_KIT_SYSTEM_PROMPT,
@@ -319,7 +320,11 @@ def job_analysis_task(
     url: str | None = None,
     raw_text: str | None = None,
 ) -> dict[str, Any]:
-    return asyncio.run(run_job_analysis(job_id, user_id, source, url, raw_text))
+    try:
+        return asyncio.run(run_job_analysis(job_id, user_id, source, url, raw_text))
+    except Exception as exc:
+        capture_exception(exc)
+        raise
 
 
 def enqueue_job_analysis(
@@ -335,7 +340,11 @@ def enqueue_job_analysis(
 
 @celery_app.task(name="app.tasks.analysis.match_task", queue="analysis")  # type: ignore[untyped-decorator]
 def match_task(job_id: str, profile_id: str, user_id: str) -> dict[str, Any]:
-    return asyncio.run(run_match(job_id, profile_id, user_id))
+    try:
+        return asyncio.run(run_match(job_id, profile_id, user_id))
+    except Exception as exc:
+        capture_exception(exc)
+        raise
 
 
 def enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
@@ -467,6 +476,7 @@ async def run_interview_kit(
             return data
         return {**kit, **payload}
     except Exception as exc:
+        capture_exception(exc)
         await _execute(
             supabase_client.table("interview_kits")
             .update({"status": "failed", "error_msg": str(exc)})
@@ -477,7 +487,11 @@ async def run_interview_kit(
 
 @celery_app.task(name="app.tasks.analysis.interview_kit_task", queue="analysis")  # type: ignore[untyped-decorator]
 def interview_kit_task(kit_id: str, user_id: str) -> dict[str, Any]:
-    return asyncio.run(run_interview_kit(kit_id, user_id))
+    try:
+        return asyncio.run(run_interview_kit(kit_id, user_id))
+    except Exception as exc:
+        capture_exception(exc)
+        raise
 
 
 def enqueue_interview_kit(kit_id: str, user_id: str) -> str:

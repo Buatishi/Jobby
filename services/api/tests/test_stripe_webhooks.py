@@ -2,6 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.v1 import webhooks
+from app.services import email_service
+from app.services.stripe_service import handle_webhook
+from tests.fakes import FakeSupabase
 
 
 def test_stripe_webhook_valid_signature(
@@ -77,3 +80,42 @@ def test_stripe_webhook_invalid_signature(
 
     assert response.status_code == 400
     assert response.json()["code"] == "STRIPE_SIGNATURE_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_payment_failed_sends_email_and_downgrades(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["users"][0]["tier"] = "premium"
+    fake_supabase.tables["users"][0]["stripe_customer_id"] = "cus_123"
+    sent: list[tuple[str, int | None]] = []
+
+    def fake_payment_failed(user: dict[str, object], attempt_number: int) -> None:
+        sent.append((str(user["email"]), attempt_number))
+
+    def fake_downgrade(user: dict[str, object]) -> None:
+        sent.append((str(user["email"]), None))
+
+    monkeypatch.setattr(email_service, "send_payment_failed", fake_payment_failed)
+    monkeypatch.setattr(
+        email_service,
+        "send_downgrade_notification",
+        fake_downgrade,
+    )
+
+    await handle_webhook(
+        {
+            "type": "invoice.payment_failed",
+            "data": {
+                "object": {
+                    "customer": "cus_123",
+                    "attempt_count": 2,
+                }
+            },
+        },
+        db=fake_supabase,
+    )
+
+    assert fake_supabase.tables["users"][0]["tier"] == "free"
+    assert sent == [("person@example.com", 2), ("person@example.com", None)]

@@ -20,3 +20,20 @@ class ATSReport(BaseModel):
     ats_score: int
     keyword_matches: list[ATSKeywordMatch]
     format_issues: list[ATSFormatIssue]
+
+
+class ATSOptimizeRequest(BaseModel):
+    job_id: str
+
+
+class OptimizedCVSection(BaseModel):
+    section_name: str
+    original_excerpt: str
+    rewritten_text: str
+    added_keywords: list[str]
+    rationale: str
+
+
+class ATSOptimizeResponse(BaseModel):
+    job_id: str
+    sections: list[OptimizedCVSection]

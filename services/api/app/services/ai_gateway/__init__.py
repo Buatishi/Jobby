@@ -1,5 +1,6 @@
 from typing import Literal
 
+from app.services.account_deletion import capture_exception
 from app.services.ai_gateway.base import AIProvider
 from app.services.ai_gateway.claude import ClaudeProvider
 from app.services.ai_gateway.deepseek import DeepSeekProvider
@@ -50,10 +51,18 @@ class AIGateway:
         json_mode: bool = False,
     ) -> str:
         provider = self.select_provider(task_type, user_tier)
-        return await provider.generate(prompt, system, json_mode)
+        try:
+            return await provider.generate(prompt, system, json_mode)
+        except Exception as exc:
+            capture_exception(exc)
+            raise
 
     async def embed(self, text: str) -> list[float]:
-        return await self.embeddings.embed(text)
+        try:
+            return await self.embeddings.embed(text)
+        except Exception as exc:
+            capture_exception(exc)
+            raise
 
 
 __all__ = [

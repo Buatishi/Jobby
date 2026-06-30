@@ -35,13 +35,16 @@ def _unauthorized(message: str = "Token inválido") -> HTTPException:
     )
 
 
-def _select_signing_key(token: str, jwks: dict[str, Any]) -> Any:
+def _select_signing_key(token: str, jwks: dict[str, Any]) -> tuple[Any, str]:
     header = jwt.get_unverified_header(token)
     key_id = header.get("kid")
 
     for key_data in jwks.get("keys", []):
         if key_data.get("kid") == key_id:
-            return jwt.PyJWK(key_data).key
+            algorithm = key_data.get("alg")
+            if algorithm not in {"RS256", "ES256"}:
+                raise _unauthorized()
+            return jwt.PyJWK(key_data).key, str(algorithm)
 
     raise _unauthorized()
 
@@ -58,11 +61,11 @@ async def validate_jwt(
 
     try:
         jwks = await fetch_jwks(settings)
-        signing_key = _select_signing_key(credentials.credentials, jwks)
+        signing_key, algorithm = _select_signing_key(credentials.credentials, jwks)
         return jwt.decode(
             credentials.credentials,
             signing_key,
-            algorithms=["RS256"],
+            algorithms=[algorithm],
             audience="authenticated",
             options={"verify_exp": True},
         )
@@ -73,7 +76,7 @@ async def validate_jwt(
             return jwt.decode(
                 credentials.credentials,
                 signing_key,
-                algorithms=["RS256"],
+                algorithms=[algorithm],
                 options={"verify_aud": False, "verify_exp": True},
             )
         except jwt.PyJWTError as exc:

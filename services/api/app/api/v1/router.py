@@ -3,11 +3,13 @@ from fastapi import APIRouter
 from app.api.v1 import (
     ats,
     billing,
+    dashboard,
     interview_kits,
     jobs,
     matches,
     profiles,
     tasks,
+    users,
     webhooks,
 )
 from app.api.v1.routes import health
@@ -16,9 +18,11 @@ api_router = APIRouter()
 api_router.include_router(health.router, prefix="/health", tags=["health"])
 api_router.include_router(profiles.router)
 api_router.include_router(tasks.router)
+api_router.include_router(dashboard.router)
 api_router.include_router(jobs.router)
 api_router.include_router(matches.router)
 api_router.include_router(ats.router)
 api_router.include_router(interview_kits.router)
 api_router.include_router(billing.router)
 api_router.include_router(webhooks.router)
+api_router.include_router(users.router)

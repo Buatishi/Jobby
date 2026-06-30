@@ -2,6 +2,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,13 @@ from app.core.errors import http_error_handler, validation_error_handler
 from app.services.rate_limits import limiter
 
 logger = logging.getLogger("jobmatch.api")
+
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        traces_sample_rate=0.1,
+        environment="production",
+    )
 
 app = FastAPI(title="JobMatch AI API", version="0.1.0")
 app.state.limiter = limiter
