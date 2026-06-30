@@ -7,21 +7,24 @@ type AppShellProps = {
   children: React.ReactNode;
   pendingAnalysesCount?: number;
   userTier?: UserTier;
+  userName?: string;
 };
 
 export function AppShell({
   children,
   pendingAnalysesCount = 0,
-  userTier = "free"
+  userTier = "free",
+  userName
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-muted/30 lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="min-h-screen bg-[#f9fafb] lg:grid lg:grid-cols-[15rem_1fr]">
       <WizardRedirectGuard />
       <AppSidebar
         pendingAnalysesCount={pendingAnalysesCount}
         userTier={userTier}
+        userName={userName}
       />
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 bg-[#f9fafb]">{children}</div>
     </div>
   );
 }

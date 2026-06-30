@@ -16,7 +16,14 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)"
       },
+      fontFamily: {
+        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"]
+      },
       colors: {
+        "brand-green": "#008060",
+        "brand-green-light": "#E0F0F0",
+        "brand-accent": "#00A884",
+        "bg-dashboard": "#F8FAFA",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         border: "hsl(var(--border))",

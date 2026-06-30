@@ -93,11 +93,11 @@ export function JobInputForm() {
   return (
     <div className="space-y-4">
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="inline-grid grid-cols-2 rounded-md border border-border bg-muted p-1">
+        <div className="inline-grid grid-cols-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-1">
           <button
             className={cn(
-              "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium",
-              mode === "url" && "bg-background shadow-sm"
+              "inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-black/70 transition",
+              mode === "url" && "bg-white text-black shadow-sm"
             )}
             onClick={() => setMode("url")}
             type="button"
@@ -107,8 +107,8 @@ export function JobInputForm() {
           </button>
           <button
             className={cn(
-              "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium",
-              mode === "text" && "bg-background shadow-sm"
+              "inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-black/70 transition",
+              mode === "text" && "bg-white text-black shadow-sm"
             )}
             onClick={() => setMode("text")}
             type="button"
@@ -121,9 +121,9 @@ export function JobInputForm() {
         {mode === "url" ? (
           <div className="space-y-3">
             <div className="relative">
-              <Link2 className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+              <Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-black/45" />
               <input
-                className="h-12 w-full rounded-md border border-input bg-background pl-11 pr-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-12 w-full rounded-2xl border border-neutral-100 bg-white pl-12 pr-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#007a5e]"
                 onChange={(event) => setUrl(event.target.value)}
                 placeholder="https://empresa.com/jobs/backend-engineer"
                 required
@@ -131,15 +131,15 @@ export function JobInputForm() {
                 value={url}
               />
             </div>
-            <div className="flex gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3 text-sm font-medium text-black/60">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#007a5e]" />
               Algunos sitios bloquean scraping automático. Si falla, vas a poder
               pegar el texto manualmente.
             </div>
           </div>
         ) : (
           <textarea
-            className="min-h-36 w-full resize-none rounded-md border border-input bg-background p-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-36 w-full resize-none rounded-2xl border border-neutral-100 bg-white p-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#007a5e]"
             onChange={(event) => setRawText(event.target.value)}
             placeholder="Pegá acá la descripción completa del puesto"
             required
@@ -147,7 +147,11 @@ export function JobInputForm() {
           />
         )}
 
-        <Button className="h-12" disabled={isSubmitting} type="submit">
+        <Button
+          className="h-12 rounded-2xl bg-[#007a5e] px-5 font-bold text-white shadow-sm hover:bg-[#006d52]"
+          disabled={isSubmitting}
+          type="submit"
+        >
           <Send className="mr-2 h-4 w-4" />
           {isSubmitting ? "Encolando..." : "Analizar job"}
         </Button>
@@ -156,7 +160,7 @@ export function JobInputForm() {
       {toast ? (
         <div
           className={cn(
-            "rounded-md border p-4 text-sm",
+            "rounded-2xl border p-4 text-sm font-medium",
             toast.kind === "info" && "border-primary/30 bg-primary/5",
             toast.kind === "success" && "border-secondary/30 bg-secondary/5",
             toast.kind === "error" && "border-destructive/30 bg-destructive/5"

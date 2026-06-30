@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   BarChart3,
   BriefcaseBusiness,
@@ -9,9 +10,11 @@ import {
   FileSearch,
   Gauge,
   Lock,
+  Menu,
   MessagesSquare,
   TriangleAlert,
-  UserRound
+  UserRound,
+  X
 } from "lucide-react";
 
 import type { UserTier } from "@jobmatch/shared-types";
@@ -22,6 +25,7 @@ import { cn } from "@/lib/utils";
 type AppSidebarProps = {
   pendingAnalysesCount?: number;
   userTier?: UserTier;
+  userName?: string;
 };
 
 const navItems = [
@@ -29,7 +33,7 @@ const navItems = [
   { href: "/profile", label: "Mi perfil", icon: UserRound },
   {
     href: "/jobs",
-    label: "Jobs analizados",
+    label: "Jobs",
     icon: BriefcaseBusiness,
     pendingBadge: true
   },
@@ -43,25 +47,39 @@ const navItems = [
   }
 ];
 
-export function AppSidebar({
-  pendingAnalysesCount = 0,
-  userTier = "free"
-}: AppSidebarProps) {
+function SidebarContent({
+  pendingAnalysesCount,
+  userTier,
+  userName,
+  onNavigate
+}: AppSidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex min-h-screen w-full flex-col border-r border-border bg-background lg:w-72">
-      <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-          JM
-        </div>
-        <div>
-          <p className="font-semibold leading-none">JobMatch AI</p>
-          <p className="mt-1 text-xs text-muted-foreground">Career intelligence</p>
-        </div>
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <div className="px-4 pb-5 pt-6">
+        <Link className="flex items-center gap-3" href="/dashboard">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007a5e] text-sm font-black text-white shadow-sm">
+            J
+          </div>
+          <div>
+            <p className="text-xl font-black leading-none tracking-tight">Jobby</p>
+            <p className="mt-1 text-xs font-medium text-muted-foreground">
+              Career intelligence
+            </p>
+          </div>
+        </Link>
+        {userName ? (
+          <div className="mt-5 rounded-2xl border border-neutral-100 bg-white px-3 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+            <p className="truncate text-xs text-muted-foreground">Sesión activa</p>
+            <p className="truncate text-sm font-bold text-black">{userName}</p>
+          </div>
+        ) : null}
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <div className="h-px bg-neutral-100" />
+
+      <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -71,37 +89,110 @@ export function AppSidebar({
           return (
             <Link
               className={cn(
-                "flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                isActive && "bg-muted text-foreground"
+                "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-black/70 transition-colors hover:bg-[#e6f2ed] hover:text-[#007a5e]",
+                isActive &&
+                  "bg-[#e6f2ed] text-[#007a5e] hover:bg-[#e6f2ed] hover:text-[#007a5e]"
               )}
               href={item.href}
               key={item.href}
+              onClick={onNavigate}
             >
-              <Icon className="h-4 w-4" />
-              <span className="flex-1">{item.label}</span>
-              {item.pendingBadge && pendingAnalysesCount > 0 ? (
-                <Badge>{pendingAnalysesCount}</Badge>
+              <Icon className="h-4 w-4 flex-none" />
+              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              {item.pendingBadge && pendingAnalysesCount ? (
+                <Badge className="rounded-full bg-[#007a5e] px-2 text-white">
+                  {pendingAnalysesCount}
+                </Badge>
               ) : null}
-              {isLocked ? <Lock className="h-4 w-4" /> : null}
+              {isLocked ? <Lock className="h-4 w-4 flex-none text-black/55" /> : null}
             </Link>
           );
         })}
       </nav>
 
       {userTier === "free" ? (
-        <div className="border-t border-border p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-            <Crown className="h-4 w-4 text-secondary" />
-            Premium desbloquea más análisis
+        <div className="border-t border-neutral-100 p-4">
+          <div className="rounded-2xl border border-neutral-100 bg-[#e6f2ed] p-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+            <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#007a5e]">
+              <Crown className="h-4 w-4" />
+              Upgrade
+            </div>
+            <p className="mb-3 text-xs font-medium leading-5 text-black/60">
+              Desbloqueá kits de entrevista y optimización de CV.
+            </p>
+            <Button
+              asChild
+              className="h-9 w-full rounded-xl bg-[#007a5e] text-white shadow-sm hover:bg-[#006d52]"
+            >
+              <Link href="/pricing" onClick={onNavigate}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Upgrade
+              </Link>
+            </Button>
           </div>
-          <Button asChild className="w-full">
-            <Link href="/upgrade">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Upgrade a Premium
-            </Link>
-          </Button>
         </div>
       ) : null}
-    </aside>
+    </div>
+  );
+}
+
+export function AppSidebar({
+  pendingAnalysesCount = 0,
+  userTier = "free",
+  userName
+}: AppSidebarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-neutral-100 bg-white/95 px-4 backdrop-blur lg:hidden">
+        <Link className="font-black" href="/dashboard">
+          Jobby
+        </Link>
+        <button
+          aria-label="Abrir navegación"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#e6f2ed]"
+          onClick={() => setIsOpen(true)}
+          type="button"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+
+      <aside className="sticky top-0 hidden h-screen w-60 border-r border-neutral-100 bg-white lg:block">
+        <SidebarContent
+          pendingAnalysesCount={pendingAnalysesCount}
+          userName={userName}
+          userTier={userTier}
+        />
+      </aside>
+
+      {isOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            aria-label="Cerrar navegación"
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setIsOpen(false)}
+            type="button"
+          />
+          <aside className="relative h-full w-72 max-w-[86vw] border-r border-neutral-100 bg-white shadow-xl">
+            <button
+              aria-label="Cerrar navegación"
+              className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#e6f2ed]"
+              onClick={() => setIsOpen(false)}
+              type="button"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <SidebarContent
+              onNavigate={() => setIsOpen(false)}
+              pendingAnalysesCount={pendingAnalysesCount}
+              userName={userName}
+              userTier={userTier}
+            />
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }
