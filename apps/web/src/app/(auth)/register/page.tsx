@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { startWizard } from "@/lib/wizard/progress";
+import { AuthLayout } from "@/src/components/auth/AuthLayout";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -53,18 +54,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-      <Link
-        className="fixed left-6 top-6 text-xl font-bold tracking-normal text-foreground transition hover:text-[#0F6E56]"
-        href="/"
-      >
-        jobby
-      </Link>
+    <AuthLayout headline="Empezá a prepararte mejor">
       <div className="space-y-2">
-        <p className="text-sm font-medium text-secondary">jobby</p>
         <h1 className="text-3xl font-semibold">Registrarse</h1>
         <p className="text-muted-foreground">
-          Creá tu cuenta y analizá tu primer job gratis.
+          Creá tu cuenta y analizá tu primer puesto gratis.
         </p>
       </div>
 
@@ -90,6 +84,7 @@ export default function RegisterPage() {
             className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             id="email"
             onChange={(event) => setEmail(event.target.value)}
+            placeholder="tu@email.com"
             required
             type="email"
             value={email}
@@ -126,7 +121,11 @@ export default function RegisterPage() {
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <Button className="w-full" disabled={isSubmitting} type="submit">
+        <Button
+          className="w-full bg-[#0F6E56] hover:bg-[#0d5c48]"
+          disabled={isSubmitting}
+          type="submit"
+        >
           {isSubmitting ? "Creando cuenta..." : "Registrarse"}
         </Button>
       </form>
@@ -137,6 +136,6 @@ export default function RegisterPage() {
           Iniciar sesión
         </Link>
       </p>
-    </main>
+    </AuthLayout>
   );
 }

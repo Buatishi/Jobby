@@ -7,6 +7,7 @@ import { Chrome } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { AuthLayout } from "@/src/components/auth/AuthLayout";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,18 +69,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-      <Link
-        className="fixed left-6 top-6 text-xl font-bold tracking-normal text-foreground transition hover:text-[#0F6E56]"
-        href="/"
-      >
-        jobby
-      </Link>
+    <AuthLayout headline="Tu próxima entrevista empieza acá">
       <div className="space-y-2">
-        <p className="text-sm font-medium text-secondary">jobby</p>
         <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
         <p className="text-muted-foreground">
-          Entrá para analizar jobs y revisar tus reportes.
+          Entrá para analizar puestos y revisar tus reportes.
         </p>
       </div>
 
@@ -92,6 +86,7 @@ export default function LoginPage() {
             className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             id="email"
             onChange={(event) => setEmail(event.target.value)}
+            placeholder="tu@email.com"
             required
             type="email"
             value={email}
@@ -114,7 +109,11 @@ export default function LoginPage() {
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <Button className="w-full" disabled={isSubmitting} type="submit">
+        <Button
+          className="w-full bg-[#0F6E56] hover:bg-[#0d5c48]"
+          disabled={isSubmitting}
+          type="submit"
+        >
           {isSubmitting ? "Ingresando..." : "Iniciar sesión"}
         </Button>
       </form>
@@ -136,6 +135,6 @@ export default function LoginPage() {
           Registrarse
         </Link>
       </p>
-    </main>
+    </AuthLayout>
   );
 }
