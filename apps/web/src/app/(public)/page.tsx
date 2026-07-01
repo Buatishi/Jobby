@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, useInView } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
@@ -26,6 +27,9 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { DemoSection } from "@/src/components/landing/DemoSection";
+import { ProblemSection } from "@/src/components/landing/ProblemSection";
 
 type BillingCycle = "monthly" | "yearly";
 
@@ -101,9 +105,61 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 }
 };
 
+function RevealSection({
+  children,
+  className,
+  id
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const isInView = useInView(ref, { amount: 0.2, once: true });
+
+  return (
+    <motion.section
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      className={className}
+      id={id}
+      initial={{ opacity: 0, y: 20 }}
+      ref={ref}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      {children}
+    </motion.section>
+  );
+}
+
+function RevealItem({
+  children,
+  delay = 0
+}: {
+  children: ReactNode;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { amount: 0.2, once: true });
+
+  return (
+    <motion.div
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 20 }}
+      ref={ref}
+      transition={{ delay, duration: 0.3, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+const primaryButtonClass =
+  "transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]";
+
 export default function LandingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const monthlyPrice = process.env.NEXT_PUBLIC_PRICE_MONTHLY ?? "0";
   const yearlyPrice = process.env.NEXT_PUBLIC_PRICE_YEARLY ?? "0";
 
@@ -113,9 +169,25 @@ export default function LandingPage() {
       : `$${yearlyPrice}/año`;
   }, [billingCycle, monthlyPrice, yearlyPrice]);
 
+  useEffect(() => {
+    function handleScroll() {
+      setHasScrolled(window.scrollY > 20);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <main className="min-h-screen bg-white text-foreground">
-      <nav className="sticky top-0 z-50 border-b border-black/5 bg-white/90 backdrop-blur-xl">
+      <nav
+        className={cn(
+          "sticky top-0 z-50 border-b border-black/5 bg-white/90 backdrop-blur-xl transition-shadow duration-200",
+          hasScrolled && "shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
+        )}
+      >
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
           <Link className="flex items-center gap-2 text-xl font-black tracking-tight" href="/">
             <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-brand-green text-white shadow-sm">
@@ -139,7 +211,10 @@ export default function LandingPage() {
           <div className="hidden items-center gap-3 md:flex">
             <Button
               asChild
-              className="h-10 rounded-lg bg-brand-green px-5 text-white shadow-sm hover:bg-[#006d52]"
+              className={cn(
+                "h-10 rounded-lg bg-brand-green px-5 text-white shadow-sm hover:bg-[#006d52]",
+                primaryButtonClass
+              )}
             >
               <Link href="/register">Empezar gratis</Link>
             </Button>
@@ -174,7 +249,10 @@ export default function LandingPage() {
               <Button asChild variant="ghost">
                 <Link href="/login">Iniciar sesión</Link>
               </Button>
-              <Button asChild className="bg-brand-green text-white hover:bg-[#006d52]">
+              <Button
+                asChild
+                className={cn("bg-brand-green text-white hover:bg-[#006d52]", primaryButtonClass)}
+              >
                 <Link href="/register">Empezar gratis</Link>
               </Button>
             </div>
@@ -182,7 +260,7 @@ export default function LandingPage() {
         ) : null}
       </nav>
 
-      <section className="relative overflow-hidden bg-white" id="demo">
+      <section className="relative overflow-hidden bg-white">
         <div className="pointer-events-none absolute right-12 top-16 hidden h-80 w-80 rounded-full bg-brand-green-light blur-2xl lg:block" />
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:px-8 md:py-20 lg:grid-cols-[0.96fr_1.04fr]">
           <motion.div
@@ -193,14 +271,14 @@ export default function LandingPage() {
           >
             <motion.h1
               className="max-w-xl text-4xl font-black leading-[0.98] tracking-[-0.02em] text-black sm:text-5xl lg:text-6xl"
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.3 }}
               variants={fadeUp}
             >
               Dejá de postularte a ciegas. Descubrí tu match laboral perfecto.
             </motion.h1>
             <motion.p
               className="mt-6 max-w-lg text-base font-medium leading-7 text-black/70"
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.3 }}
               variants={fadeUp}
             >
               Nuestra IA analiza tu CV frente a cualquier oferta de empleo para
@@ -209,12 +287,15 @@ export default function LandingPage() {
             </motion.p>
             <motion.div
               className="mt-7 flex flex-col gap-3 sm:flex-row"
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.3 }}
               variants={fadeUp}
             >
               <Button
                 asChild
-                className="h-12 rounded-xl bg-brand-green px-6 text-base font-bold text-white shadow-sm hover:bg-[#006d52]"
+                className={cn(
+                  "h-12 rounded-xl bg-brand-green px-6 text-base font-bold text-white shadow-sm hover:bg-[#006d52]",
+                  primaryButtonClass
+                )}
               >
                 <Link href="/register">Analizá tu primer puesto gratis</Link>
               </Button>
@@ -225,7 +306,7 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             className="relative flex min-h-[360px] items-center justify-center"
             initial={{ opacity: 0, y: 28 }}
-            transition={{ delay: 0.25, duration: 0.6 }}
+            transition={{ delay: 0.25, duration: 0.3 }}
           >
             <div className="absolute right-4 top-0 h-80 w-80 rounded-full bg-brand-green-light" />
             <MatchScoreCard className="relative z-10 w-full max-w-lg scale-100 sm:scale-[1.08] lg:scale-[1.2]" />
@@ -233,45 +314,46 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-white py-8" id="features">
+      <ProblemSection />
+
+      <RevealSection className="bg-white py-20" id="features">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-            {features.map((feature) => {
+            {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <Card
-                  className="group rounded-xl border-black/10 bg-brand-green-light/80 shadow-none transition-shadow hover:shadow-md"
-                  key={feature.title}
-                >
-                  <CardHeader className="space-y-3 p-5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-green/20 bg-white/60 text-brand-green">
-                        <Icon className="h-4 w-4" />
+                <RevealItem delay={index * 0.08} key={feature.title}>
+                  <Card className="group rounded-xl border-black/10 bg-brand-green-light/80 shadow-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
+                    <CardHeader className="space-y-3 p-5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-green/20 bg-white/60 text-brand-green">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        {feature.premium ? (
+                          <Badge className="gap-1 rounded-full bg-brand-green px-2 py-0.5 text-[10px] text-white">
+                            <Lock className="h-2.5 w-2.5" />
+                            Premium
+                          </Badge>
+                        ) : null}
                       </div>
-                      {feature.premium ? (
-                        <Badge className="gap-1 rounded-full bg-brand-green px-2 py-0.5 text-[10px] text-white">
-                          <Lock className="h-2.5 w-2.5" />
-                          Premium
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <CardTitle className="text-base font-black">
-                      {feature.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-5 pb-5 pt-0">
-                    <CardDescription className="text-xs font-semibold leading-5 text-black/70">
-                      {feature.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
+                      <CardTitle className="text-base font-black">
+                        {feature.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-5 pb-5 pt-0">
+                      <CardDescription className="text-xs font-semibold leading-5 text-black/70">
+                        {feature.description}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </RevealItem>
               );
             })}
           </div>
         </div>
-      </section>
+      </RevealSection>
 
-      <section className="border-y border-black/5 bg-bg-dashboard py-9" id="how-it-works">
+      <RevealSection className="border-y border-black/5 bg-bg-dashboard py-20" id="how-it-works">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <h2 className="text-2xl font-black tracking-tight">Cómo funciona</h2>
           <div className="mt-7 grid gap-6 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-start">
@@ -297,31 +379,103 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </RevealSection>
 
-      <section className="sr-only" id="pricing" aria-label="Precios">
-        <button
-          data-active={billingCycle === "monthly"}
-          onClick={() => setBillingCycle("monthly")}
-          type="button"
-        >
-          Mensual
-        </button>
-        <button
-          data-active={billingCycle === "yearly"}
-          onClick={() => setBillingCycle("yearly")}
-          type="button"
-        >
-          Anual
-        </button>
-        <span>{premiumPrice}</span>
-        {freeFeatures.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-        {premiumFeatures.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </section>
+      <DemoSection />
+
+      <RevealSection className="bg-white px-5 py-20 sm:px-8" id="pricing">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-green">
+                Precios
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight text-black md:text-5xl">
+                Empezá gratis. Mejorá cuando lo necesites.
+              </h2>
+            </div>
+            <div className="inline-grid w-fit grid-cols-2 rounded-2xl border border-black/10 bg-bg-dashboard p-1">
+              {(["monthly", "yearly"] as const).map((cycle) => (
+                <button
+                  className={cn(
+                    "h-10 rounded-xl px-5 text-sm font-bold text-black/55 transition-all duration-200",
+                    billingCycle === cycle && "bg-white text-brand-green shadow-sm"
+                  )}
+                  data-active={billingCycle === cycle}
+                  key={cycle}
+                  onClick={() => setBillingCycle(cycle)}
+                  type="button"
+                >
+                  {cycle === "monthly" ? "Mensual" : "Anual"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            <Card className="rounded-2xl border-black/10 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-2xl font-black">Free</CardTitle>
+                <CardDescription>Para validar tu primer análisis.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-4xl font-black">$0</p>
+                <ul className="mt-6 space-y-3 text-sm font-semibold text-black/70">
+                  {freeFeatures.map((item) => (
+                    <li className="flex gap-2" key={item}>
+                      <BadgeCheck className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  asChild
+                  className={cn(
+                    "mt-7 w-full rounded-xl bg-brand-green text-white hover:bg-[#006d52]",
+                    primaryButtonClass
+                  )}
+                >
+                  <Link href="/register">Empezar gratis</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border-brand-green/30 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-4">
+                  <CardTitle className="text-2xl font-black">Premium</CardTitle>
+                  <Badge className="rounded-full bg-brand-green text-white">
+                    Más popular
+                  </Badge>
+                </div>
+                <CardDescription>
+                  Para preparar cada postulación con más contexto.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-4xl font-black">{premiumPrice}</p>
+                <ul className="mt-6 space-y-3 text-sm font-semibold text-black/70">
+                  {premiumFeatures.map((item) => (
+                    <li className="flex gap-2" key={item}>
+                      <BadgeCheck className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  asChild
+                  className={cn(
+                    "mt-7 w-full rounded-xl bg-brand-green text-white hover:bg-[#006d52]",
+                    primaryButtonClass
+                  )}
+                >
+                  <Link href="/register">Upgrade a Premium</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </RevealSection>
 
       <section className="bg-brand-green px-5 py-12 text-white sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center text-center">
@@ -331,7 +485,10 @@ export default function LandingPage() {
           </h2>
           <Button
             asChild
-            className="mt-6 rounded-lg bg-white px-6 font-black text-brand-green hover:bg-white/90"
+            className={cn(
+              "mt-6 rounded-lg bg-white px-6 font-black text-brand-green hover:bg-white/90",
+              primaryButtonClass
+            )}
           >
             <Link href="/register">Empezar gratis</Link>
           </Button>
