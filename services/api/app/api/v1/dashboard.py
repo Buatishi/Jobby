@@ -23,9 +23,36 @@ def _as_int(value: Any, default: int = 0) -> int:
     return default
 
 
-def _missing_tip(profile: dict[str, Any] | None) -> str | None:
+async def _missing_tip(
+    supabase: Any,
+    user_id: str,
+    profile: dict[str, Any] | None,
+) -> str | None:
     if not profile:
         return "Completá tu perfil base para mejorar la calidad del Match Score."
+
+    documents = await _execute(
+        supabase.table("uploaded_documents")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("type", "cv")
+        .eq("is_primary", True)
+        .limit(1)
+    )
+    if not (isinstance(documents, list) and documents):
+        return "Subí tu CV para empezar a recibir análisis."
+
+    if not profile.get("linkedin_url"):
+        return "Conectá tu LinkedIn para mejorar tu Reality Gap (+18 pts)."
+
+    experiences = await _execute(
+        supabase.table("experiences")
+        .select("id")
+        .eq("profile_id", str(profile.get("id") or ""))
+        .limit(1)
+    )
+    if not (isinstance(experiences, list) and experiences):
+        return "Agregá tu experiencia laboral (+12 pts)."
 
     field_tips = [
         ("headline", "Agregá un headline claro para mejorar la lectura inicial."),
@@ -118,7 +145,7 @@ async def get_dashboard_summary(
 ) -> DashboardSummary:
     user_data = await _execute(
         supabase.table("users")
-        .select("email")
+        .select("email,full_name")
         .eq("id", current_user.id)
         .single()
     )
@@ -147,9 +174,10 @@ async def get_dashboard_summary(
     return DashboardSummary(
         user_name=current_user.email
         or (user_data.get("email") if isinstance(user_data, dict) else None),
+        full_name=user_data.get("full_name") if isinstance(user_data, dict) else None,
         employability_score=employability_score,
         completeness_pct=completeness_pct,
-        missing_tip=_missing_tip(profile_data),
+        missing_tip=await _missing_tip(supabase, current_user.id, profile_data),
         pending_analyses_count=await _pending_count(supabase, current_user.id),
         latest_matches=latest_matches,
     )

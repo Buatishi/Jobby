@@ -14,6 +14,7 @@ class DashboardMatch(BaseModel):
 
 class DashboardSummary(BaseModel):
     user_name: str | None = None
+    full_name: str | None = None
     employability_score: int | None = None
     completeness_pct: int
     missing_tip: str | None = None

@@ -40,6 +40,9 @@ type DashboardMatch = {
 
 type DashboardSummary = {
   user_name?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  user_email?: string | null;
   name?: string | null;
   employability_score?: number | null;
   global_score?: number | null;
@@ -86,6 +89,138 @@ function getGreeting() {
   }
 
   return "Buenas noches";
+}
+
+function getFirstName(summary: DashboardSummary | null) {
+  const fullName = summary?.full_name?.trim();
+  if (fullName) {
+    return fullName.split(/\s+/)[0] ?? "";
+  }
+
+  const rawName =
+    summary?.email ?? summary?.user_email ?? summary?.user_name ?? summary?.name ?? "";
+  const cleanName = rawName.includes("@") ? rawName.split("@")[0] : rawName;
+
+  return cleanName.trim().split(/\s+/)[0] ?? "";
+}
+
+function getProfileActionMessage(
+  completenessPct: number,
+  missingTip: string | null,
+  employabilityScore: number
+) {
+  if (completenessPct >= 85) {
+    return "Tu perfil está listo para análisis precisos.";
+  }
+
+  if (missingTip) {
+    return `Tu perfil está al ${completenessPct}%. ${missingTip}`;
+  }
+
+  return `Tu perfil está al ${completenessPct}% y en estado ${getScoreLabel(
+    employabilityScore
+  )}. Completá los datos pendientes para mejorar la precisión.`;
+}
+
+type ScoreCardProps = {
+  title: string;
+  value: number;
+  description?: string;
+  variant?: "linear" | "circular";
+  action?: React.ReactNode;
+};
+
+function ScoreCard({
+  title,
+  value,
+  description,
+  variant = "linear",
+  action
+}: ScoreCardProps) {
+  const color = getScoreColor(value);
+  const label = description ?? getScoreLabel(value);
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+
+  return (
+    <Card className={dashboardCardClass}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="pb-8">
+        {variant === "circular" ? (
+          <div className="flex flex-col items-center">
+            <div className="relative h-48 w-48">
+              <svg
+                aria-label={`${title} ${value}%`}
+                className="h-full w-full -rotate-90"
+                role="img"
+                viewBox="0 0 120 120"
+              >
+                <circle
+                  cx="60"
+                  cy="60"
+                  fill="none"
+                  r={radius}
+                  stroke="#e5e7eb"
+                  strokeLinecap="round"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  fill="none"
+                  r={radius}
+                  stroke={color}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={offset}
+                  strokeLinecap="round"
+                  strokeWidth="8"
+                  className="transition-all duration-700"
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    dur="800ms"
+                    fill="freeze"
+                    from={circumference}
+                    to={offset}
+                  />
+                </circle>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <p className="text-5xl font-bold leading-none text-black">
+                  <CountUp value={value} />%
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-500">
+                  Meta: 100%
+                </p>
+              </div>
+            </div>
+            {action ? <div className="mt-4">{action}</div> : null}
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-end gap-3">
+              <p className="text-5xl font-bold leading-none text-black">
+                <CountUp value={value} />
+              </p>
+              <span className="pb-1 text-sm font-medium text-neutral-500">/100</span>
+            </div>
+            <p className="mt-3 text-sm font-semibold" style={{ color }}>
+              {label}
+            </p>
+            <div className="mt-6 h-3 overflow-hidden rounded-full bg-neutral-100">
+              <div
+                className="h-full rounded-full transition-[width] duration-700"
+                style={{ backgroundColor: color, width: `${value}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export function DashboardClient() {
@@ -136,7 +271,7 @@ export function DashboardClient() {
     []
   );
 
-  const userName = summary?.user_name ?? summary?.name ?? "";
+  const displayName = getFirstName(summary);
   const employabilityScore = clampScore(
     summary?.employability_score ?? summary?.global_score
   );
@@ -146,20 +281,12 @@ export function DashboardClient() {
   const matches = (summary?.latest_matches ?? summary?.matches ?? []).slice(0, 5);
   const missingTip =
     summary?.missing_tip ?? summary?.most_valuable_missing_field ?? null;
-  const scoreColor = getScoreColor(employabilityScore);
-  const scoreLabel = getScoreLabel(employabilityScore);
-  const completenessRadius = 48;
-  const completenessStroke = 2 * Math.PI * completenessRadius;
-  const completenessOffset =
-    completenessStroke - (completenessPct / 100) * completenessStroke;
-  const scoreNeedleAngle = -90 + (employabilityScore / 100) * 180;
-  const contextualSuggestions = [
-    missingTip
-      ? `Próxima brecha a resolver: ${missingTip}.`
-      : completenessPct < 80
-        ? "Completá tu perfil para que Jobby detecte brechas críticas con más precisión."
-        : `Tu perfil está en estado ${scoreLabel}. Analizá un puesto para convertirlo en recomendaciones concretas.`
-  ];
+  const profileActionMessage = getProfileActionMessage(
+    completenessPct,
+    missingTip,
+    employabilityScore
+  );
+  const contextualSuggestions = [profileActionMessage];
 
   return (
     <main className="min-h-screen bg-[#f9fafb] p-6 sm:p-8 lg:p-10">
@@ -167,15 +294,15 @@ export function DashboardClient() {
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-sm font-medium text-neutral-500">
-              <CalendarDays className="h-4 w-4 text-[#007a5e]" />
+              <CalendarDays className="h-4 w-4 text-[#0F6E56]" />
               <span className="capitalize">{today}</span>
             </div>
             <div className="mt-3 flex min-w-0 items-center gap-3">
               <h1 className="min-w-0 text-3xl font-black leading-tight tracking-tight text-black md:text-4xl">
                 {getGreeting()}
-                {userName ? `, ${userName}` : ""}
+                {displayName ? `, ${displayName}` : ""}
               </h1>
-              <div className="hidden h-10 w-10 flex-none items-center justify-center rounded-full border border-neutral-100 bg-[#e6f2ed] text-[#007a5e] shadow-sm sm:flex">
+              <div className="hidden h-10 w-10 flex-none items-center justify-center rounded-full border border-neutral-100 bg-[#e6f2ed] text-[#0F6E56] shadow-sm sm:flex">
                 <CircleUserRound className="h-5 w-5" />
               </div>
             </div>
@@ -189,7 +316,7 @@ export function DashboardClient() {
         </div>
 
         {error ? (
-          <Card className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+          <Card className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/5 shadow-sm">
             <CardContent className="p-4 text-sm text-destructive">
               {error}
             </CardContent>
@@ -197,188 +324,33 @@ export function DashboardClient() {
         ) : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Card className={dashboardCardClass}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold">
-                Completeness del perfil
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center pb-8">
-              <div className="relative h-48 w-48">
-                <svg
-                  aria-label={`Completitud del perfil ${completenessPct}%`}
-                  className="h-full w-full -rotate-90"
-                  role="img"
-                  viewBox="0 0 120 120"
-                >
-                  <circle
-                    cx="60"
-                    cy="60"
-                    fill="none"
-                    r={completenessRadius}
-                    stroke="#e5e7eb"
-                    strokeLinecap="round"
-                    strokeWidth="8"
-                  >
-                    <animate
-                      attributeName="stroke-dashoffset"
-                      dur="900ms"
-                      fill="freeze"
-                      from={completenessStroke}
-                      to={completenessOffset}
-                    />
-                  </circle>
-                  <circle
-                    cx="60"
-                    cy="60"
-                    fill="none"
-                    r={completenessRadius}
-                    stroke="#007a5e"
-                    strokeDasharray={completenessStroke}
-                    strokeDashoffset={completenessOffset}
-                    strokeLinecap="round"
-                    strokeWidth="8"
-                    className="transition-all duration-700"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <p className="text-3xl font-bold leading-none text-black">
-                    <CountUp value={completenessPct} />%
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-neutral-500">
-                    Meta: 100%
-                  </p>
-                </div>
-              </div>
-
-              {completenessPct < 80 ? (
+          <ScoreCard
+            action={
+              completenessPct < 80 ? (
                 <Button
                   asChild
-                  className="mt-4 rounded-xl bg-[#e6f2ed] px-5 font-semibold text-[#007a5e] shadow-none hover:bg-[#d8ebe4]"
+                  className="rounded-xl bg-[#e6f2ed] px-5 font-semibold text-[#0F6E56] shadow-none hover:bg-[#d8ebe4]"
                 >
-                  <Link href="/profile">Conecta tu LinkedIn</Link>
+                  <Link href="/profile">Conectá tu LinkedIn</Link>
                 </Button>
-              ) : null}
-            </CardContent>
-          </Card>
+              ) : null
+            }
+            title="Completeness del perfil"
+            value={completenessPct}
+            variant="circular"
+          />
 
-          <Card className={dashboardCardClass}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-semibold">Score global</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center pb-8">
-              <div className="relative h-48 w-64">
-                <svg
-                  aria-label={`Score global ${employabilityScore} de 100`}
-                  className="h-full w-full"
-                  role="img"
-                  viewBox="0 0 240 165"
-                >
-                  <defs>
-                    <linearGradient
-                      id="scoreGaugeGradient"
-                      x1="0%"
-                      x2="100%"
-                      y1="0%"
-                      y2="0%"
-                    >
-                      <stop offset="0%" stopColor="#E24B4A" />
-                      <stop offset="50%" stopColor="#F0A500" />
-                      <stop offset="100%" stopColor="#007a5e" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M38 126 A82 82 0 0 1 202 126"
-                    fill="none"
-                    stroke="#e5e7eb"
-                    strokeLinecap="round"
-                    strokeWidth="20"
-                  >
-                    <animate
-                      attributeName="stroke-dasharray"
-                      dur="900ms"
-                      fill="freeze"
-                      from="0 100"
-                      to={`${employabilityScore} 100`}
-                    />
-                  </path>
-                  <path
-                    d="M38 126 A82 82 0 0 1 202 126"
-                    fill="none"
-                    pathLength="100"
-                    stroke="url(#scoreGaugeGradient)"
-                    strokeDasharray={`${employabilityScore} 100`}
-                    strokeLinecap="round"
-                    strokeWidth="20"
-                    className="transition-all duration-700"
-                  />
-                  <g
-                    className="transition-transform duration-700"
-                    style={{
-                      transform: `rotate(${scoreNeedleAngle}deg)`,
-                      transformBox: "fill-box",
-                      transformOrigin: "120px 126px"
-                    }}
-                  >
-                    <line
-                      stroke="#111827"
-                      strokeLinecap="round"
-                      strokeWidth="4"
-                      x1="120"
-                      x2="120"
-                      y1="126"
-                      y2="68"
-                    />
-                    <circle cx="120" cy="126" fill="#111827" r="6" />
-                  </g>
-                  <text
-                    fill="#111827"
-                    fontSize="44"
-                    fontWeight="900"
-                    textAnchor="middle"
-                    x="120"
-                    y="111"
-                  >
-                    {employabilityScore}
-                  </text>
-                  <text
-                    fill={scoreColor}
-                    fontSize="14"
-                    fontWeight="700"
-                    textAnchor="middle"
-                    x="120"
-                    y="134"
-                  >
-                    {scoreLabel}
-                  </text>
-                  <text fill="#737373" fontSize="10" fontWeight="600" x="31" y="153">
-                    0
-                  </text>
-                  <text
-                    fill="#737373"
-                    fontSize="10"
-                    fontWeight="600"
-                    textAnchor="end"
-                    x="209"
-                    y="153"
-                  >
-                    100
-                  </text>
-                </svg>
-              </div>
-              <p className="mt-1 text-center text-xs font-semibold text-neutral-600">
-                Estado general:{" "}
-                <span style={{ color: scoreColor }}>{scoreLabel}</span> para
-                competir.
-              </p>
-            </CardContent>
-          </Card>
+          <ScoreCard
+            description={profileActionMessage}
+            title="Score global"
+            value={employabilityScore}
+          />
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <Card className={dashboardCardClass}>
             <CardHeader>
-              <div className="flex items-center gap-2 text-sm font-medium text-[#007a5e]">
+              <div className="flex items-center gap-2 text-sm font-medium text-[#0F6E56]">
                 <Sparkles className="h-4 w-4" />
                 Hero de análisis
               </div>
@@ -394,22 +366,22 @@ export function DashboardClient() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border border-neutral-100 bg-[#e6f2ed] shadow-sm">
+          <Card className="rounded-2xl border border-l-4 border-neutral-100 border-l-[#0F6E56] bg-white shadow-sm">
             <CardHeader className="pb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#007a5e] shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e6f2ed] text-[#0F6E56] shadow-sm">
                 <Sparkles className="h-5 w-5" />
               </div>
               <CardTitle className="text-base font-semibold leading-snug">
                 Sugerencias de Jobby
               </CardTitle>
-              <CardDescription className="text-neutral-700">
+              <CardDescription className="text-neutral-600">
                 Usamos tu perfil actual para anticipar qué mirar antes de aplicar.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {contextualSuggestions.map((suggestion) => (
                 <div
-                  className="rounded-2xl border border-white/70 bg-white/75 p-4 text-sm font-semibold leading-6 text-black"
+                  className="rounded-2xl border border-neutral-100 bg-neutral-50/70 p-4 text-sm font-semibold leading-6 text-black"
                   key={suggestion}
                 >
                   {suggestion}
@@ -480,7 +452,7 @@ export function DashboardClient() {
               ) : (
                 <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/70 p-6 text-center">
                   <div className="relative">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e6f2ed] text-[#007a5e]">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e6f2ed] text-[#0F6E56]">
                       <BriefcaseBusiness className="h-8 w-8" />
                     </div>
                     <div className="absolute -right-2 -top-2 h-5 w-5 rounded-full bg-brand-accent" />

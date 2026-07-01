@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type CountUpProps = {
   value: number;
@@ -8,9 +8,37 @@ type CountUpProps = {
 };
 
 export function CountUp({ value, durationMs = 800 }: CountUpProps) {
+  const elementRef = useRef<HTMLSpanElement | null>(null);
   const [displayValue, setDisplayValue] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const element = elementRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
     let animationFrame = 0;
     const startedAt = performance.now();
 
@@ -26,7 +54,7 @@ export function CountUp({ value, durationMs = 800 }: CountUpProps) {
     animationFrame = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(animationFrame);
-  }, [durationMs, value]);
+  }, [durationMs, isVisible, value]);
 
-  return <>{displayValue}</>;
+  return <span ref={elementRef}>{displayValue}</span>;
 }
