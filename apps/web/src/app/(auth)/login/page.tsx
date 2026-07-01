@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Mail } from "lucide-react";
 
-import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { AuthLayout } from "@/src/components/auth/AuthLayout";
+import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
@@ -24,14 +24,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
 
   useEffect(() => {
-    const oauthError = new URLSearchParams(window.location.search).get("error");
+    const searchParams = new URLSearchParams(window.location.search);
+    const oauthError = searchParams.get("error");
+
     if (oauthError) {
       setError(oauthError);
     }
+
+    setResetSuccess(searchParams.get("reset") === "success");
   }, []);
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
@@ -66,11 +71,10 @@ export default function LoginPage() {
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const origin = window.location.origin;
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${origin}/api/auth/callback?next=/dashboard`,
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
           queryParams: {
             access_type: "offline",
             prompt: "select_account"
@@ -101,6 +105,12 @@ export default function LoginPage() {
         </p>
       </div>
 
+      {resetSuccess ? (
+        <div className="mt-6 rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-3 text-sm font-medium text-[#0F6E56]">
+          Tu contraseña se actualizó correctamente. Iniciá sesión.
+        </div>
+      ) : null}
+
       <form className="mt-8 space-y-4" onSubmit={handleEmailLogin}>
         <div className="space-y-2">
           <label className="text-sm font-semibold" htmlFor="email">
@@ -118,9 +128,17 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold" htmlFor="password">
-            Contraseña
-          </label>
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-sm font-semibold" htmlFor="password">
+              Contraseña
+            </label>
+            <Link
+              className="text-xs font-semibold text-[#0F6E56] transition-colors hover:text-[#0d5c48]"
+              href="/forgot-password"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
           <input
             autoComplete="current-password"
             className={inputClassName}
