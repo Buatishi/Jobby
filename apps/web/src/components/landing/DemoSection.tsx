@@ -107,7 +107,7 @@ export function DemoSection() {
   const isInView = useInView(ref, { amount: 0.2, once: true });
 
   return (
-    <section className="bg-white px-5 py-20 sm:px-8" ref={ref}>
+    <section className="bg-white px-5 py-20 sm:px-8" id="demo" ref={ref}>
       <motion.div
         animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         className="mx-auto max-w-6xl"
