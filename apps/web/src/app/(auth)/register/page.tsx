@@ -9,7 +9,6 @@ import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { startWizard } from "@/lib/wizard/progress";
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
@@ -60,7 +59,7 @@ export default function RegisterPage() {
             full_name: fullName,
             accepted_tos: true
           },
-          emailRedirectTo: `${origin}/api/auth/callback?next=/wizard/step-1`
+          emailRedirectTo: `${origin}/api/auth/callback?next=/dashboard`
         }
       });
 
@@ -69,8 +68,7 @@ export default function RegisterPage() {
         return;
       }
 
-      startWizard();
-      router.push("/wizard/step-1");
+      router.push("/dashboard");
       router.refresh();
     } catch (authError) {
       setError(getAuthErrorMessage(authError));
@@ -89,13 +87,12 @@ export default function RegisterPage() {
     setIsOAuthLoading(true);
 
     try {
-      startWizard();
       const supabase = createSupabaseBrowserClient();
       const origin = window.location.origin;
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${origin}/api/auth/callback?next=/wizard/step-1`,
+          redirectTo: `${origin}/api/auth/callback?next=/dashboard`,
           queryParams: {
             access_type: "offline",
             prompt: "select_account"
@@ -121,7 +118,8 @@ export default function RegisterPage() {
         </p>
         <h1 className="text-3xl font-black tracking-tight">Registrarse</h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          Creá tu cuenta, completá el wizard y analizá tu primer puesto gratis.
+          Creá tu cuenta y empezá desde el dashboard. Después podés completar tu
+          perfil paso a paso.
         </p>
       </div>
 

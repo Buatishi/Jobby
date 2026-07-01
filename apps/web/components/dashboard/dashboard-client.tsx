@@ -331,7 +331,7 @@ export function DashboardClient() {
                   asChild
                   className="rounded-xl bg-[#e6f2ed] px-5 font-semibold text-[#0F6E56] shadow-none hover:bg-[#d8ebe4]"
                 >
-                  <Link href="/profile">Conectá tu LinkedIn</Link>
+                  <Link href="/wizard/step-1">Completar perfil</Link>
                 </Button>
               ) : null
             }
