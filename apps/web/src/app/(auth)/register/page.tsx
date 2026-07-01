@@ -3,11 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 
+import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
+import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { startWizard } from "@/lib/wizard/progress";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
+
+const inputClassName =
+  "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
+
+function getAuthErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "No pudimos completar el registro. Probá de nuevo.";
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,71 +28,126 @@ export default function RegisterPage() {
   const [acceptedTos, setAcceptedTos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState(false);
+
+  function validateTos() {
+    if (!acceptedTos) {
+      setError("Tenés que aceptar los Términos de Servicio para registrarte.");
+      return false;
+    }
+
+    return true;
+  }
 
   async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
-    if (!acceptedTos) {
-      setError("Tenés que aceptar los Términos de Servicio para registrarte.");
+    if (!validateTos()) {
       return;
     }
 
     setIsSubmitting(true);
-    const supabase = createSupabaseBrowserClient();
-    const origin = window.location.origin;
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          accepted_tos: true
-        },
-        emailRedirectTo: `${origin}/api/auth/callback?next=/wizard/step-1`
-      }
-    });
-    setIsSubmitting(false);
 
-    if (signUpError) {
-      setError(signUpError.message);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const origin = window.location.origin;
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            accepted_tos: true
+          },
+          emailRedirectTo: `${origin}/api/auth/callback?next=/wizard/step-1`
+        }
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      startWizard();
+      router.push("/wizard/step-1");
+      router.refresh();
+    } catch (authError) {
+      setError(getAuthErrorMessage(authError));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleRegister() {
+    setError(null);
+
+    if (!validateTos()) {
       return;
     }
 
-    startWizard();
-    router.push("/wizard/step-1");
-    router.refresh();
+    setIsOAuthLoading(true);
+
+    try {
+      startWizard();
+      const supabase = createSupabaseBrowserClient();
+      const origin = window.location.origin;
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${origin}/api/auth/callback?next=/wizard/step-1`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account"
+          }
+        }
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+        setIsOAuthLoading(false);
+      }
+    } catch (authError) {
+      setError(getAuthErrorMessage(authError));
+      setIsOAuthLoading(false);
+    }
   }
 
   return (
     <AuthLayout headline="Empezá a prepararte mejor">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold">Registrarse</h1>
-        <p className="text-muted-foreground">
-          Creá tu cuenta y analizá tu primer puesto gratis.
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
+          Cuenta nueva
+        </p>
+        <h1 className="text-3xl font-black tracking-tight">Registrarse</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Creá tu cuenta, completá el wizard y analizá tu primer puesto gratis.
         </p>
       </div>
 
       <form className="mt-8 space-y-4" onSubmit={handleRegister}>
         <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="fullName">
+          <label className="text-sm font-semibold" htmlFor="fullName">
             Nombre completo
           </label>
           <input
-            className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            autoComplete="name"
+            className={inputClassName}
             id="fullName"
             onChange={(event) => setFullName(event.target.value)}
+            placeholder="Bautista Giraud"
             required
             type="text"
             value={fullName}
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="email">
+          <label className="text-sm font-semibold" htmlFor="email">
             Email
           </label>
           <input
-            className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            autoComplete="email"
+            className={inputClassName}
             id="email"
             onChange={(event) => setEmail(event.target.value)}
             placeholder="tu@email.com"
@@ -91,24 +157,26 @@ export default function RegisterPage() {
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="password">
-            Password
+          <label className="text-sm font-semibold" htmlFor="password">
+            Contraseña
           </label>
           <input
-            className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            autoComplete="new-password"
+            className={inputClassName}
             id="password"
             minLength={6}
             onChange={(event) => setPassword(event.target.value)}
+            placeholder="Mínimo 6 caracteres"
             required
             type="password"
             value={password}
           />
         </div>
 
-        <label className="flex items-start gap-3 text-sm leading-6">
+        <label className="flex items-start gap-3 rounded-2xl border border-black/5 bg-[#fbfcfb] p-3 text-sm leading-6 transition-colors hover:bg-brand-green-light/40">
           <input
             checked={acceptedTos}
-            className="mt-1 h-4 w-4 rounded border-input"
+            className="mt-1 h-4 w-4 rounded border-input accent-[#0F6E56]"
             onChange={(event) => setAcceptedTos(event.target.checked)}
             required
             type="checkbox"
@@ -119,20 +187,48 @@ export default function RegisterPage() {
           </span>
         </label>
 
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <div className="rounded-2xl border border-destructive/15 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
+            {error}
+          </div>
+        ) : null}
 
         <Button
-          className="w-full bg-[#0F6E56] hover:bg-[#0d5c48]"
-          disabled={isSubmitting}
+          fullWidth
+          isLoading={isSubmitting}
+          rightIcon={<ArrowRight className="h-4 w-4" />}
+          size="lg"
           type="submit"
+          variant="primary"
         >
           {isSubmitting ? "Creando cuenta..." : "Registrarse"}
         </Button>
       </form>
 
+      <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-black/35">
+        <span className="h-px flex-1 bg-black/10" />
+        o
+        <span className="h-px flex-1 bg-black/10" />
+      </div>
+
+      <Button
+        fullWidth
+        isLoading={isOAuthLoading}
+        leftIcon={<GoogleIcon className="h-4 w-4" />}
+        onClick={handleGoogleRegister}
+        size="lg"
+        type="button"
+        variant="outline"
+      >
+        {isOAuthLoading ? "Abriendo Google..." : "Continuar con Google"}
+      </Button>
+
       <p className="mt-6 text-center text-sm text-muted-foreground">
         ¿Ya tenés cuenta?{" "}
-        <Link className="font-medium text-foreground" href="/login">
+        <Link
+          className="font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
+          href="/login"
+        >
           Iniciar sesión
         </Link>
       </p>

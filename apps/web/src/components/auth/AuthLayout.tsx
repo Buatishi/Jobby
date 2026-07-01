@@ -1,10 +1,11 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 
 import { MatchScoreCard } from "@/components/match-score-card";
 
 type AuthLayoutProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   headline: string;
 };
 
@@ -16,7 +17,7 @@ const bullets = [
 
 export function AuthLayout({ children, headline }: AuthLayoutProps) {
   return (
-    <main className="grid min-h-screen bg-white md:grid-cols-[60%_40%]">
+    <main className="grid min-h-screen bg-white md:grid-cols-[58%_42%]">
       <section className="relative overflow-hidden bg-[#0F6E56] px-6 py-8 text-white md:min-h-screen md:px-12 md:py-16 lg:px-16">
         {/* Fondo decorativo fuera del flujo: usa z-0 y no contiene texto ni controles. */}
         <div
@@ -28,13 +29,19 @@ export function AuthLayout({ children, headline }: AuthLayoutProps) {
             <h1 className="max-w-lg text-3xl font-black leading-tight tracking-tight md:text-5xl">
               {headline}
             </h1>
+            <p className="mt-5 max-w-md text-sm font-medium leading-6 text-white/75 md:text-base">
+              Ordená tu perfil, entendé tus gaps y llegá mejor preparado a cada
+              postulación.
+            </p>
             <div className="mt-8 hidden space-y-4 md:block">
               {bullets.map((bullet) => (
                 <div className="flex items-center gap-3" key={bullet}>
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/12 text-white">
                     <Check className="h-4 w-4" />
                   </span>
-                  <span className="text-sm font-semibold text-white/88">{bullet}</span>
+                  <span className="text-sm font-semibold text-white/88">
+                    {bullet}
+                  </span>
                 </div>
               ))}
             </div>
@@ -46,15 +53,17 @@ export function AuthLayout({ children, headline }: AuthLayoutProps) {
         </div>
       </section>
 
-      <section className="flex min-h-[calc(100vh-140px)] flex-col px-6 py-8 md:min-h-screen md:px-10 lg:px-14">
+      <section className="flex min-h-[calc(100vh-140px)] flex-col bg-[#fbfcfb] px-6 py-8 md:min-h-screen md:px-10 lg:px-14">
         <Link
-          className="mb-10 inline-flex w-fit text-xl font-bold tracking-normal text-foreground transition hover:text-[#0F6E56]"
+          className="mb-10 inline-flex w-fit text-xl font-black tracking-tight text-foreground transition-colors duration-200 hover:text-[#0F6E56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6E56]"
           href="/"
         >
-          jobby
+          Jobby
         </Link>
         <div className="flex flex-1 items-center">
-          <div className="mx-auto w-full max-w-md">{children}</div>
+          <div className="mx-auto w-full max-w-md rounded-3xl border border-black/5 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-8">
+            {children}
+          </div>
         </div>
       </section>
     </main>
