@@ -181,7 +181,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-white text-foreground">
+    <main className="min-h-screen bg-white text-foreground" id="top">
       <nav
         className={cn(
           "sticky top-0 z-50 border-b border-black/5 bg-white/90 backdrop-blur-xl transition-shadow duration-200",
@@ -189,12 +189,15 @@ export default function LandingPage() {
         )}
       >
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
-          <Link className="flex items-center gap-2 text-xl font-black tracking-tight" href="/">
+          <a
+            className="flex items-center gap-2 text-xl font-black tracking-tight"
+            href="#top"
+          >
             <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-brand-green text-white shadow-sm">
               J
             </span>
             Jobby
-          </Link>
+          </a>
 
           <div className="hidden items-center gap-8 md:flex">
             {navLinks.map((link) => (
