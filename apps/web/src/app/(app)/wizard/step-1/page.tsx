@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Lightbulb, Save } from "lucide-react";
+import { ArrowRight, Info, Lightbulb, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { WizardProgress } from "@/components/wizard-progress";
@@ -19,6 +19,12 @@ import {
   getWizardProgress,
   saveWizardProgress
 } from "@/lib/wizard/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 const seniorityOptions = ["junior", "mid", "senior", "staff", "principal"];
 const workModalities = [
@@ -186,9 +192,22 @@ export default function WizardStepOnePage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="targetRole">
-                  Rol objetivo
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium" htmlFor="targetRole">
+                    Rol objetivo
+                  </label>
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Usamos esto para encontrar coincidencias más precisas con
+                        los puestos que analices.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <input
                   className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="targetRole"
@@ -199,9 +218,22 @@ export default function WizardStepOnePage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="seniority">
-                  Seniority
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium" htmlFor="seniority">
+                    Seniority
+                  </label>
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Comparamos tu nivel con el que pide cada puesto para
+                        calcular tu Seniority Score.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <select
                   className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="seniority"
@@ -218,7 +250,22 @@ export default function WizardStepOnePage() {
             </div>
 
             <fieldset className="space-y-3">
-              <legend className="text-sm font-medium">Modalidad</legend>
+              <legend className="text-sm font-medium">
+                <span className="inline-flex items-center gap-2">
+                  Modalidad
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Afecta tu Company Fit Score si el puesto tiene modalidad
+                      distinta a tu preferencia.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                </span>
+              </legend>
               <div className="grid gap-3 sm:grid-cols-3">
                 {workModalities.map((option) => (
                   <label

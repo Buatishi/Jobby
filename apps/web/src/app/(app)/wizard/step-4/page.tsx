@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 
 import { WizardProgress } from "@/components/wizard-progress";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,7 +15,17 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
-import { completeWizard } from "@/lib/wizard/progress";
+import {
+  completeWizard,
+  getWizardProgress,
+  type WizardSkillDraft
+} from "@/lib/wizard/progress";
+
+type ProfilePreview = {
+  headline?: string | null;
+  target_role?: string | null;
+  completeness_pct?: number | null;
+};
 
 export default function WizardStepFourPage() {
   const router = useRouter();
@@ -22,8 +33,22 @@ export default function WizardStepFourPage() {
   const [title, setTitle] = useState("");
   const [education, setEducation] = useState("");
   const [language, setLanguage] = useState("");
+  const [profile, setProfile] = useState<ProfilePreview | null>(null);
+  const [skills, setSkills] = useState<WizardSkillDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const progress = getWizardProgress();
+    setSkills((progress.parsedSkills ?? []).filter((skill) => !skill.rejected));
+
+    void apiClient<ProfilePreview>("/api/v1/profiles/me")
+      .then(setProfile)
+      .catch(() => setProfile(null));
+  }, []);
+
+  const visibleSkills = useMemo(() => skills.slice(0, 8), [skills]);
+  const experienceCount = company || title ? 1 : 0;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -162,6 +187,50 @@ export default function WizardStepFourPage() {
                 value={language}
               />
             </div>
+
+            <Card className="border-[#0F6E56]/15 bg-[#0F6E56]/5 shadow-none">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">
+                  Así va a ver tu perfil la IA
+                </CardTitle>
+                <CardDescription>
+                  Revisá el resumen antes de terminar la configuración.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {profile?.headline || "Headline pendiente"}
+                    {profile?.target_role ? ` · ${profile.target_role}` : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Experiencias cargadas en este paso: {experienceCount}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {visibleSkills.length > 0 ? (
+                    visibleSkills.map((skill) => (
+                      <Badge
+                        className="rounded-full bg-white text-[#0F6E56]"
+                        key={skill.id}
+                        variant="outline"
+                      >
+                        {skill.name}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Todavía no hay skills confirmadas en este wizard.
+                    </span>
+                  )}
+                </div>
+
+                <Badge className="bg-[#0F6E56] text-white">
+                  Completeness actual: {profile?.completeness_pct ?? 0}%
+                </Badge>
+              </CardContent>
+            </Card>
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
