@@ -79,13 +79,14 @@ async def analyze_job(
 ) -> JobAnalyzeResponse:
     _validate_analysis_request(payload)
     profile = await _fetch_profile(supabase, current_user.id)
-    if int(profile.get("completeness_pct") or 0) < 100:
+    completeness_pct = int(profile.get("completeness_pct") or 0)
+    if completeness_pct < 60:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "error": "Completá tu perfil al 100% antes de analizar jobs",
+                "error": "Completá al menos el 60% de tu perfil antes de analizar jobs",
                 "code": "PROFILE_INCOMPLETE",
-                "details": {"completeness_pct": profile.get("completeness_pct", 0)},
+                "details": {"completeness_pct": completeness_pct},
             },
         )
     user_tier = await _fetch_user_tier(supabase, current_user.id)
@@ -112,7 +113,11 @@ async def analyze_job(
         payload.url,
         payload.raw_text,
     )
-    return JobAnalyzeResponse(job_id=job_id, task_id=task_id)
+    return JobAnalyzeResponse(
+        job_id=job_id,
+        task_id=task_id,
+        profile_confidence="high" if completeness_pct >= 85 else "medium",
+    )
 
 
 @router.get("", response_model=list[JobDescription])

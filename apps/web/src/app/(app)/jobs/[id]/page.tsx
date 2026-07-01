@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Lock, Star } from "lucide-react";
+import Link from "next/link";
+import { Info, Lock, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,9 @@ export default function MatchReportPage() {
   const [report, setReport] = useState<MatchReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [profileConfidence, setProfileConfidence] = useState<
+    "high" | "medium" | null
+  >(null);
 
   useEffect(() => {
     async function loadReport() {
@@ -75,6 +79,17 @@ export default function MatchReportPage() {
     }
 
     void loadReport();
+  }, [params.id]);
+
+  useEffect(() => {
+    const storedConfidence = window.localStorage.getItem(
+      `jobmatch_profile_confidence:${params.id}`
+    );
+    setProfileConfidence(
+      storedConfidence === "medium" || storedConfidence === "high"
+        ? storedConfidence
+        : null
+    );
   }, [params.id]);
 
   const matchScore = report?.match_score ?? 0;
@@ -141,6 +156,18 @@ export default function MatchReportPage() {
         </div>
         <Badge variant="outline">Gap: {report.gap_origin ?? "none"}</Badge>
       </div>
+
+      {profileConfidence === "medium" ? (
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm text-[#0F6E56]">
+          <Info className="mt-0.5 h-4 w-4 flex-none" />
+          <p>
+            Tu análisis puede mejorar completando tu perfil.{" "}
+            <Link className="font-semibold underline" href="/dashboard">
+              Volver al dashboard
+            </Link>
+          </p>
+        </div>
+      ) : null}
 
       <section className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
         <Card>

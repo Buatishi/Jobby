@@ -45,8 +45,9 @@ class FakeGateway:
         return [0.2] * 1536
 
 
-def test_analyze_job_requires_complete_profile(client: TestClient) -> None:
+def test_analyze_job_requires_minimum_profile_confidence(client: TestClient) -> None:
     fake_supabase = FakeSupabase()
+    fake_supabase.tables["master_profiles"][0]["completeness_pct"] = 59
 
     async def fake_client() -> FakeSupabase:
         return fake_supabase
@@ -63,12 +64,18 @@ def test_analyze_job_requires_complete_profile(client: TestClient) -> None:
     assert response.json()["code"] == "PROFILE_INCOMPLETE"
 
 
-def test_analyze_job_enqueues_task_for_complete_profile(
+@pytest.mark.parametrize(
+    ("completeness_pct", "expected_confidence"),
+    [(60, "medium"), (85, "high")],
+)
+def test_analyze_job_enqueues_task_for_allowed_profile(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    completeness_pct: int,
+    expected_confidence: str,
 ) -> None:
     fake_supabase = FakeSupabase()
-    fake_supabase.tables["master_profiles"][0]["completeness_pct"] = 100
+    fake_supabase.tables["master_profiles"][0]["completeness_pct"] = completeness_pct
     enqueued: list[tuple[str, str, str, str | None, str | None]] = []
 
     async def fake_client() -> FakeSupabase:
@@ -102,6 +109,7 @@ def test_analyze_job_enqueues_task_for_complete_profile(
 
     assert response.status_code == 202
     assert response.json()["task_id"] == "task-job-1"
+    assert response.json()["profile_confidence"] == expected_confidence
     assert enqueued[0][1:] == ("user-1", "text", None, "Python backend role")
 
 

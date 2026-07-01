@@ -13,6 +13,7 @@ type JobInputMode = "url" | "text";
 type AnalyzeResponse = {
   job_id: string;
   task_id: string;
+  profile_confidence: "high" | "medium";
 };
 
 type ToastState = {
@@ -73,6 +74,10 @@ export function JobInputForm() {
       });
 
       setTaskId(response.task_id);
+      window.localStorage.setItem(
+        `jobmatch_profile_confidence:${response.job_id}`,
+        response.profile_confidence
+      );
       showToast({
         kind: "info",
         message: "Analizando... te avisamos cuando esté listo."

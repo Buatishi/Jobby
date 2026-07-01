@@ -12,6 +12,7 @@ class JobAnalysisRequest(BaseModel):
 class JobAnalyzeResponse(BaseModel):
     job_id: str
     task_id: str
+    profile_confidence: Literal["high", "medium"]
 
 
 class JobDescription(BaseModel):
