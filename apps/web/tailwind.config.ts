@@ -6,6 +6,7 @@ const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
     "./src/app/**/*.{ts,tsx}",
+    "./src/components/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
     "./lib/**/*.{ts,tsx}"
   ],
@@ -20,7 +21,7 @@ const config: Config = {
         sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"]
       },
       colors: {
-        "brand-green": "#008060",
+        "brand-green": "#0F6E56",
         "brand-green-light": "#E0F0F0",
         "brand-accent": "#00A884",
         "bg-dashboard": "#F8FAFA",

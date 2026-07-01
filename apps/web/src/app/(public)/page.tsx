@@ -16,6 +16,7 @@ import {
   X
 } from "lucide-react";
 
+import { MatchScoreCard } from "@/components/match-score-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,10 +30,10 @@ import {
 type BillingCycle = "monthly" | "yearly";
 
 const navLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How-It-Works" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#demo", label: "Demo" }
+  { href: "#features", label: "Funciones" },
+  { href: "#how-it-works", label: "Cómo funciona" },
+  { href: "#pricing", label: "Precios" },
+  { href: "#demo", label: "Vista previa" }
 ];
 
 const features = [
@@ -68,23 +69,23 @@ const features = [
 const steps = [
   {
     title: "Analizá tu CV",
-    description: "Pegá un URL, subí el puesto y elegí contra qué rol competir."
+    description: "Pegá una URL, subí el puesto y elegí contra qué rol competir."
   },
   {
     title: "Descubrí gaps",
     description: "Verificá si tu CV pasa ATS y dónde faltan señales concretas."
   },
   {
-    title: "Analizá un job",
+    title: "Analizá un puesto",
     description: "Conectá tu perfil con recomendaciones accionables."
   }
 ];
 
 const freeFeatures = [
-  "10 análisis de jobs por mes",
+  "10 análisis de puestos por mes",
   "Match Score completo",
   "ATS Analyzer básico",
-  "Historial de últimos 10 jobs"
+  "Historial de últimos 10 puestos"
 ];
 
 const premiumFeatures = [
@@ -99,15 +100,6 @@ const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0 }
 };
-
-const scoreRows = [
-  { label: "Skills técnicas", value: 92, color: "bg-brand-accent" },
-  { label: "Seniority", value: 84, color: "bg-brand-green" },
-  { label: "ATS", value: 76, color: "bg-[#DDAA20]" },
-  { label: "Brechas críticas", value: 18, color: "bg-[#D94B42]" }
-];
-
-const logos = ["Hooli", "pied piper", "IBM", "initech", "INITECH", "initech"];
 
 export default function LandingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
@@ -149,10 +141,10 @@ export default function LandingPage() {
               asChild
               className="h-10 rounded-lg bg-brand-green px-5 text-white shadow-sm hover:bg-[#006d52]"
             >
-              <Link href="/register">Start Free</Link>
+              <Link href="/register">Empezar gratis</Link>
             </Button>
             <Button asChild className="h-10 px-3 font-semibold" variant="ghost">
-              <Link href="/login">Login</Link>
+              <Link href="/login">Iniciar sesión</Link>
             </Button>
           </div>
 
@@ -180,10 +172,10 @@ export default function LandingPage() {
                 </Link>
               ))}
               <Button asChild variant="ghost">
-                <Link href="/login">Login</Link>
+                <Link href="/login">Iniciar sesión</Link>
               </Button>
               <Button asChild className="bg-brand-green text-white hover:bg-[#006d52]">
-                <Link href="/register">Start Free</Link>
+                <Link href="/register">Empezar gratis</Link>
               </Button>
             </div>
           </div>
@@ -204,7 +196,7 @@ export default function LandingPage() {
               transition={{ duration: 0.5 }}
               variants={fadeUp}
             >
-              Deja de postularte a ciegas. Descubre tu match laboral perfecto.
+              Dejá de postularte a ciegas. Descubrí tu match laboral perfecto.
             </motion.h1>
             <motion.p
               className="mt-6 max-w-lg text-base font-medium leading-7 text-black/70"
@@ -224,155 +216,20 @@ export default function LandingPage() {
                 asChild
                 className="h-12 rounded-xl bg-brand-green px-6 text-base font-bold text-white shadow-sm hover:bg-[#006d52]"
               >
-                <Link href="/register">Analizá tu primer job gratis</Link>
+                <Link href="/register">Analizá tu primer puesto gratis</Link>
               </Button>
             </motion.div>
           </motion.div>
 
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="relative min-h-[360px]"
+            className="relative flex min-h-[360px] items-center justify-center"
             initial={{ opacity: 0, y: 28 }}
             transition={{ delay: 0.25, duration: 0.6 }}
           >
             <div className="absolute right-4 top-0 h-80 w-80 rounded-full bg-brand-green-light" />
-            <Card className="absolute left-0 top-7 z-10 w-full max-w-md rounded-2xl border-black/10 bg-white p-0 shadow-[0_24px_70px_rgba(15,23,42,0.14)] sm:left-4">
-              <CardHeader className="border-b border-black/5 p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardDescription className="text-xs font-semibold">
-                      Match Score
-                    </CardDescription>
-                    <CardTitle className="mt-1 text-5xl font-black leading-none">
-                      87
-                    </CardTitle>
-                  </div>
-                  <Badge className="rounded-full bg-brand-green-light px-3 py-1 text-[11px] font-bold text-brand-green">
-                    Muy alto
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 p-6">
-                {scoreRows.map((row) => (
-                  <div className="space-y-1.5" key={row.label}>
-                    <div className="flex justify-between text-xs font-bold text-black/80">
-                      <span>{row.label}</span>
-                      <span>{row.value}%</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[#E8EAED]">
-                      <div
-                        className={`h-full rounded-full ${row.color}`}
-                        style={{ width: `${row.value}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <div className="absolute bottom-8 right-[-3.5rem] z-20 hidden h-56 w-32 sm:block">
-              <svg
-                aria-hidden="true"
-                className="h-full w-full drop-shadow-[0_10px_15px_rgba(0,0,0,0.05)]"
-                fill="none"
-                viewBox="0 0 128 224"
-              >
-                <defs>
-                  <linearGradient id="personSkin" x1="55" x2="82" y1="23" y2="72">
-                    <stop stopColor="#F0C9AD" />
-                    <stop offset="1" stopColor="#C58B70" />
-                  </linearGradient>
-                  <linearGradient id="personJacket" x1="31" x2="83" y1="80" y2="146">
-                    <stop stopColor="#0A9273" />
-                    <stop offset="0.58" stopColor="#007A5E" />
-                    <stop offset="1" stopColor="#005F4D" />
-                  </linearGradient>
-                  <linearGradient id="personPants" x1="39" x2="81" y1="139" y2="217">
-                    <stop stopColor="#4B5563" />
-                    <stop offset="1" stopColor="#1F2937" />
-                  </linearGradient>
-                  <linearGradient id="personHair" x1="49" x2="82" y1="17" y2="51">
-                    <stop stopColor="#372A24" />
-                    <stop offset="1" stopColor="#17110F" />
-                  </linearGradient>
-                  <radialGradient id="personCheek" cx="0" cy="0" r="1" gradientTransform="matrix(9 0 0 7 75 52)" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#D88978" stopOpacity="0.55" />
-                    <stop offset="1" stopColor="#D88978" stopOpacity="0" />
-                  </radialGradient>
-                </defs>
-
-                <ellipse cx="66" cy="218" fill="#0F172A" fillOpacity="0.08" rx="43" ry="5" />
-
-                <path d="M48 67C45 75 43 85 43 96H74C75 85 73 76 69 67H48Z" fill="#F6FAF8" />
-                <path
-                  d="M36 78C51 68 73 69 86 82C92 103 88 123 78 143C64 150 43 147 27 138C28 115 30 94 36 78Z"
-                  fill="url(#personJacket)"
-                />
-                <path d="M51 75C56 95 58 116 58 140" stroke="#005F4D" strokeLinecap="round" strokeOpacity="0.55" strokeWidth="1.25" />
-                <path d="M40 91C45 101 48 115 49 134M79 88C74 101 70 117 68 137" stroke="#21A486" strokeLinecap="round" strokeOpacity="0.5" strokeWidth="1" />
-                <path d="M48 82L57 108L64 82" stroke="#ECF7F2" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                <path d="M60 83L65 110L72 84" stroke="#005F4D" strokeLinecap="round" strokeOpacity="0.55" strokeWidth="1.2" />
-
-                <path d="M84 91C94 104 101 118 104 132" stroke="#007A5E" strokeLinecap="round" strokeWidth="12" />
-                <path d="M104 132C108 144 113 153 119 160" stroke="url(#personSkin)" strokeLinecap="round" strokeWidth="8" />
-
-                <rect fill="#4B5563" height="34" rx="7" transform="rotate(8 93 150)" width="39" x="93" y="150" />
-                <rect fill="#6B7280" height="8" opacity="0.42" rx="3" transform="rotate(8 99 158)" width="29" x="99" y="158" />
-                <path d="M105 151C106 144 119 144 120 153" stroke="#374151" strokeLinecap="round" strokeWidth="1.8" />
-                <path d="M100 164H126" stroke="#CBD5E1" strokeLinecap="round" strokeOpacity="0.55" />
-
-                <path d="M40 138C41 161 37 183 30 211" stroke="url(#personPants)" strokeLinecap="round" strokeWidth="16" />
-                <path d="M67 140C77 161 85 183 92 211" stroke="url(#personPants)" strokeLinecap="round" strokeWidth="16" />
-                <path d="M36 163C41 167 47 168 53 166" stroke="#6B7280" strokeLinecap="round" strokeOpacity="0.48" />
-                <path d="M76 166C82 168 87 166 91 163" stroke="#6B7280" strokeLinecap="round" strokeOpacity="0.48" />
-                <path d="M20 217H40" stroke="#1F2937" strokeLinecap="round" strokeWidth="7" />
-                <path d="M85 217H107" stroke="#1F2937" strokeLinecap="round" strokeWidth="7" />
-
-                <path d="M56 58C56 67 52 72 47 76C55 84 69 83 77 76C70 72 68 66 70 57L56 58Z" fill="url(#personSkin)" />
-                <path d="M49 33C50 21 58 15 69 16C81 17 88 25 87 38L84 50C82 62 74 69 65 69C55 68 49 60 48 48L49 33Z" fill="url(#personSkin)" />
-                <path d="M49 37C52 23 61 18 74 20C82 22 87 28 89 37C81 36 72 32 65 26C62 32 55 36 49 37Z" fill="url(#personHair)" />
-                <path d="M55 22C61 19 70 18 78 23M52 30C59 28 66 29 75 33" stroke="#5B4338" strokeLinecap="round" strokeOpacity="0.55" strokeWidth="1.2" />
-                <ellipse cx="75" cy="47" fill="url(#personCheek)" rx="9" ry="7" />
-                <circle cx="62" cy="46" fill="#17110F" r="1.25" />
-                <circle cx="73" cy="46" fill="#17110F" r="1.25" />
-                <path d="M68 49C66 52 66 53 69 54" stroke="#8C5E4E" strokeLinecap="round" strokeWidth="1.2" />
-                <path d="M62 59C66 62 73 61 77 57" stroke="#7C3F38" strokeLinecap="round" strokeWidth="1.5" />
-                <path d="M58 42C63 40 68 40 72 42" stroke="#3A2C27" strokeLinecap="round" strokeWidth="1.2" />
-                <path d="M78 43C81 42 84 42 86 44" stroke="#3A2C27" strokeLinecap="round" strokeWidth="1.1" />
-                <path d="M88 31C94 40 93 51 84 62" stroke="#2A211D" strokeLinecap="round" strokeOpacity="0.45" strokeWidth="2" />
-                <path d="M49 39C43 48 45 59 54 66" stroke="#2A211D" strokeLinecap="round" strokeOpacity="0.4" strokeWidth="1.8" />
-
-                <g>
-                  <circle cx="112" cy="37" fill="#007a5e" r="10" />
-                  <path
-                    d="M107.5 37.4L111 41L117.5 33"
-                    stroke="white"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                  />
-                </g>
-              </svg>
-            </div>
+            <MatchScoreCard className="relative z-10 w-full max-w-lg scale-100 sm:scale-[1.08] lg:scale-[1.2]" />
           </motion.div>
-        </div>
-      </section>
-
-      <section className="bg-white pb-9">
-        <div className="mx-auto max-w-6xl px-5 sm:px-8">
-          <p className="text-center text-[11px] font-bold uppercase tracking-[0.22em] text-black/45">
-            Más de 12.000 análisis realizados
-          </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-2xl font-black text-black/80">
-            {logos.map((logo, index) => (
-              <span
-                className="grayscale opacity-80 transition hover:opacity-100"
-                key={`${logo}-${index}`}
-              >
-                {logo}
-              </span>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -383,7 +240,7 @@ export default function LandingPage() {
               const Icon = feature.icon;
               return (
                 <Card
-                  className="group rounded-xl border-black/10 bg-brand-green-light/80 shadow-none transition hover:-translate-y-1 hover:shadow-md"
+                  className="group rounded-xl border-black/10 bg-brand-green-light/80 shadow-none transition-shadow hover:shadow-md"
                   key={feature.title}
                 >
                   <CardHeader className="space-y-3 p-5">
@@ -416,7 +273,7 @@ export default function LandingPage() {
 
       <section className="border-y border-black/5 bg-bg-dashboard py-9" id="how-it-works">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
-          <h2 className="text-2xl font-black tracking-tight">Cómo Funciona</h2>
+          <h2 className="text-2xl font-black tracking-tight">Cómo funciona</h2>
           <div className="mt-7 grid gap-6 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-start">
             {steps.map((step, index) => (
               <div className="contents" key={step.title}>
@@ -442,7 +299,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="sr-only" id="pricing" aria-label="Pricing">
+      <section className="sr-only" id="pricing" aria-label="Precios">
         <button
           data-active={billingCycle === "monthly"}
           onClick={() => setBillingCycle("monthly")}
@@ -470,7 +327,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center text-center">
           <TrendingUp className="h-7 w-7" />
           <h2 className="mt-5 text-3xl font-black tracking-tight md:text-4xl">
-            Start preparing better
+            Empezá a prepararte mejor
           </h2>
           <Button
             asChild
