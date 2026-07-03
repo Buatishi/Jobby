@@ -98,7 +98,7 @@ k6 run -e API_URL=http://localhost:8000 -e AUTH_TOKEN=<jwt> tests/load/jobmatch.
 
 ## Deploy
 
-Frontend deploys to Vercel from `apps/web`. Configure Supabase public keys, backend URL, Stripe price IDs, and Sentry DSN in Vercel environment variables.
+Frontend deploys to Vercel from `apps/web`. Configure Supabase public keys, backend URL, Lemon Squeezy public app URL, and Sentry DSN in Vercel environment variables.
 
 Backend deploys are configured for Render with `render.yaml` at the repository root. Railway is not the active backend target in this repo anymore; if you deploy there manually, mirror the same Dockerfile, worker commands, and environment variables from `render.yaml`.
 
@@ -114,6 +114,19 @@ Use Upstash Redis with a TLS URL:
 rediss://default:<UPSTASH_REDIS_PASSWORD>@<UPSTASH_REDIS_HOST>:6379
 ```
 
+### Lemon Squeezy webhook
+
+Create a webhook in the Lemon Squeezy dashboard pointing to:
+
+```text
+https://<render-api-domain>/api/v1/webhooks/lemonsqueezy
+```
+
+Enable these events: `order_created`, `subscription_created`,
+`subscription_updated`, `subscription_cancelled`, `subscription_expired`,
+`subscription_payment_success`, and `subscription_payment_failed`. Copy the
+signing secret into `LEMONSQUEEZY_WEBHOOK_SECRET`.
+
 ## Environment Variables
 
 Backend:
@@ -125,8 +138,10 @@ Backend:
 - `ANTHROPIC_API_KEY`
 - `DEEPSEEK_API_KEY`
 - `REDIS_URL`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
+- `LEMONSQUEEZY_API_KEY`
+- `LEMONSQUEEZY_STORE_ID`
+- `LEMONSQUEEZY_WEBHOOK_SECRET`
+- `LEMONSQUEEZY_PREMIUM_VARIANT_ID`
 - `RESEND_API_KEY`
 - `SENTRY_DSN`
 - `FRONTEND_URL`
@@ -136,10 +151,9 @@ Frontend:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_PRICE_MONTHLY`
 - `NEXT_PUBLIC_PRICE_YEARLY`
-- `NEXT_PUBLIC_STRIPE_PRICE_MONTHLY_ID`
-- `NEXT_PUBLIC_STRIPE_PRICE_YEARLY_ID`
 - `NEXT_PUBLIC_SENTRY_DSN`
 
 GitHub preview deploy secrets:

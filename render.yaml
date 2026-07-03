@@ -26,9 +26,15 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
-      - key: STRIPE_SECRET_KEY
+      - key: LEMONSQUEEZY_API_KEY
         sync: false
-      - key: STRIPE_WEBHOOK_SECRET
+      - key: LEMONSQUEEZY_STORE_ID
+        sync: false
+      - key: LEMONSQUEEZY_WEBHOOK_SECRET
+        sync: false
+      - key: LEMONSQUEEZY_PREMIUM_VARIANT_ID
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
         sync: false
       - key: RESEND_API_KEY
         sync: false

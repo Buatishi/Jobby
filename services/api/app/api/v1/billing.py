@@ -1,44 +1,32 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 from app.dependencies import get_current_user
 from app.models.auth import CurrentUser
-from app.services.stripe_service import create_checkout_session
+from app.services.lemonsqueezy_service import build_checkout_url
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
 
-class CheckoutSessionRequest(BaseModel):
-    price_id: str
-    success_url: HttpUrl
-    cancel_url: HttpUrl
+class CheckoutResponse(BaseModel):
+    checkout_url: str
 
 
-class CheckoutSessionResponse(BaseModel):
-    url: str
-
-
-@router.post("/checkout-session", response_model=CheckoutSessionResponse)
-async def create_billing_checkout_session(
-    payload: CheckoutSessionRequest,
+@router.post("/checkout", response_model=CheckoutResponse)
+async def create_billing_checkout(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-) -> CheckoutSessionResponse:
+) -> CheckoutResponse:
     try:
-        checkout_url = await create_checkout_session(
-            current_user.id,
-            payload.price_id,
-            str(payload.success_url),
-            str(payload.cancel_url),
-        )
+        checkout_url = build_checkout_url(current_user.id, current_user.email or "")
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={
-                "error": "No se pudo crear la sesión de Stripe",
-                "code": "STRIPE_CHECKOUT_FAILED",
+                "error": "No se pudo crear el checkout",
+                "code": "BILLING_CHECKOUT_FAILED",
                 "details": {"reason": str(exc)},
             },
         ) from exc
-    return CheckoutSessionResponse(url=checkout_url)
+    return CheckoutResponse(checkout_url=checkout_url)

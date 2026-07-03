@@ -19,7 +19,7 @@ import { scoreColors } from "@/lib/utils/score-colors";
 type BillingCycle = "monthly" | "yearly";
 
 type CheckoutResponse = {
-  url: string;
+  checkout_url: string;
 };
 
 const freeFeatures = [
@@ -43,8 +43,6 @@ export default function PricingPage() {
   const [error, setError] = useState<string | null>(null);
   const monthlyPrice = process.env.NEXT_PUBLIC_PRICE_MONTHLY ?? "[MONTHLY_PRICE]";
   const yearlyPrice = process.env.NEXT_PUBLIC_PRICE_YEARLY ?? "[YEARLY_PRICE]";
-  const monthlyPriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY_ID ?? "";
-  const yearlyPriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_YEARLY_ID ?? "";
 
   const premiumPrice = useMemo(
     () =>
@@ -56,34 +54,19 @@ export default function PricingPage() {
 
   async function handleUpgrade() {
     setError(null);
-    const priceId =
-      billingCycle === "monthly" ? monthlyPriceId : yearlyPriceId;
-    if (!priceId) {
-      setError("Falta configurar el Price ID de Stripe para este plan.");
-      return;
-    }
-
     setIsRedirecting(true);
     try {
-      const origin = window.location.origin;
       const response = await apiClient<CheckoutResponse>(
-        "/api/v1/billing/checkout-session",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            price_id: priceId,
-            success_url: `${origin}/pricing/success`,
-            cancel_url: `${origin}/pricing/cancel`
-          })
-        }
+        "/api/v1/billing/checkout",
+        { method: "POST" }
       );
-      window.location.href = response.url;
+      window.location.href = response.checkout_url;
     } catch (requestError) {
       setIsRedirecting(false);
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "No se pudo iniciar Stripe Checkout."
+          : "No se pudo iniciar el checkout."
       );
     }
   }
@@ -182,7 +165,7 @@ export default function PricingPage() {
                 {isRedirecting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Redirigiendo a Stripe...
+                    Redirigiendo al checkout...
                   </>
                 ) : (
                   "Upgrade"

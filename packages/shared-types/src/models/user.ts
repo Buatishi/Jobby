@@ -6,7 +6,11 @@ export interface User {
   email: string;
   fullName: string | null;
   tier: UserTier;
-  stripeCustomerId: string | null;
+  paymentProvider: "lemonsqueezy" | null;
+  lemonsqueezyCustomerId: string | null;
+  lemonsqueezySubscriptionId: string | null;
+  subscriptionStatus: string | null;
+  currentPeriodEnd: string | null;
   createdAt: string;
   updatedAt: string;
 }

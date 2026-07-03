@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.skip(
   process.env.E2E_LIVE !== "1",
-  "Set E2E_LIVE=1 with Supabase, backend, and Stripe test config to run live flows."
+  "Set E2E_LIVE=1 with Supabase, backend, and Lemon Squeezy test config to run live flows."
 );
 
 const uniqueEmail = `e2e+${Date.now()}@jobmatch.ai`;

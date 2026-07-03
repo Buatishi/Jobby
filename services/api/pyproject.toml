@@ -20,7 +20,6 @@ httpx = ">=0.28"
 pdfplumber = ">=0.11"
 playwright = ">=1.49"
 slowapi = ">=0.1.9"
-stripe = ">=11.0"
 resend = ">=2.0"
 sentry-sdk = ">=2.0"
 
@@ -50,8 +49,6 @@ module = [
     "playwright.*",
     "slowapi",
     "slowapi.*",
-    "stripe",
-    "stripe.*",
     "resend",
     "resend.*",
     "sentry_sdk",
