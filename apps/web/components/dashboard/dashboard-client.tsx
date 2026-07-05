@@ -302,7 +302,6 @@ export function DashboardClient() {
             }
             title={t("app.completeness")}
             value={completenessPct}
-            progressColor="#007a5e"
             variant="circular"
           />
 
