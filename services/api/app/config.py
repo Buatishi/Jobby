@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         default="",
         alias="SUPABASE_SERVICE_ROLE_KEY",
     )
+    supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")

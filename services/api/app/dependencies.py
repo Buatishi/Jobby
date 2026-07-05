@@ -49,6 +49,35 @@ def _select_signing_key(token: str, jwks: dict[str, Any]) -> tuple[Any, str]:
     raise _unauthorized()
 
 
+def _token_algorithm(token: str) -> str:
+    algorithm = jwt.get_unverified_header(token).get("alg")
+    if not isinstance(algorithm, str):
+        raise _unauthorized()
+    return algorithm
+
+
+def _decode_token(
+    token: str,
+    signing_key: Any,
+    algorithm: str,
+    *,
+    verify_audience: bool = True,
+) -> dict[str, Any]:
+    options = {"verify_exp": True}
+    if not verify_audience:
+        options["verify_aud"] = False
+
+    kwargs: dict[str, Any] = {
+        "key": signing_key,
+        "algorithms": [algorithm],
+        "options": options,
+    }
+    if verify_audience:
+        kwargs["audience"] = "authenticated"
+
+    return jwt.decode(token, **kwargs)
+
+
 async def validate_jwt(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
@@ -60,24 +89,26 @@ async def validate_jwt(
         raise _unauthorized("Token requerido")
 
     try:
-        jwks = await fetch_jwks(settings)
-        signing_key, algorithm = _select_signing_key(credentials.credentials, jwks)
-        return jwt.decode(
-            credentials.credentials,
-            signing_key,
-            algorithms=[algorithm],
-            audience="authenticated",
-            options={"verify_exp": True},
-        )
+        token = credentials.credentials
+        algorithm = _token_algorithm(token)
+        if algorithm == "HS256":
+            if not settings.supabase_jwt_secret:
+                raise _unauthorized()
+            signing_key = settings.supabase_jwt_secret
+        else:
+            jwks = await fetch_jwks(settings)
+            signing_key, algorithm = _select_signing_key(token, jwks)
+
+        return _decode_token(token, signing_key, algorithm)
     except HTTPException:
         raise
     except jwt.InvalidAudienceError:
         try:
-            return jwt.decode(
-                credentials.credentials,
+            return _decode_token(
+                token,
                 signing_key,
-                algorithms=[algorithm],
-                options={"verify_aud": False, "verify_exp": True},
+                algorithm,
+                verify_audience=False,
             )
         except jwt.PyJWTError as exc:
             raise _unauthorized() from exc

@@ -1,5 +1,8 @@
+import jwt
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.database import get_supabase_client
 from app.dependencies import validate_jwt
 from app.main import app
@@ -39,3 +42,22 @@ def test_invalid_token_returns_401(client: TestClient) -> None:
         "code": "UNAUTHORIZED",
         "details": {},
     }
+
+
+async def test_hs256_supabase_token_uses_jwt_secret(
+    monkeypatch,
+) -> None:
+    secret = "jwt-secret-with-at-least-thirty-two-bytes"
+    monkeypatch.setattr(settings, "supabase_jwt_secret", secret)
+    token = jwt.encode(
+        {"sub": "auth-user-1", "aud": "authenticated"},
+        secret,
+        algorithm="HS256",
+    )
+
+    claims = await validate_jwt(
+        HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
+        settings,
+    )
+
+    assert claims["sub"] == "auth-user-1"
