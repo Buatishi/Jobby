@@ -35,6 +35,37 @@ def _unauthorized(message: str = "Token inválido") -> HTTPException:
     )
 
 
+async def _validate_with_supabase_auth(
+    token: str,
+    settings: Settings,
+) -> dict[str, Any]:
+    if not settings.supabase_anon_key:
+        raise _unauthorized()
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            settings.supabase_auth_user_url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "apikey": settings.supabase_anon_key,
+            },
+        )
+
+    if response.status_code != status.HTTP_200_OK:
+        raise _unauthorized()
+
+    user_payload = response.json()
+    supabase_uid = user_payload.get("id")
+    if not isinstance(supabase_uid, str) or not supabase_uid:
+        raise _unauthorized()
+
+    return {
+        "sub": supabase_uid,
+        "email": user_payload.get("email"),
+        "aud": "authenticated",
+    }
+
+
 def _select_signing_key(token: str, jwks: dict[str, Any]) -> tuple[Any, str]:
     header = jwt.get_unverified_header(token)
     key_id = header.get("kid")
@@ -88,8 +119,9 @@ async def validate_jwt(
     if credentials is None:
         raise _unauthorized("Token requerido")
 
+    token = credentials.credentials
+
     try:
-        token = credentials.credentials
         algorithm = _token_algorithm(token)
         if algorithm == "HS256":
             if not settings.supabase_jwt_secret:
@@ -100,8 +132,6 @@ async def validate_jwt(
             signing_key, algorithm = _select_signing_key(token, jwks)
 
         return _decode_token(token, signing_key, algorithm)
-    except HTTPException:
-        raise
     except jwt.InvalidAudienceError:
         try:
             return _decode_token(
@@ -110,10 +140,15 @@ async def validate_jwt(
                 algorithm,
                 verify_audience=False,
             )
-        except jwt.PyJWTError as exc:
-            raise _unauthorized() from exc
-    except (jwt.PyJWTError, httpx.HTTPError, KeyError, ValueError) as exc:
-        raise _unauthorized() from exc
+        except jwt.PyJWTError:
+            return await _validate_with_supabase_auth(token, settings)
+    except HTTPException as exc:
+        detail = exc.detail
+        if isinstance(detail, dict) and detail.get("error") == "Token requerido":
+            raise
+        return await _validate_with_supabase_auth(token, settings)
+    except (jwt.PyJWTError, httpx.HTTPError, KeyError, ValueError):
+        return await _validate_with_supabase_auth(token, settings)
 
 
 async def get_current_user(

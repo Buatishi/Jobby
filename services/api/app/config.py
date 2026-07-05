@@ -41,8 +41,19 @@ class Settings(BaseSettings):
     )
 
     @property
+    def supabase_project_url(self) -> str:
+        base_url = self.supabase_url.rstrip("/")
+        if base_url.endswith("/rest/v1"):
+            return base_url.removesuffix("/rest/v1")
+        return base_url
+
+    @property
     def supabase_jwks_url(self) -> str:
-        return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        return f"{self.supabase_project_url}/auth/v1/.well-known/jwks.json"
+
+    @property
+    def supabase_auth_user_url(self) -> str:
+        return f"{self.supabase_project_url}/auth/v1/user"
 
 
 @lru_cache

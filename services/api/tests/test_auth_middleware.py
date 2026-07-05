@@ -61,3 +61,47 @@ async def test_hs256_supabase_token_uses_jwt_secret(
     )
 
     assert claims["sub"] == "auth-user-1"
+
+
+async def test_token_falls_back_to_supabase_auth_user(
+    monkeypatch,
+) -> None:
+    class FakeResponse:
+        status_code = 200
+
+        def json(self) -> dict[str, str]:
+            return {"id": "auth-user-1", "email": "person@example.com"}
+
+    class FakeAsyncClient:
+        def __init__(self, **_: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            pass
+
+        async def get(self, *_: object, **__: object) -> FakeResponse:
+            return FakeResponse()
+
+    token = jwt.encode(
+        {"sub": "auth-user-1", "aud": "authenticated"},
+        "real-secret-with-at-least-thirty-two-bytes",
+        algorithm="HS256",
+    )
+    monkeypatch.setattr(
+        settings,
+        "supabase_jwt_secret",
+        "wrong-secret-with-at-least-thirty-two-bytes",
+    )
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+    monkeypatch.setattr("app.dependencies.httpx.AsyncClient", FakeAsyncClient)
+
+    claims = await validate_jwt(
+        HTTPAuthorizationCredentials(scheme="Bearer", credentials=token),
+        settings,
+    )
+
+    assert claims["sub"] == "auth-user-1"
+    assert claims["email"] == "person@example.com"
