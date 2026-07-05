@@ -180,7 +180,26 @@ export default function RegisterPage() {
             required
             type="checkbox"
           />
-          <span>{t("auth.tos")}</span>
+          <span>
+            Acepto los{" "}
+            <Link
+              className="font-semibold text-[#0F6E56] underline-offset-4 hover:underline"
+              href="/terms"
+              target="_blank"
+            >
+              Términos y Condiciones
+            </Link>
+            , la{" "}
+            <Link
+              className="font-semibold text-[#0F6E56] underline-offset-4 hover:underline"
+              href="/privacy"
+              target="_blank"
+            >
+              Política de Privacidad
+            </Link>{" "}
+            y el procesamiento de mis datos con sistemas de IA para generar
+            análisis del servicio.
+          </span>
         </label>
 
         {error ? (

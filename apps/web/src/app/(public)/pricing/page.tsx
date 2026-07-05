@@ -179,6 +179,16 @@ export default function PricingPage() {
             </CardContent>
           </Card>
         </div>
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-muted-foreground">
+          <Link className="hover:text-primary" href="/terms">
+            Términos y Condiciones
+          </Link>
+          <span>·</span>
+          <Link className="hover:text-primary" href="/privacy">
+            Política de Privacidad
+          </Link>
+        </div>
       </section>
     </main>
   );

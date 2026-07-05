@@ -201,6 +201,15 @@ export default function LoginPage() {
         <Mail className="h-3.5 w-3.5" />
         {t("auth.protectedBy")}
       </p>
+      <p className="mt-3 text-center text-xs font-medium text-black/40">
+        <Link className="hover:text-[#0F6E56]" href="/terms">
+          Términos
+        </Link>
+        <span className="px-2">·</span>
+        <Link className="hover:text-[#0F6E56]" href="/privacy">
+          Privacidad
+        </Link>
+      </p>
     </AuthLayout>
   );
 }
