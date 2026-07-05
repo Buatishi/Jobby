@@ -85,6 +85,7 @@ type ScoreCardProps = {
   description?: string;
   variant?: "linear" | "circular";
   action?: React.ReactNode;
+  progressColor?: string;
 };
 
 function ScoreCard({
@@ -92,9 +93,10 @@ function ScoreCard({
   value,
   description,
   variant = "linear",
-  action
+  action,
+  progressColor
 }: ScoreCardProps) {
-  const color = getScoreColor(value);
+  const color = progressColor ?? getScoreColor(value);
   const label = description ?? getScoreLabel(value);
   const radius = 48;
   const circumference = 2 * Math.PI * radius;
@@ -130,20 +132,14 @@ function ScoreCard({
                   fill="none"
                   r={radius}
                   stroke={color}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={offset}
                   strokeLinecap="round"
                   strokeWidth="8"
                   className="transition-all duration-700"
-                >
-                  <animate
-                    attributeName="stroke-dashoffset"
-                    dur="800ms"
-                    fill="freeze"
-                    from={circumference}
-                    to={offset}
-                  />
-                </circle>
+                  style={{
+                    strokeDasharray: `${circumference} ${circumference}`,
+                    strokeDashoffset: offset
+                  }}
+                />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <p className="text-5xl font-bold leading-none text-black">
@@ -306,6 +302,7 @@ export function DashboardClient() {
             }
             title={t("app.completeness")}
             value={completenessPct}
+            progressColor="#007a5e"
             variant="circular"
           />
 
