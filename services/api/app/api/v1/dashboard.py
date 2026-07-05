@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -8,10 +9,15 @@ from app.models.auth import CurrentUser
 from app.models.dashboard import DashboardMatch, DashboardSummary
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+logger = logging.getLogger(__name__)
 
 
 async def _execute(query: Any) -> Any:
-    response = await query.execute()
+    try:
+        response = await query.execute()
+    except Exception:
+        logger.exception("Dashboard query failed")
+        return None
     return getattr(response, "data", None)
 
 

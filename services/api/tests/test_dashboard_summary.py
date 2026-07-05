@@ -55,3 +55,21 @@ def test_dashboard_summary_returns_profile_and_matches(client: TestClient) -> No
     assert body["completeness_pct"] == 72
     assert body["pending_analyses_count"] == 1
     assert body["latest_matches"][0]["company_name"] == "Acme"
+
+
+def test_dashboard_summary_handles_missing_profile(client: TestClient) -> None:
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["master_profiles"] = []
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.get("/api/v1/dashboard/summary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["completeness_pct"] == 0
+    assert body["latest_matches"] == []
