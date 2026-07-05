@@ -18,12 +18,26 @@ async function getAuthHeaders(headers?: HeadersInit) {
   };
 }
 
+function getApiUrl() {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+
+  if (apiUrl) {
+    return apiUrl;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Missing NEXT_PUBLIC_API_URL.");
+  }
+
+  return "http://localhost:8000";
+}
+
 export async function apiClient<TResponse>(
   path: string,
   options: ApiClientOptions = {}
 ): Promise<TResponse> {
   const { headers, ...requestOptions } = options;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const apiUrl = getApiUrl();
   const authHeaders = await getAuthHeaders(headers);
 
   const response = await fetch(`${apiUrl}${path}`, {
@@ -53,7 +67,7 @@ export async function apiStream(
   path: string,
   onMessage: (message: string) => void
 ) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const apiUrl = getApiUrl();
   const response = await fetch(`${apiUrl}${path}`, {
     headers: await getAuthHeaders({ Accept: "text/event-stream" })
   });

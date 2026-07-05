@@ -23,6 +23,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/provider";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
 type DashboardMatch = {
@@ -50,7 +51,6 @@ type DashboardSummary = {
   completeness?: number | null;
   missing_tip?: string | null;
   most_valuable_missing_field?: string | null;
-  pending_analyses_count?: number | null;
   latest_matches?: DashboardMatch[] | null;
   matches?: DashboardMatch[] | null;
 };
@@ -66,31 +66,6 @@ function clampScore(value: number | null | undefined) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "short"
-  }).format(new Date(value));
-}
-
-function getGreeting() {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return "Buenos días";
-  }
-
-  if (hour < 20) {
-    return "Buenas tardes";
-  }
-
-  return "Buenas noches";
-}
-
 function getFirstName(summary: DashboardSummary | null) {
   const fullName = summary?.full_name?.trim();
   if (fullName) {
@@ -102,24 +77,6 @@ function getFirstName(summary: DashboardSummary | null) {
   const cleanName = rawName.includes("@") ? rawName.split("@")[0] : rawName;
 
   return cleanName.trim().split(/\s+/)[0] ?? "";
-}
-
-function getProfileActionMessage(
-  completenessPct: number,
-  missingTip: string | null,
-  employabilityScore: number
-) {
-  if (completenessPct >= 85) {
-    return "Tu perfil está listo para análisis precisos.";
-  }
-
-  if (missingTip) {
-    return `Tu perfil está al ${completenessPct}%. ${missingTip}`;
-  }
-
-  return `Tu perfil está al ${completenessPct}% y en estado ${getScoreLabel(
-    employabilityScore
-  )}. Completá los datos pendientes para mejorar la precisión.`;
 }
 
 type ScoreCardProps = {
@@ -224,6 +181,7 @@ function ScoreCard({
 }
 
 export function DashboardClient() {
+  const { language, t } = useI18n();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -244,7 +202,7 @@ export function DashboardClient() {
           setError(
             requestError instanceof Error
               ? requestError.message
-              : "No se pudo cargar el resumen."
+              : t("app.summaryError")
           );
         }
       } finally {
@@ -259,18 +217,26 @@ export function DashboardClient() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
+  const locale = language === "es" ? "es-AR" : "en-US";
   const today = useMemo(
     () =>
-      new Intl.DateTimeFormat("es-AR", {
+      new Intl.DateTimeFormat(locale, {
         weekday: "long",
         day: "numeric",
         month: "long"
       }).format(new Date()),
-    []
+    [locale]
   );
 
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12
+      ? t("app.goodMorning")
+      : hour < 20
+        ? t("app.goodAfternoon")
+        : t("app.goodNight");
   const displayName = getFirstName(summary);
   const employabilityScore = clampScore(
     summary?.employability_score ?? summary?.global_score
@@ -281,12 +247,15 @@ export function DashboardClient() {
   const matches = (summary?.latest_matches ?? summary?.matches ?? []).slice(0, 5);
   const missingTip =
     summary?.missing_tip ?? summary?.most_valuable_missing_field ?? null;
-  const profileActionMessage = getProfileActionMessage(
-    completenessPct,
-    missingTip,
-    employabilityScore
-  );
-  const contextualSuggestions = [profileActionMessage];
+  const profileActionMessage =
+    completenessPct >= 85
+      ? t("app.profileReady")
+      : missingTip
+        ? t("app.profileAt", { percent: completenessPct, tip: missingTip })
+        : t("app.profileFallback", {
+            percent: completenessPct,
+            label: getScoreLabel(employabilityScore)
+          });
 
   return (
     <main className="min-h-screen bg-[#f9fafb] p-6 sm:p-8 lg:p-10">
@@ -299,7 +268,7 @@ export function DashboardClient() {
             </div>
             <div className="mt-3 flex min-w-0 items-center gap-3">
               <h1 className="min-w-0 text-3xl font-black leading-tight tracking-tight text-black md:text-4xl">
-                {getGreeting()}
+                {greeting}
                 {displayName ? `, ${displayName}` : ""}
               </h1>
               <div className="hidden h-10 w-10 flex-none items-center justify-center rounded-full border border-neutral-100 bg-[#e6f2ed] text-[#0F6E56] shadow-sm sm:flex">
@@ -310,7 +279,7 @@ export function DashboardClient() {
           {isLoading ? (
             <Badge variant="outline" className="gap-2 rounded-full border-neutral-100 bg-white">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Cargando resumen
+              {t("app.loadingSummary")}
             </Badge>
           ) : null}
         </div>
@@ -331,18 +300,18 @@ export function DashboardClient() {
                   asChild
                   className="rounded-xl bg-[#e6f2ed] px-5 font-semibold text-[#0F6E56] shadow-none hover:bg-[#d8ebe4]"
                 >
-                  <Link href="/wizard/step-1">Completar perfil</Link>
+                  <Link href="/wizard/step-1">{t("app.completeProfile")}</Link>
                 </Button>
               ) : null
             }
-            title="Completeness del perfil"
+            title={t("app.completeness")}
             value={completenessPct}
             variant="circular"
           />
 
           <ScoreCard
             description={profileActionMessage}
-            title="Score global"
+            title={t("app.globalScore")}
             value={employabilityScore}
           />
         </section>
@@ -352,13 +321,13 @@ export function DashboardClient() {
             <CardHeader>
               <div className="flex items-center gap-2 text-sm font-medium text-[#0F6E56]">
                 <Sparkles className="h-4 w-4" />
-                Hero de análisis
+                {t("app.analysisHero")}
               </div>
               <CardTitle className="text-2xl font-semibold">
-                Analizá un nuevo puesto
+                {t("app.analyzeNewJob")}
               </CardTitle>
               <CardDescription className="font-normal text-neutral-500">
-                Pegá una URL o el texto completo del aviso para iniciar el análisis.
+                {t("app.analyzeDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -372,24 +341,18 @@ export function DashboardClient() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <CardTitle className="text-base font-semibold leading-snug">
-                Sugerencias de Jobby
+                {t("app.suggestionsTitle")}
               </CardTitle>
               <CardDescription className="text-neutral-600">
-                Usamos tu perfil actual para anticipar qué mirar antes de aplicar.
+                {t("app.suggestionsSubtitle")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {contextualSuggestions.map((suggestion) => (
-                <div
-                  className="rounded-2xl border border-neutral-100 bg-neutral-50/70 p-4 text-sm font-semibold leading-6 text-black"
-                  key={suggestion}
-                >
-                  {suggestion}
-                </div>
-              ))}
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50/70 p-4 text-sm font-semibold leading-6 text-black">
+                {profileActionMessage}
+              </div>
               <p className="text-xs leading-5 text-neutral-600">
-                Al analizar un puesto, estas alertas se vuelven específicas para
-                ese rol y priorizan skills, ATS y brechas reales.
+                {t("app.suggestionsFooter")}
               </p>
             </CardContent>
           </Card>
@@ -398,9 +361,9 @@ export function DashboardClient() {
         <section className="mt-6">
           <Card className={dashboardCardClass}>
             <CardHeader>
-              <CardTitle className="font-semibold">Últimos 5 matches</CardTitle>
+              <CardTitle className="font-semibold">{t("app.latestMatches")}</CardTitle>
               <CardDescription className="font-normal text-neutral-500">
-                Tus análisis recientes aparecen ordenados por actividad.
+                {t("app.latestMatchesDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -411,7 +374,13 @@ export function DashboardClient() {
                     const color = getScoreColor(score);
                     const title = match.role ?? match.title ?? match.job_title ?? "";
                     const company = match.company ?? match.company_name ?? "";
-                    const date = formatDate(match.created_at ?? match.analyzed_at);
+                    const date = match.created_at ?? match.analyzed_at;
+                    const formattedDate = date
+                      ? new Intl.DateTimeFormat(locale, {
+                          day: "2-digit",
+                          month: "short"
+                        }).format(new Date(date))
+                      : "";
 
                     return (
                       <div
@@ -420,16 +389,16 @@ export function DashboardClient() {
                       >
                         <div className="min-w-0">
                           <p className="truncate font-semibold">
-                            {company || "Empresa sin nombre"}
+                            {company || t("app.unnamedCompany")}
                           </p>
                           <p className="truncate text-sm text-muted-foreground">
-                            {title || "Rol sin título"}
+                            {title || t("app.untitledRole")}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
-                          {date ? (
+                          {formattedDate ? (
                             <span className="text-sm text-muted-foreground">
-                              {date}
+                              {formattedDate}
                             </span>
                           ) : null}
                           <Badge
@@ -440,7 +409,7 @@ export function DashboardClient() {
                           </Badge>
                           <Button asChild variant="ghost">
                             <Link href={`/jobs/${match.id}`}>
-                              Ver reporte
+                              {t("app.viewReport")}
                               <ArrowRight className="ml-2 h-4 w-4" />
                             </Link>
                           </Button>
@@ -457,9 +426,9 @@ export function DashboardClient() {
                     </div>
                     <div className="absolute -right-2 -top-2 h-5 w-5 rounded-full bg-brand-accent" />
                   </div>
-                  <p className="mt-5 font-semibold">Todavía no hay matches</p>
+                  <p className="mt-5 font-semibold">{t("app.noMatches")}</p>
                   <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-                    Analizá tu primer puesto para ver empresa, rol, score y reporte.
+                    {t("app.noMatchesDescription")}
                   </p>
                 </div>
               )}

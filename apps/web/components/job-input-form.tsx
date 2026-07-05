@@ -6,6 +6,7 @@ import { AlertCircle, ClipboardPaste, Link2, Send } from "lucide-react";
 import { TaskPoller } from "@/components/task-poller";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 type JobInputMode = "url" | "text";
@@ -22,6 +23,7 @@ type ToastState = {
 };
 
 export function JobInputForm() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<JobInputMode>("url");
   const [url, setUrl] = useState("");
   const [rawText, setRawText] = useState("");
@@ -36,26 +38,23 @@ export function JobInputForm() {
   const handleComplete = useCallback(() => {
     showToast({
       kind: "success",
-      message: "Análisis completo. Ya podés revisar el job."
+      message: t("app.analysisComplete")
     });
     setTaskId(null);
-  }, [showToast]);
+  }, [showToast, t]);
 
   const handleFail = useCallback(
     (message: string) => {
       showToast({
         kind: "error",
-        message:
-          mode === "url"
-            ? "No pudimos leer esa URL. Pegá el texto del puesto para continuar."
-            : message
+        message: mode === "url" ? t("app.urlReadFail") : message
       });
       setTaskId(null);
       if (mode === "url") {
         setMode("text");
       }
     },
-    [mode, showToast]
+    [mode, showToast, t]
   );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -80,15 +79,13 @@ export function JobInputForm() {
       );
       showToast({
         kind: "info",
-        message: "Analizando... te avisamos cuando esté listo."
+        message: t("app.analysisQueued")
       });
     } catch (error) {
       showToast({
         kind: "error",
         message:
-          error instanceof Error
-            ? error.message
-            : "No se pudo iniciar el análisis."
+          error instanceof Error ? error.message : t("app.analysisStartFail")
       });
     } finally {
       setIsSubmitting(false);
@@ -108,7 +105,7 @@ export function JobInputForm() {
             type="button"
           >
             <Link2 className="h-4 w-4" />
-            URL del puesto
+            {t("app.jobUrl")}
           </button>
           <button
             className={cn(
@@ -119,7 +116,7 @@ export function JobInputForm() {
             type="button"
           >
             <ClipboardPaste className="h-4 w-4" />
-            Pegar texto
+            {t("app.pasteText")}
           </button>
         </div>
 
@@ -138,15 +135,14 @@ export function JobInputForm() {
             </div>
             <div className="flex gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3 text-sm font-medium text-black/60">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#007a5e]" />
-              Algunos sitios bloquean scraping automático. Si falla, vas a poder
-              pegar el texto manualmente.
+              {t("app.scrapingWarning")}
             </div>
           </div>
         ) : (
           <textarea
             className="min-h-36 w-full resize-none rounded-2xl border border-neutral-100 bg-white p-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#007a5e]"
             onChange={(event) => setRawText(event.target.value)}
-            placeholder="Pegá acá la descripción completa del puesto"
+            placeholder={t("app.pasteJobDescription")}
             required
             value={rawText}
           />
@@ -158,7 +154,7 @@ export function JobInputForm() {
           type="submit"
         >
           <Send className="mr-2 h-4 w-4" />
-          {isSubmitting ? "Encolando..." : "Analizar job"}
+          {isSubmitting ? t("app.enqueueing") : t("app.analyzeJob")}
         </Button>
       </form>
 

@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 
 import type { UserTier } from "@jobmatch/shared-types";
+import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 type AppSidebarProps = {
@@ -29,19 +31,19 @@ type AppSidebarProps = {
 };
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: Gauge },
-  { href: "/profile", label: "Mi perfil", icon: UserRound },
+  { href: "/dashboard", labelKey: "common.dashboard", icon: Gauge },
+  { href: "/profile", labelKey: "common.profile", icon: UserRound },
   {
     href: "/jobs",
-    label: "Jobs",
+    labelKey: "common.jobs",
     icon: BriefcaseBusiness,
     pendingBadge: true
   },
-  { href: "/ats", label: "ATS", icon: FileSearch },
-  { href: "/reality-gap", label: "Reality Gap", icon: TriangleAlert },
+  { href: "/ats", labelKey: "common.ats", icon: FileSearch },
+  { href: "/reality-gap", labelKey: "common.realityGap", icon: TriangleAlert },
   {
     href: "/interview-kits",
-    label: "Interview Kits",
+    labelKey: "common.interviewKits",
     icon: MessagesSquare,
     lockedForFree: true
   }
@@ -53,25 +55,31 @@ function SidebarContent({
   userName,
   onNavigate
 }: AppSidebarProps & { onNavigate?: () => void }) {
+  const { t } = useI18n();
   const pathname = usePathname();
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
       <div className="px-4 pb-5 pt-6">
-        <Link className="flex items-center gap-3" href="/dashboard">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007a5e] text-sm font-black text-white shadow-sm">
-            J
-          </div>
-          <div>
-            <p className="text-xl font-black leading-none tracking-tight">Jobby</p>
-            <p className="mt-1 text-xs font-medium text-muted-foreground">
-              Career intelligence
-            </p>
-          </div>
-        </Link>
+        <div className="flex items-start justify-between gap-3">
+          <Link className="flex items-center gap-3" href="/dashboard">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007a5e] text-sm font-black text-white shadow-sm">
+              J
+            </div>
+            <div>
+              <p className="text-xl font-black leading-none tracking-tight">Jobby</p>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">
+                {t("app.careerIntelligence")}
+              </p>
+            </div>
+          </Link>
+          <LanguageToggle compact />
+        </div>
         {userName ? (
           <div className="mt-5 rounded-2xl border border-neutral-100 bg-white px-3 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
-            <p className="truncate text-xs text-muted-foreground">Sesión activa</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {t("app.activeSession")}
+            </p>
             <p className="truncate text-sm font-bold text-black">{userName}</p>
           </div>
         ) : null}
@@ -98,7 +106,7 @@ function SidebarContent({
               onClick={onNavigate}
             >
               <Icon className="h-4 w-4 flex-none" />
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
               {item.pendingBadge && pendingAnalysesCount ? (
                 <Badge className="rounded-full bg-[#007a5e] px-2 text-white">
                   {pendingAnalysesCount}
@@ -115,10 +123,10 @@ function SidebarContent({
           <div className="rounded-2xl border border-neutral-100 bg-[#e6f2ed] p-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
             <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#007a5e]">
               <Crown className="h-4 w-4" />
-              Upgrade
+              {t("common.upgrade")}
             </div>
             <p className="mb-3 text-xs font-medium leading-5 text-black/60">
-              Desbloqueá kits de entrevista y optimización de CV.
+              {t("app.upgradeText")}
             </p>
             <Button
               asChild
@@ -126,7 +134,7 @@ function SidebarContent({
             >
               <Link href="/pricing" onClick={onNavigate}>
                 <BarChart3 className="mr-2 h-4 w-4" />
-                Upgrade
+                {t("common.upgrade")}
               </Link>
             </Button>
           </div>
@@ -141,6 +149,7 @@ export function AppSidebar({
   userTier = "free",
   userName
 }: AppSidebarProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -149,14 +158,17 @@ export function AppSidebar({
         <Link className="font-black" href="/dashboard">
           Jobby
         </Link>
-        <button
-          aria-label="Abrir navegación"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#e6f2ed]"
-          onClick={() => setIsOpen(true)}
-          type="button"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageToggle compact />
+          <button
+            aria-label={t("common.openMenu")}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-[#e6f2ed]"
+            onClick={() => setIsOpen(true)}
+            type="button"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <aside className="sticky top-0 hidden h-screen w-60 border-r border-neutral-100 bg-white lg:block">
@@ -170,14 +182,14 @@ export function AppSidebar({
       {isOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
-            aria-label="Cerrar navegación"
+            aria-label={t("common.closeMenu")}
             className="absolute inset-0 bg-black/30"
             onClick={() => setIsOpen(false)}
             type="button"
           />
           <aside className="relative h-full w-72 max-w-[86vw] border-r border-neutral-100 bg-white shadow-xl">
             <button
-              aria-label="Cerrar navegación"
+              aria-label={t("common.closeMenu")}
               className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-[#e6f2ed]"
               onClick={() => setIsOpen(false)}
               type="button"
