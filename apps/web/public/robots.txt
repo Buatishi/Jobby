@@ -42,14 +42,14 @@ Disallow: /
 
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /jobs
+Disallow: /ats
+Disallow: /reality-gap
+Disallow: /interview-kits
+Disallow: /wizard
+Disallow: /billing
 Disallow: /api/
-Disallow: /dashboard/
-Disallow: /profile/
-Disallow: /jobs/
-Disallow: /ats/
-Disallow: /reality-gap/
-Disallow: /interview-kits/
-Disallow: /wizard/
-Disallow: /billing/
 
 Sitemap: https://jobbyweb.vercel.app/sitemap.xml

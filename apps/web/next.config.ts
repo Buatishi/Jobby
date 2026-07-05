@@ -1,5 +1,20 @@
 import type { NextConfig } from "next";
 
+const securityHeaders = [
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff"
+  },
+  {
+    key: "X-Frame-Options",
+    value: "SAMEORIGIN"
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin"
+  }
+];
+
 const sensitiveHeaders = [
   {
     key: "X-Robots-Tag",
@@ -14,6 +29,10 @@ const sensitiveHeaders = [
 const nextConfig: NextConfig = {
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: securityHeaders
+      },
       {
         source: "/dashboard/:path*",
         headers: sensitiveHeaders

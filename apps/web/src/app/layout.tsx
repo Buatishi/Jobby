@@ -10,8 +10,26 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Jobby",
-  description: "AI-assisted job matching for candidates and teams."
+  metadataBase: new URL("https://jobbyweb.vercel.app"),
+  title: "Jobby — Sabé cuánto matcheás antes de aplicar",
+  description:
+    "Análisis de compatibilidad laboral con IA para comparar tu CV contra puestos reales, detectar gaps y preparar mejores postulaciones.",
+  openGraph: {
+    title: "Jobby — Sabé cuánto matcheás antes de aplicar",
+    description:
+      "Subí tu CV, pegá un puesto y recibí match score, ATS, gaps reales y recomendaciones accionables.",
+    images: ["/og-image.png"],
+    siteName: "Jobby",
+    type: "website",
+    url: "https://jobbyweb.vercel.app"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Jobby — Sabé cuánto matcheás antes de aplicar",
+    description:
+      "Match score, ATS y preparación laboral con IA antes de postularte.",
+    images: ["/og-image.png"]
+  }
 };
 
 export const viewport: Viewport = {
