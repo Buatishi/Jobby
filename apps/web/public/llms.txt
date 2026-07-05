@@ -1,0 +1,25 @@
+# Jobby
+
+Jobby does not authorize automated scraping, bulk extraction, dataset creation,
+model training, or retrieval-augmented ingestion of private application routes,
+user data, CVs, job reports, billing screens, dashboards, or API responses.
+
+Allowed for ordinary indexing:
+- Public landing page
+- Public pricing page
+- Terms and privacy pages
+
+Disallowed for AI crawlers and automated agents:
+- /api/
+- /dashboard/
+- /profile/
+- /jobs/
+- /ats/
+- /reality-gap/
+- /interview-kits/
+- /wizard/
+- /billing/
+- Uploaded documents, CVs, generated reports, match scores, interview kits,
+  profile data, billing data, and authenticated user content.
+
+Contact: contacto@jobby.ai
