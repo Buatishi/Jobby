@@ -5,21 +5,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 
-import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
-import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { AuthLayout } from "@/src/components/auth/AuthLayout";
+import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
 
-function getAuthErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "No pudimos completar el registro. Probá de nuevo.";
+function getAuthErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function RegisterPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -31,7 +31,7 @@ export default function RegisterPage() {
 
   function validateTos() {
     if (!acceptedTos) {
-      setError("Tenés que aceptar los Términos de Servicio para registrarte.");
+      setError(t("auth.tosRequired"));
       return false;
     }
 
@@ -71,7 +71,7 @@ export default function RegisterPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (authError) {
-      setError(getAuthErrorMessage(authError));
+      setError(getAuthErrorMessage(authError, t("auth.registerError")));
     } finally {
       setIsSubmitting(false);
     }
@@ -105,28 +105,29 @@ export default function RegisterPage() {
         setIsOAuthLoading(false);
       }
     } catch (authError) {
-      setError(getAuthErrorMessage(authError));
+      setError(getAuthErrorMessage(authError, t("auth.registerError")));
       setIsOAuthLoading(false);
     }
   }
 
   return (
-    <AuthLayout headline="Empezá a prepararte mejor">
+    <AuthLayout headline={t("auth.registerHeadline")}>
       <div className="space-y-2">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
-          Cuenta nueva
+          {t("auth.registerEyebrow")}
         </p>
-        <h1 className="text-3xl font-black tracking-tight">Registrarse</h1>
+        <h1 className="text-3xl font-black tracking-tight">
+          {t("auth.registerTitle")}
+        </h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          Creá tu cuenta y empezá desde el dashboard. Después podés completar tu
-          perfil paso a paso.
+          {t("auth.registerSubtitle")}
         </p>
       </div>
 
       <form className="mt-8 space-y-4" onSubmit={handleRegister}>
         <div className="space-y-2">
           <label className="text-sm font-semibold" htmlFor="fullName">
-            Nombre completo
+            {t("auth.fullName")}
           </label>
           <input
             autoComplete="name"
@@ -141,7 +142,7 @@ export default function RegisterPage() {
         </div>
         <div className="space-y-2">
           <label className="text-sm font-semibold" htmlFor="email">
-            Email
+            {t("auth.email")}
           </label>
           <input
             autoComplete="email"
@@ -156,7 +157,7 @@ export default function RegisterPage() {
         </div>
         <div className="space-y-2">
           <label className="text-sm font-semibold" htmlFor="password">
-            Contraseña
+            {t("auth.password")}
           </label>
           <input
             autoComplete="new-password"
@@ -164,7 +165,7 @@ export default function RegisterPage() {
             id="password"
             minLength={6}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Mínimo 6 caracteres"
+            placeholder={t("auth.minPassword")}
             required
             type="password"
             value={password}
@@ -179,10 +180,7 @@ export default function RegisterPage() {
             required
             type="checkbox"
           />
-          <span>
-            Acepto los Términos de Servicio y el procesamiento de mis datos con
-            sistemas de IA para generar análisis del servicio.
-          </span>
+          <span>{t("auth.tos")}</span>
         </label>
 
         {error ? (
@@ -199,7 +197,7 @@ export default function RegisterPage() {
           type="submit"
           variant="primary"
         >
-          {isSubmitting ? "Creando cuenta..." : "Registrarse"}
+          {isSubmitting ? t("auth.creating") : t("auth.registerTitle")}
         </Button>
       </form>
 
@@ -218,16 +216,16 @@ export default function RegisterPage() {
         type="button"
         variant="outline"
       >
-        {isOAuthLoading ? "Abriendo Google..." : "Continuar con Google"}
+        {isOAuthLoading ? t("auth.googleOpening") : t("auth.googleContinue")}
       </Button>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        ¿Ya tenés cuenta?{" "}
+        {t("auth.hasAccount")}{" "}
         <Link
           className="font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
           href="/login"
         >
-          Iniciar sesión
+          {t("common.login")}
         </Link>
       </p>
     </AuthLayout>

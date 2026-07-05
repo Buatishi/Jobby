@@ -3,7 +3,10 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 
+import { useI18n } from "@/lib/i18n/provider";
+
 export function ProblemSection() {
+  const { t } = useI18n();
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { amount: 0.2, once: true });
 
@@ -16,12 +19,10 @@ export function ProblemSection() {
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
         <h2 className="text-3xl font-black tracking-tight text-black md:text-5xl">
-          Postulás a 50 puestos. Te responden 3.
+          {t("landing.problemTitle")}
         </h2>
         <p className="mt-6 text-lg font-medium leading-8 text-black/65">
-          La mayoría de los rechazos no son por falta de skills — son por gaps
-          invisibles: cómo lee tu CV el ATS, si tu seniority matchea, o si tu
-          perfil está bien representado.
+          {t("landing.problemSubtitle")}
         </p>
       </motion.div>
     </section>

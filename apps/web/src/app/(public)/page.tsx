@@ -17,6 +17,7 @@ import {
   X
 } from "lucide-react";
 
+import { LanguageToggle } from "@/components/language-toggle";
 import { MatchScoreCard } from "@/components/match-score-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 import { DemoSection } from "@/src/components/landing/DemoSection";
 import { ProblemSection } from "@/src/components/landing/ProblemSection";
@@ -34,37 +36,37 @@ import { ProblemSection } from "@/src/components/landing/ProblemSection";
 type BillingCycle = "monthly" | "yearly";
 
 const navLinks = [
-  { href: "#features", label: "Funciones" },
-  { href: "#how-it-works", label: "Cómo funciona" },
-  { href: "#pricing", label: "Precios" },
-  { href: "#demo", label: "Vista previa" }
+  { href: "#features", labelKey: "landing.navFeatures" },
+  { href: "#how-it-works", labelKey: "landing.navHow" },
+  { href: "#pricing", labelKey: "landing.navPricing" },
+  { href: "#demo", labelKey: "landing.navDemo" }
 ];
 
 const features = [
   {
-    title: "Match Score",
-    description: "Compatibilidad numérica 0-100 entre tu perfil y el puesto.",
+    titleKey: "landing.features.matchTitle",
+    descriptionKey: "landing.features.matchDescription",
     icon: Gauge
   },
   {
-    title: "ATS Analyzer",
-    description: "Verificá si tu CV pasa filtros automáticos de reclutamiento.",
+    titleKey: "landing.features.atsTitle",
+    descriptionKey: "landing.features.atsDescription",
     icon: FileSearch
   },
   {
-    title: "Reality Gap",
-    description: "Detectá incoherencias entre tu CV, LinkedIn y perfil real.",
+    titleKey: "landing.features.gapTitle",
+    descriptionKey: "landing.features.gapDescription",
     icon: BadgeCheck
   },
   {
-    title: "CV Optimizer",
-    description: "Reescribí tu CV con IA para el puesto específico.",
+    titleKey: "landing.features.optimizerTitle",
+    descriptionKey: "landing.features.optimizerDescription",
     icon: Wand2,
     premium: true
   },
   {
-    title: "Interview Kit",
-    description: "Kit completo para preparación previa a la entrevista.",
+    titleKey: "landing.features.kitTitle",
+    descriptionKey: "landing.features.kitDescription",
     icon: MessageSquareText,
     premium: true
   }
@@ -72,38 +74,41 @@ const features = [
 
 const steps = [
   {
-    title: "Analizá tu CV",
-    description: "Pegá una URL, subí el puesto y elegí contra qué rol competir."
+    titleKey: "landing.steps.oneTitle",
+    descriptionKey: "landing.steps.oneDescription"
   },
   {
-    title: "Descubrí gaps",
-    description: "Verificá si tu CV pasa ATS y dónde faltan señales concretas."
+    titleKey: "landing.steps.twoTitle",
+    descriptionKey: "landing.steps.twoDescription"
   },
   {
-    title: "Analizá un puesto",
-    description: "Conectá tu perfil con recomendaciones accionables."
+    titleKey: "landing.steps.threeTitle",
+    descriptionKey: "landing.steps.threeDescription"
   }
 ];
 
 const freeFeatures = [
-  "10 análisis de puestos por mes",
-  "Match Score completo",
-  "ATS Analyzer básico",
-  "Historial de últimos 10 puestos"
+  "landing.freeFeatures.one",
+  "landing.freeFeatures.two",
+  "landing.freeFeatures.three",
+  "landing.freeFeatures.four"
 ];
 
 const premiumFeatures = [
-  "Análisis ilimitados",
-  "CV Optimizer con IA",
-  "Interview Kit premium",
-  "Historial completo",
-  "Recomendaciones priorizadas"
+  "landing.premiumFeatures.one",
+  "landing.premiumFeatures.two",
+  "landing.premiumFeatures.three",
+  "landing.premiumFeatures.four",
+  "landing.premiumFeatures.five"
 ];
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0 }
 };
+
+const primaryButtonClass =
+  "transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]";
 
 function RevealSection({
   children,
@@ -153,10 +158,8 @@ function RevealItem({
   );
 }
 
-const primaryButtonClass =
-  "transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]";
-
 export default function LandingPage() {
+  const { t } = useI18n();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -165,9 +168,9 @@ export default function LandingPage() {
 
   const premiumPrice = useMemo(() => {
     return billingCycle === "monthly"
-      ? `$${monthlyPrice}/mes`
-      : `$${yearlyPrice}/año`;
-  }, [billingCycle, monthlyPrice, yearlyPrice]);
+      ? `$${monthlyPrice}/${t("landing.perMonth")}`
+      : `$${yearlyPrice}/${t("landing.perYear")}`;
+  }, [billingCycle, monthlyPrice, t, yearlyPrice]);
 
   useEffect(() => {
     function handleScroll() {
@@ -206,12 +209,13 @@ export default function LandingPage() {
                 href={link.href}
                 key={link.href}
               >
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
+            <LanguageToggle />
             <Button
               asChild
               className={cn(
@@ -219,15 +223,15 @@ export default function LandingPage() {
                 primaryButtonClass
               )}
             >
-              <Link href="/register">Empezar gratis</Link>
+              <Link href="/register">{t("common.startFree")}</Link>
             </Button>
             <Button asChild className="h-10 px-3 font-semibold" variant="ghost">
-              <Link href="/login">Iniciar sesión</Link>
+              <Link href="/login">{t("common.login")}</Link>
             </Button>
           </div>
 
           <button
-            aria-label="Abrir menú"
+            aria-label={t("common.openMenu")}
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-black/10 hover:bg-muted md:hidden"
             onClick={() => setIsMenuOpen((current) => !current)}
             type="button"
@@ -246,17 +250,21 @@ export default function LandingPage() {
                   key={link.href}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                 </Link>
               ))}
+              <LanguageToggle className="w-fit" />
               <Button asChild variant="ghost">
-                <Link href="/login">Iniciar sesión</Link>
+                <Link href="/login">{t("common.login")}</Link>
               </Button>
               <Button
                 asChild
-                className={cn("bg-brand-green text-white hover:bg-[#006d52]", primaryButtonClass)}
+                className={cn(
+                  "bg-brand-green text-white hover:bg-[#006d52]",
+                  primaryButtonClass
+                )}
               >
-                <Link href="/register">Empezar gratis</Link>
+                <Link href="/register">{t("common.startFree")}</Link>
               </Button>
             </div>
           </div>
@@ -277,16 +285,14 @@ export default function LandingPage() {
               transition={{ duration: 0.3 }}
               variants={fadeUp}
             >
-              Dejá de postularte a ciegas. Descubrí tu match laboral perfecto.
+              {t("landing.heroTitle")}
             </motion.h1>
             <motion.p
               className="mt-6 max-w-lg text-base font-medium leading-7 text-black/70"
               transition={{ duration: 0.3 }}
               variants={fadeUp}
             >
-              Nuestra IA analiza tu CV frente a cualquier oferta de empleo para
-              darte una puntuación de compatibilidad exacta e identificar brechas
-              clave instantáneamente.
+              {t("landing.heroSubtitle")}
             </motion.p>
             <motion.div
               className="mt-7 flex flex-col gap-3 sm:flex-row"
@@ -300,7 +306,7 @@ export default function LandingPage() {
                   primaryButtonClass
                 )}
               >
-                <Link href="/register">Analizá tu primer puesto gratis</Link>
+                <Link href="/register">{t("landing.heroCta")}</Link>
               </Button>
             </motion.div>
           </motion.div>
@@ -325,7 +331,7 @@ export default function LandingPage() {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <RevealItem delay={index * 0.08} key={feature.title}>
+                <RevealItem delay={index * 0.08} key={feature.titleKey}>
                   <Card className="group rounded-xl border-black/10 bg-brand-green-light/80 shadow-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md">
                     <CardHeader className="space-y-3 p-5">
                       <div className="flex items-center justify-between gap-2">
@@ -335,17 +341,17 @@ export default function LandingPage() {
                         {feature.premium ? (
                           <Badge className="gap-1 rounded-full bg-brand-green px-2 py-0.5 text-[10px] text-white">
                             <Lock className="h-2.5 w-2.5" />
-                            Premium
+                            {t("common.premium")}
                           </Badge>
                         ) : null}
                       </div>
                       <CardTitle className="text-base font-black">
-                        {feature.title}
+                        {t(feature.titleKey)}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="px-5 pb-5 pt-0">
                       <CardDescription className="text-xs font-semibold leading-5 text-black/70">
-                        {feature.description}
+                        {t(feature.descriptionKey)}
                       </CardDescription>
                     </CardContent>
                   </Card>
@@ -356,20 +362,25 @@ export default function LandingPage() {
         </div>
       </RevealSection>
 
-      <RevealSection className="border-y border-black/5 bg-bg-dashboard py-20" id="how-it-works">
+      <RevealSection
+        className="border-y border-black/5 bg-bg-dashboard py-20"
+        id="how-it-works"
+      >
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
-          <h2 className="text-2xl font-black tracking-tight">Cómo funciona</h2>
+          <h2 className="text-2xl font-black tracking-tight">
+            {t("landing.howTitle")}
+          </h2>
           <div className="mt-7 grid gap-6 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-start">
             {steps.map((step, index) => (
-              <div className="contents" key={step.title}>
+              <div className="contents" key={step.titleKey}>
                 <div className="flex gap-4">
                   <span className="text-5xl font-black leading-none text-black">
                     {index + 1}
                   </span>
                   <div>
-                    <h3 className="text-base font-black">{step.title}</h3>
+                    <h3 className="text-base font-black">{t(step.titleKey)}</h3>
                     <p className="mt-1 max-w-xs text-xs font-medium leading-5 text-black/65">
-                      {step.description}
+                      {t(step.descriptionKey)}
                     </p>
                   </div>
                 </div>
@@ -391,10 +402,10 @@ export default function LandingPage() {
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-green">
-                Precios
+                {t("landing.pricingEyebrow")}
               </p>
               <h2 className="mt-3 text-3xl font-black tracking-tight text-black md:text-5xl">
-                Empezá gratis. Mejorá cuando lo necesites.
+                {t("landing.pricingTitle")}
               </h2>
             </div>
             <div className="inline-grid w-fit grid-cols-2 rounded-2xl border border-black/10 bg-bg-dashboard p-1">
@@ -409,7 +420,7 @@ export default function LandingPage() {
                   onClick={() => setBillingCycle(cycle)}
                   type="button"
                 >
-                  {cycle === "monthly" ? "Mensual" : "Anual"}
+                  {cycle === "monthly" ? t("landing.monthly") : t("landing.yearly")}
                 </button>
               ))}
             </div>
@@ -418,8 +429,8 @@ export default function LandingPage() {
           <div className="mt-10 grid gap-5 md:grid-cols-2">
             <Card className="rounded-2xl border-black/10 shadow-none">
               <CardHeader>
-                <CardTitle className="text-2xl font-black">Free</CardTitle>
-                <CardDescription>Para validar tu primer análisis.</CardDescription>
+                <CardTitle className="text-2xl font-black">{t("common.free")}</CardTitle>
+                <CardDescription>{t("landing.freeDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-black">$0</p>
@@ -427,7 +438,7 @@ export default function LandingPage() {
                   {freeFeatures.map((item) => (
                     <li className="flex gap-2" key={item}>
                       <BadgeCheck className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
-                      {item}
+                      {t(item)}
                     </li>
                   ))}
                 </ul>
@@ -438,7 +449,7 @@ export default function LandingPage() {
                     primaryButtonClass
                   )}
                 >
-                  <Link href="/register">Empezar gratis</Link>
+                  <Link href="/register">{t("common.startFree")}</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -446,14 +457,14 @@ export default function LandingPage() {
             <Card className="rounded-2xl border-brand-green/30 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
               <CardHeader>
                 <div className="flex items-center justify-between gap-4">
-                  <CardTitle className="text-2xl font-black">Premium</CardTitle>
+                  <CardTitle className="text-2xl font-black">
+                    {t("common.premium")}
+                  </CardTitle>
                   <Badge className="rounded-full bg-brand-green text-white">
-                    Más popular
+                    {t("landing.mostPopular")}
                   </Badge>
                 </div>
-                <CardDescription>
-                  Para preparar cada postulación con más contexto.
-                </CardDescription>
+                <CardDescription>{t("landing.premiumDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-black">{premiumPrice}</p>
@@ -461,7 +472,7 @@ export default function LandingPage() {
                   {premiumFeatures.map((item) => (
                     <li className="flex gap-2" key={item}>
                       <BadgeCheck className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
-                      {item}
+                      {t(item)}
                     </li>
                   ))}
                 </ul>
@@ -472,7 +483,7 @@ export default function LandingPage() {
                     primaryButtonClass
                   )}
                 >
-                  <Link href="/register">Upgrade a Premium</Link>
+                  <Link href="/register">{t("common.upgrade")}</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -484,7 +495,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center text-center">
           <TrendingUp className="h-7 w-7" />
           <h2 className="mt-5 text-3xl font-black tracking-tight md:text-4xl">
-            Empezá a prepararte mejor
+            {t("landing.finalCta")}
           </h2>
           <Button
             asChild
@@ -493,7 +504,7 @@ export default function LandingPage() {
               primaryButtonClass
             )}
           >
-            <Link href="/register">Empezar gratis</Link>
+            <Link href="/register">{t("common.startFree")}</Link>
           </Button>
         </div>
       </section>
@@ -502,16 +513,14 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col gap-5 border-t border-white/15 pt-6 text-xs sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-base font-black">Jobby</p>
-            <p className="mt-1 text-white/75">
-              IA para entender mejor cada postulación antes de aplicar.
-            </p>
+            <p className="mt-1 text-white/75">{t("landing.footerDescription")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-5 text-white/80">
             <Link className="hover:text-white" href="/privacy">
-              Privacidad
+              {t("landing.privacy")}
             </Link>
             <Link className="hover:text-white" href="/terms">
-              Términos
+              {t("landing.terms")}
             </Link>
             <span>© 2026 Jobby</span>
           </div>

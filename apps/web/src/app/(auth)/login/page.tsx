@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
@@ -13,13 +14,12 @@ import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
 
-function getAuthErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "No pudimos completar la autenticación. Probá de nuevo.";
+function getAuthErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -59,7 +59,7 @@ export default function LoginPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (authError) {
-      setError(getAuthErrorMessage(authError));
+      setError(getAuthErrorMessage(authError, t("auth.authError")));
     } finally {
       setIsSubmitting(false);
     }
@@ -87,34 +87,35 @@ export default function LoginPage() {
         setIsOAuthLoading(false);
       }
     } catch (authError) {
-      setError(getAuthErrorMessage(authError));
+      setError(getAuthErrorMessage(authError, t("auth.authError")));
       setIsOAuthLoading(false);
     }
   }
 
   return (
-    <AuthLayout headline="Tu próxima entrevista empieza acá">
+    <AuthLayout headline={t("auth.loginHeadline")}>
       <div className="space-y-2">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
-          Bienvenido de vuelta
+          {t("auth.loginEyebrow")}
         </p>
-        <h1 className="text-3xl font-black tracking-tight">Iniciar sesión</h1>
+        <h1 className="text-3xl font-black tracking-tight">
+          {t("auth.loginTitle")}
+        </h1>
         <p className="text-sm leading-6 text-muted-foreground">
-          Entrá para analizar puestos, revisar matches y preparar tus próximas
-          entrevistas.
+          {t("auth.loginSubtitle")}
         </p>
       </div>
 
       {resetSuccess ? (
         <div className="mt-6 rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-3 text-sm font-medium text-[#0F6E56]">
-          Tu contraseña se actualizó correctamente. Iniciá sesión.
+          {t("auth.passwordReset")}
         </div>
       ) : null}
 
       <form className="mt-8 space-y-4" onSubmit={handleEmailLogin}>
         <div className="space-y-2">
           <label className="text-sm font-semibold" htmlFor="email">
-            Email
+            {t("auth.email")}
           </label>
           <input
             autoComplete="email"
@@ -130,13 +131,13 @@ export default function LoginPage() {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <label className="text-sm font-semibold" htmlFor="password">
-              Contraseña
+              {t("auth.password")}
             </label>
             <Link
               className="text-xs font-semibold text-[#0F6E56] transition-colors hover:text-[#0d5c48]"
               href="/forgot-password"
             >
-              ¿Olvidaste tu contraseña?
+              {t("auth.forgotPassword")}
             </Link>
           </div>
           <input
@@ -165,7 +166,7 @@ export default function LoginPage() {
           type="submit"
           variant="primary"
         >
-          {isSubmitting ? "Ingresando..." : "Iniciar sesión"}
+          {isSubmitting ? t("auth.loggingIn") : t("auth.loginTitle")}
         </Button>
       </form>
 
@@ -184,21 +185,21 @@ export default function LoginPage() {
         type="button"
         variant="outline"
       >
-        {isOAuthLoading ? "Abriendo Google..." : "Continuar con Google"}
+        {isOAuthLoading ? t("auth.googleOpening") : t("auth.googleContinue")}
       </Button>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        ¿No tenés cuenta?{" "}
+        {t("auth.noAccount")}{" "}
         <Link
           className="font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
           href="/register"
         >
-          Registrarse
+          {t("common.register")}
         </Link>
       </p>
       <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs font-medium text-black/40">
         <Mail className="h-3.5 w-3.5" />
-        Usamos Supabase Auth para proteger tu sesión.
+        {t("auth.protectedBy")}
       </p>
     </AuthLayout>
   );

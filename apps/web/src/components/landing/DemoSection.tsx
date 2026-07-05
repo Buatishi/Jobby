@@ -8,6 +8,7 @@ import { MatchScoreCard } from "@/components/match-score-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 type DemoTab = "match" | "ats" | "kit";
@@ -19,19 +20,23 @@ const tabs: Array<{ id: DemoTab; label: string }> = [
 ];
 
 const keywordRows = [
-  { label: "React", status: "literal", color: "bg-[#0F6E56]" },
-  { label: "FastAPI", status: "semántico", color: "bg-[#1D9E75]" },
-  { label: "PostgreSQL", status: "literal", color: "bg-[#0F6E56]" },
-  { label: "Kubernetes", status: "ausente", color: "bg-[#E24B4A]" }
+  { label: "React", statusKey: "landing.literal", color: "bg-[#0F6E56]" },
+  { label: "FastAPI", statusKey: "landing.semantic", color: "bg-[#1D9E75]" },
+  { label: "PostgreSQL", statusKey: "landing.literal", color: "bg-[#0F6E56]" },
+  { label: "Kubernetes", statusKey: "landing.missing", color: "bg-[#E24B4A]" }
 ];
 
 function AtsPreview() {
+  const { t } = useI18n();
+
   return (
     <Card className="rounded-2xl border-black/10 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-black/55">Datos de muestra</p>
+            <p className="text-xs font-semibold text-black/55">
+              {t("landing.sampleData")}
+            </p>
             <h3 className="mt-1 text-2xl font-black">ATS Report</h3>
           </div>
           <Badge className="rounded-full bg-brand-green-light text-brand-green">
@@ -47,13 +52,13 @@ function AtsPreview() {
               <span className="font-semibold">{row.label}</span>
               <span className="flex items-center gap-2 text-xs font-bold text-black/60">
                 <span className={cn("h-2.5 w-2.5 rounded-full", row.color)} />
-                {row.status}
+                {t(row.statusKey)}
               </span>
             </div>
           ))}
         </div>
         <div className="mt-5 rounded-xl bg-brand-green-light p-4 text-sm font-semibold text-brand-green">
-          El CV cubre bien el stack principal, pero falta reforzar infraestructura.
+          {t("landing.atsHint")}
         </div>
       </CardContent>
     </Card>
@@ -61,26 +66,36 @@ function AtsPreview() {
 }
 
 function InterviewKitPreview() {
+  const { t } = useI18n();
+  const cards = [
+    ["landing.kitStrength", "landing.kitStrengthBody"],
+    ["landing.kitRisk", "landing.kitRiskBody"],
+    ["landing.kitQuestion", "landing.kitQuestionBody"],
+    ["landing.kitPlan", "landing.kitPlanBody"]
+  ] as const;
+
   return (
     <Card className="rounded-2xl border-black/10 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-black/55">Datos de muestra</p>
+            <p className="text-xs font-semibold text-black/55">
+              {t("landing.sampleData")}
+            </p>
             <h3 className="mt-1 text-2xl font-black">Interview Kit</h3>
           </div>
           <MessageSquareText className="h-6 w-6 text-brand-green" />
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {[
-            ["Fortaleza", "Experiencia clara en APIs y producto."],
-            ["Riesgo", "Preparar una historia concreta sobre escala."],
-            ["Pregunta", "¿Cómo mide el equipo el impacto técnico?"],
-            ["Plan", "Repasar logros con métricas antes de la entrevista."]
-          ].map(([title, body]) => (
-            <div className="rounded-xl border border-black/5 bg-bg-dashboard p-4" key={title}>
-              <p className="text-sm font-black">{title}</p>
-              <p className="mt-2 text-xs font-medium leading-5 text-black/65">{body}</p>
+          {cards.map(([titleKey, bodyKey]) => (
+            <div
+              className="rounded-xl border border-black/5 bg-bg-dashboard p-4"
+              key={titleKey}
+            >
+              <p className="text-sm font-black">{t(titleKey)}</p>
+              <p className="mt-2 text-xs font-medium leading-5 text-black/65">
+                {t(bodyKey)}
+              </p>
             </div>
           ))}
         </div>
@@ -102,6 +117,7 @@ function DemoPanel({ activeTab }: { activeTab: DemoTab }) {
 }
 
 export function DemoSection() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<DemoTab>("match");
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { amount: 0.2, once: true });
@@ -116,14 +132,13 @@ export function DemoSection() {
       >
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-green">
-            Demo visual
+            {t("landing.demoEyebrow")}
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tight text-black md:text-5xl">
-            Mirá cómo se ve tu análisis
+            {t("landing.demoTitle")}
           </h2>
           <p className="mt-4 text-base font-medium leading-7 text-black/60">
-            Una vista de muestra para entender qué recibe tu perfil después de
-            analizar un puesto.
+            {t("landing.demoSubtitle")}
           </p>
         </div>
 
@@ -160,7 +175,7 @@ export function DemoSection() {
 
         <div className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-black/50">
           <BadgeCheck className="h-4 w-4 text-brand-green" />
-          <span>Datos de muestra, sin conexión al backend.</span>
+          <span>{t("landing.demoFootnote")}</span>
           <FileSearch className="h-4 w-4 text-brand-green" />
         </div>
       </motion.div>

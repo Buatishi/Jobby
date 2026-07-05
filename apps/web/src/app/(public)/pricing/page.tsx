@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 
+import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/provider";
 import { scoreColors } from "@/lib/utils/score-colors";
 
 type BillingCycle = "monthly" | "yearly";
@@ -23,21 +25,22 @@ type CheckoutResponse = {
 };
 
 const freeFeatures = [
-  "10 análisis de jobs por mes",
-  "5 reportes ATS por día",
-  "Historial de últimos 10 jobs",
-  "Match Score completo"
+  "landing.freeFeatures.one",
+  "landing.freeFeatures.two",
+  "landing.freeFeatures.three",
+  "landing.freeFeatures.four"
 ];
 
 const premiumFeatures = [
-  "Análisis de jobs ilimitados",
-  "50 reportes ATS por día",
-  "10 Interview Kits por mes",
-  "CV Optimizer e IA premium",
-  "Historial completo"
+  "landing.premiumFeatures.one",
+  "landing.premiumFeatures.two",
+  "landing.premiumFeatures.three",
+  "landing.premiumFeatures.four",
+  "landing.premiumFeatures.five"
 ];
 
 export default function PricingPage() {
+  const { t } = useI18n();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,9 +50,9 @@ export default function PricingPage() {
   const premiumPrice = useMemo(
     () =>
       billingCycle === "monthly"
-        ? `$${monthlyPrice}/mes`
-        : `$${yearlyPrice}/año`,
-    [billingCycle, monthlyPrice, yearlyPrice]
+        ? `$${monthlyPrice}/${t("landing.perMonth")}`
+        : `$${yearlyPrice}/${t("landing.perYear")}`,
+    [billingCycle, monthlyPrice, t, yearlyPrice]
   );
 
   async function handleUpgrade() {
@@ -66,7 +69,7 @@ export default function PricingPage() {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "No se pudo iniciar el checkout."
+          : t("pricing.checkoutFail")
       );
     }
   }
@@ -74,17 +77,21 @@ export default function PricingPage() {
   return (
     <main className="min-h-screen bg-background">
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <Link className="text-xl font-black" href="/">
+            Jobby
+          </Link>
+          <LanguageToggle />
+        </div>
+
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              JobMatch AI
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">Jobby</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-normal">
-              Elegí tu plan
+              {t("pricing.title")}
             </h1>
             <p className="mt-3 max-w-2xl text-muted-foreground">
-              Empezá gratis y pasá a Premium cuando quieras preparar entrevistas,
-              analizar más puestos y desbloquear IA avanzada.
+              {t("pricing.subtitle")}
             </p>
           </div>
           <div className="inline-flex w-fit rounded-lg border border-border bg-background p-1">
@@ -94,7 +101,7 @@ export default function PricingPage() {
               onClick={() => setBillingCycle("monthly")}
               type="button"
             >
-              Mensual
+              {t("landing.monthly")}
             </button>
             <button
               className="rounded-md px-4 py-2 text-sm font-medium data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
@@ -102,7 +109,7 @@ export default function PricingPage() {
               onClick={() => setBillingCycle("yearly")}
               type="button"
             >
-              Anual
+              {t("landing.yearly")}
             </button>
           </div>
         </div>
@@ -110,9 +117,9 @@ export default function PricingPage() {
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Free</CardTitle>
+              <CardTitle>{t("common.free")}</CardTitle>
               <p className="text-3xl font-semibold">$0</p>
-              <CardDescription>Para validar tu primer flujo.</CardDescription>
+              <CardDescription>{t("pricing.freeDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {freeFeatures.map((item) => (
@@ -121,11 +128,11 @@ export default function PricingPage() {
                     className="mt-0.5 h-4 w-4 flex-none"
                     style={{ color: scoreColors.lightGreen }}
                   />
-                  <span>{item}</span>
+                  <span>{t(item)}</span>
                 </div>
               ))}
               <Button asChild className="mt-2 w-full" variant="secondary">
-                <Link href="/dashboard">Seguir gratis</Link>
+                <Link href="/dashboard">{t("pricing.followFree")}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -133,13 +140,11 @@ export default function PricingPage() {
           <Card className="border-2" style={{ borderColor: scoreColors.darkGreen }}>
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
-                <CardTitle>Premium</CardTitle>
-                <Badge>Premium</Badge>
+                <CardTitle>{t("common.premium")}</CardTitle>
+                <Badge>{t("common.premium")}</Badge>
               </div>
               <p className="text-3xl font-semibold">{premiumPrice}</p>
-              <CardDescription>
-                Para aplicar con reportes completos y preparación personalizada.
-              </CardDescription>
+              <CardDescription>{t("pricing.premiumDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {premiumFeatures.map((item) => (
@@ -148,7 +153,7 @@ export default function PricingPage() {
                     className="mt-0.5 h-4 w-4 flex-none"
                     style={{ color: scoreColors.darkGreen }}
                   />
-                  <span>{item}</span>
+                  <span>{t(item)}</span>
                 </div>
               ))}
               {error ? (
@@ -165,10 +170,10 @@ export default function PricingPage() {
                 {isRedirecting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Redirigiendo al checkout...
+                    {t("pricing.redirecting")}
                   </>
                 ) : (
-                  "Upgrade"
+                  t("common.upgrade")
                 )}
               </Button>
             </CardContent>
