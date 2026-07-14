@@ -33,7 +33,11 @@ export default function LoginPage() {
     const oauthError = searchParams.get("error");
 
     if (oauthError) {
-      setError(oauthError);
+      setError(
+        oauthError === "session-expired"
+          ? "Tu sesión venció. Iniciá sesión nuevamente para continuar."
+          : oauthError
+      );
     }
 
     setResetSuccess(searchParams.get("reset") === "success");
@@ -56,7 +60,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      const searchParams = new URLSearchParams(window.location.search);
+      router.push(searchParams.get("next") || "/dashboard");
       router.refresh();
     } catch (authError) {
       setError(getAuthErrorMessage(authError, t("auth.authError")));
