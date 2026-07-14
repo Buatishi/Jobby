@@ -109,6 +109,22 @@ def _decode_token(
     return jwt.decode(token, **kwargs)
 
 
+def _claim_email(claims: dict[str, Any]) -> str | None:
+    email = claims.get("email")
+    return email if isinstance(email, str) and email else None
+
+
+def _claim_full_name(claims: dict[str, Any]) -> str | None:
+    metadata = claims.get("user_metadata")
+    if not isinstance(metadata, dict):
+        metadata = claims.get("raw_user_meta_data")
+    if not isinstance(metadata, dict):
+        return None
+
+    full_name = metadata.get("full_name") or metadata.get("name")
+    return full_name if isinstance(full_name, str) and full_name else None
+
+
 async def validate_jwt(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
@@ -168,7 +184,51 @@ async def get_current_user(
     )
     user_data = getattr(response, "data", None)
     if not isinstance(user_data, dict):
+        email = _claim_email(claims)
+        if email is None:
+            raise _unauthorized("Email no encontrado en token")
+
+        insert_response = (
+            await supabase.table("users")
+            .insert(
+                {
+                    "supabase_uid": supabase_uid,
+                    "email": email,
+                    "full_name": _claim_full_name(claims),
+                }
+            )
+            .execute()
+        )
+        inserted_data = getattr(insert_response, "data", None)
+        if isinstance(inserted_data, list) and inserted_data:
+            user_data = inserted_data[0]
+        elif isinstance(inserted_data, dict):
+            user_data = inserted_data
+        else:
+            retry_response = (
+                await supabase.table("users")
+                .select("id,supabase_uid,email")
+                .eq("supabase_uid", supabase_uid)
+                .single()
+                .execute()
+            )
+            user_data = getattr(retry_response, "data", None)
+
+    if not isinstance(user_data, dict):
         raise _unauthorized("Usuario no encontrado")
+
+    profile_response = (
+        await supabase.table("master_profiles")
+        .select("id")
+        .eq("user_id", str(user_data["id"]))
+        .limit(1)
+        .execute()
+    )
+    profile_data = getattr(profile_response, "data", None)
+    if not (isinstance(profile_data, list) and profile_data):
+        await supabase.table("master_profiles").insert(
+            {"user_id": str(user_data["id"])}
+        ).execute()
 
     return CurrentUser(
         id=str(user_data["id"]),
