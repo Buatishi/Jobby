@@ -11,15 +11,26 @@ export class ApiAuthenticationError extends Error {
   }
 }
 
+export class ApiConnectionError extends Error {
+  constructor(
+    message = "No pudimos conectar con el servidor. Revisá la configuración y volvé a intentar."
+  ) {
+    super(message);
+    this.name = "ApiConnectionError";
+  }
+}
+
 async function getSessionAccessToken(forceRefresh = false) {
   const supabase = createSupabaseBrowserClient();
 
   if (forceRefresh) {
-    const {
-      data: { session }
-    } = await supabase.auth.refreshSession();
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      await redirectToLoginAfterAuthFailure();
+      throw new ApiAuthenticationError();
+    }
 
-    return session?.access_token;
+    return data.session?.access_token;
   }
 
   const {
@@ -54,7 +65,7 @@ function getApiUrl() {
 
 async function redirectToLoginAfterAuthFailure() {
   const supabase = createSupabaseBrowserClient();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut().catch(() => undefined);
 
   if (typeof window !== "undefined") {
     const nextPath = `${window.location.pathname}${window.location.search}`;
@@ -97,10 +108,23 @@ export async function apiClient<TResponse>(
     });
   }
 
-  let response = await sendRequest();
+  let response: Response;
+  try {
+    response = await sendRequest();
+  } catch {
+    throw new ApiConnectionError();
+  }
 
   if (response.status === 401) {
-    response = await sendRequest(true);
+    try {
+      response = await sendRequest(true);
+    } catch (error) {
+      if (error instanceof ApiAuthenticationError) {
+        throw error;
+      }
+      await redirectToLoginAfterAuthFailure();
+      throw new ApiAuthenticationError();
+    }
     if (response.status === 401) {
       await redirectToLoginAfterAuthFailure();
       throw new ApiAuthenticationError();
@@ -125,10 +149,23 @@ export async function apiStream(
     });
   }
 
-  let response = await openStream();
+  let response: Response;
+  try {
+    response = await openStream();
+  } catch {
+    throw new ApiConnectionError();
+  }
 
   if (response.status === 401) {
-    response = await openStream(true);
+    try {
+      response = await openStream(true);
+    } catch (error) {
+      if (error instanceof ApiAuthenticationError) {
+        throw error;
+      }
+      await redirectToLoginAfterAuthFailure();
+      throw new ApiAuthenticationError();
+    }
     if (response.status === 401) {
       await redirectToLoginAfterAuthFailure();
       throw new ApiAuthenticationError();
