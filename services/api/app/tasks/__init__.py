@@ -26,6 +26,8 @@ celery_app.conf.update(
         "app.tasks.analysis.match_task": {"queue": "analysis"},
         "app.tasks.analysis.interview_kit_task": {"queue": "analysis"},
     },
+    broker_connection_timeout=3,
+    task_publish_retry=False,
     broker_transport_options={"visibility_timeout": 3600},
     result_backend_transport_options={"visibility_timeout": 3600},
 )

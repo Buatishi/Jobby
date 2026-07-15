@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    task_execution_mode: str = Field(default="celery", alias="TASK_EXECUTION_MODE")
     lemonsqueezy_api_key: str = Field(default="", alias="LEMONSQUEEZY_API_KEY")
     lemonsqueezy_store_id: str = Field(default="", alias="LEMONSQUEEZY_STORE_ID")
     lemonsqueezy_webhook_secret: str = Field(

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from app.models.tasks import TaskResponse, TaskStatus
 from app.tasks import celery_app
+from app.tasks.local_fallback import get_local_task
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -24,6 +25,23 @@ def _normalize_task_status(state: str) -> TaskStatus:
 
 
 def get_task_response(task_id: str) -> TaskResponse:
+    local_result = get_local_task(task_id)
+    if local_result is not None:
+        status = _normalize_task_status(local_result.state)
+        local_payload: Any | None = None
+        local_error: str | None = None
+        if local_result.ready():
+            if local_result.successful():
+                local_payload = local_result.result
+            else:
+                local_error = str(local_result.result)
+        return TaskResponse(
+            task_id=task_id,
+            status=status,
+            result=local_payload,
+            error=local_error,
+        )
+
     result = AsyncResult(task_id, app=celery_app)
     status = _normalize_task_status(result.state)
     payload: Any | None = None

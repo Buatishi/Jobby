@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
 from app.database import get_supabase_client
 from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
@@ -11,6 +12,7 @@ from app.services.cv_parser import (
     structure_cv_text,
 )
 from app.tasks import celery_app
+from app.tasks.local_fallback import enqueue_local_task
 
 DOCUMENTS_BUCKET = "cv-documents"
 
@@ -159,5 +161,18 @@ def parse_cv_task(document_id: str) -> dict[str, Any]:
 
 
 def enqueue_parse_cv(document_id: str) -> str:
-    async_result = parse_cv_task.delay(document_id)
+    if settings.task_execution_mode.lower() == "local":
+        return enqueue_local_task(
+            lambda: run_parse_cv(document_id),
+            prefix="local-parse-cv",
+        )
+
+    try:
+        async_result = parse_cv_task.apply_async((document_id,), retry=False)
+    except Exception:
+        return enqueue_local_task(
+            lambda: run_parse_cv(document_id),
+            prefix="local-parse-cv",
+        )
+
     return str(async_result.id)
