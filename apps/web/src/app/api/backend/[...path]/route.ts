@@ -37,8 +37,12 @@ function forwardHeaders(request: NextRequest) {
 
 async function proxyRequest(request: NextRequest, context: RouteContext) {
   const { path } = await context.params;
+  const backendPath =
+    path[0] === "api" && path[1] === "v1"
+      ? `/${path.join("/")}`
+      : `/api/v1/${path.join("/")}`;
   const backendUrl = new URL(
-    `/api/v1/${path.join("/")}${request.nextUrl.search}`,
+    `${backendPath}${request.nextUrl.search}`,
     getBackendBaseUrl()
   );
   const method = request.method.toUpperCase();
