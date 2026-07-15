@@ -64,6 +64,58 @@ def test_create_document_enqueues_parse_task(
     assert fake_supabase.tables["uploaded_documents"][0]["status"] == "pending"
 
 
+def test_create_document_replaces_existing_cv_slot_before_enqueue(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["uploaded_documents"].append(
+        {
+            "id": "old-document",
+            "user_id": "user-1",
+            "profile_id": "profile-1",
+            "type": "cv",
+            "cv_slot": 1,
+            "is_primary": True,
+            "storage_path": "user-1/old.pdf",
+            "status": "failed",
+        }
+    )
+    enqueued: list[str] = []
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    def fake_enqueue(document_id: str) -> str:
+        enqueued.append(document_id)
+        return "task-retry"
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+    monkeypatch.setattr(parsing, "enqueue_parse_cv", fake_enqueue)
+
+    response = client.post(
+        "/api/v1/profiles/documents",
+        json={
+            "profile_id": "profile-1",
+            "type": "cv",
+            "cv_slot": 1,
+            "is_primary": True,
+            "storage_path": "user-1/new.pdf",
+            "original_filename": "new.pdf",
+            "mime_type": "application/pdf",
+            "file_size": 1000,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["task_id"] == "task-retry"
+    assert len(fake_supabase.tables["uploaded_documents"]) == 1
+    document = fake_supabase.tables["uploaded_documents"][0]
+    assert document["storage_path"] == "user-1/new.pdf"
+    assert enqueued == ["uploaded_documents-1"]
+
+
 def test_set_primary_document_switches_atomically_and_requeues(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

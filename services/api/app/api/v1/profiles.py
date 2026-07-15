@@ -79,6 +79,34 @@ async def _update_completeness(supabase: Any, profile_id: str) -> None:
     await supabase.rpc("compute_completeness", {"p_id": profile_id}).execute()
 
 
+async def _prepare_cv_slot_for_insert(
+    supabase: Any,
+    user_id: str,
+    payload: UploadedDocumentCreate,
+) -> None:
+    if payload.type != "cv":
+        return
+
+    if payload.cv_slot is not None:
+        await (
+            supabase.table("uploaded_documents")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("type", "cv")
+            .eq("cv_slot", payload.cv_slot)
+            .execute()
+        )
+
+    if payload.is_primary:
+        await (
+            supabase.table("uploaded_documents")
+            .update({"is_primary": False})
+            .eq("user_id", user_id)
+            .eq("type", "cv")
+            .execute()
+        )
+
+
 async def _insert_profile_row(
     supabase: Any,
     table_name: str,
@@ -167,6 +195,8 @@ async def create_profile_document(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> UploadedDocument:
+    await _prepare_cv_slot_for_insert(supabase, current_user.id, payload)
+
     document_payload = {
         **payload.model_dump(),
         "user_id": current_user.id,
