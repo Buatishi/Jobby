@@ -106,6 +106,39 @@ def test_deepseek_api_key_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None
     assert ai_structurer._deepseek_api_key() == "sk-test"
 
 
+def test_structured_payload_normalization_accepts_ai_variants() -> None:
+    normalized = ai_structurer._normalize_structured_payload(
+        {
+            "data": {
+                "skills": [
+                    {"skill_name": "Python", "type": None, "proficiency": "Senior"},
+                    {"category": "technical"},
+                ],
+                "experiences": [
+                    {
+                        "employer": "Acme",
+                        "role": "Backend Engineer",
+                        "start_date": None,
+                        "achievements": "Reduced latency",
+                    }
+                ],
+                "educations": [{"school": "UBA", "degree": None}],
+                "languages": [{"language": "English", "proficiency": None}],
+                "certifications": [{"title": "AWS", "organization": "Amazon"}],
+            }
+        }
+    )
+
+    parsed = CVStructuredData.model_validate(normalized)
+
+    assert parsed.skills[0].name == "Python"
+    assert parsed.skills[0].category == "general"
+    assert parsed.experiences[0].title == "Backend Engineer"
+    assert parsed.experiences[0].achievements == ["Reduced latency"]
+    assert parsed.languages[0].level == "unknown"
+    assert len(parsed.skills) == 1
+
+
 @pytest.mark.asyncio
 async def test_deepseek_unauthorized_returns_actionable_error(
     monkeypatch: pytest.MonkeyPatch,

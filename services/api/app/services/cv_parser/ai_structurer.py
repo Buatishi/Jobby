@@ -11,32 +11,32 @@ DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
 
 
 class ParsedSkill(BaseModel):
-    name: str
-    category: str
-    level: str
+    name: str = ""
+    category: str = "general"
+    level: str = "unknown"
 
 
 class ParsedExperience(BaseModel):
-    company: str
-    title: str
+    company: str = ""
+    title: str = ""
     started_at: str | None = None
     description: str | None = None
     achievements: list[str] = Field(default_factory=list)
 
 
 class ParsedEducation(BaseModel):
-    institution: str
+    institution: str = ""
     field_of_study: str | None = None
     degree_level: str | None = None
 
 
 class ParsedLanguage(BaseModel):
-    name: str
-    level: str
+    name: str = ""
+    level: str = "unknown"
 
 
 class ParsedCertification(BaseModel):
-    name: str
+    name: str = ""
     issuer: str | None = None
 
 
@@ -75,8 +75,129 @@ def _user_prompt(cv_text: str, correction_hint: str | None = None) -> str:
     return (
         f"{correction}\nExtract structured data from this CV/resume text. "
         "The CV may be in Spanish, English, or both.\n\n"
+        "Rules: return only one JSON object. Each top-level key must be an "
+        "array. Use empty strings for unknown text values, never null. "
+        "achievements must always be an array of strings.\n\n"
         f"{cv_text}"
     )
+
+
+def _clean_str(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
+def _ensure_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def _pick(item: dict[str, Any], *keys: str, default: str = "") -> str:
+    for key in keys:
+        if key in item and item[key] not in (None, ""):
+            return _clean_str(item[key], default)
+    return default
+
+
+def _normalize_items(value: Any) -> list[dict[str, Any]]:
+    return [item for item in _ensure_list(value) if isinstance(item, dict)]
+
+
+def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
+    for wrapper_key in ("data", "profile", "parsed_data", "cv"):
+        wrapped = parsed.get(wrapper_key)
+        if isinstance(wrapped, dict):
+            parsed = wrapped
+            break
+
+    skills = []
+    for item in _normalize_items(parsed.get("skills")):
+        name = _pick(item, "name", "skill", "skill_name", "technology")
+        if not name:
+            continue
+        skills.append(
+            {
+                "name": name,
+                "category": _pick(item, "category", "type", default="general"),
+                "level": _pick(item, "level", "proficiency", default="unknown"),
+            }
+        )
+
+    experiences = []
+    for item in _normalize_items(parsed.get("experiences")):
+        title = _pick(item, "title", "role", "position", "job_title")
+        company = _pick(item, "company", "employer", "organization")
+        if not title and not company:
+            continue
+        achievements = [
+            _clean_str(achievement)
+            for achievement in _ensure_list(item.get("achievements"))
+            if _clean_str(achievement)
+        ]
+        experiences.append(
+            {
+                "company": company,
+                "title": title,
+                "started_at": _pick(item, "started_at", "start_date", "from"),
+                "description": _pick(item, "description", "summary"),
+                "achievements": achievements,
+            }
+        )
+
+    educations = []
+    for item in _normalize_items(parsed.get("educations")):
+        institution = _pick(item, "institution", "school", "university")
+        field = _pick(item, "field_of_study", "field", "area")
+        degree = _pick(item, "degree_level", "degree", "title")
+        if not institution and not field and not degree:
+            continue
+        educations.append(
+            {
+                "institution": institution,
+                "field_of_study": field,
+                "degree_level": degree,
+            }
+        )
+
+    languages = []
+    for item in _normalize_items(parsed.get("languages")):
+        name = _pick(item, "name", "language")
+        if not name:
+            continue
+        languages.append(
+            {
+                "name": name,
+                "level": _pick(item, "level", "proficiency", default="unknown"),
+            }
+        )
+
+    certifications = []
+    for item in _normalize_items(parsed.get("certifications")):
+        name = _pick(item, "name", "certification", "title")
+        if not name:
+            continue
+        certifications.append(
+            {
+                "name": name,
+                "issuer": _pick(item, "issuer", "organization", "authority"),
+            }
+        )
+
+    return {
+        "skills": skills,
+        "experiences": experiences,
+        "educations": educations,
+        "languages": languages,
+        "certifications": certifications,
+    }
 
 
 def _extract_content(response_payload: dict[str, Any]) -> str:
@@ -159,8 +280,9 @@ async def structure_cv_text(cv_text: str) -> CVStructuredData:
     for _attempt in range(2):
         content = await _call_deepseek(cv_text, validation_error)
         parsed_json = _parse_json_content(content)
+        normalized_json = _normalize_structured_payload(parsed_json)
         try:
-            return CVStructuredData.model_validate(parsed_json)
+            return CVStructuredData.model_validate(normalized_json)
         except ValidationError as exc:
             validation_error = str(exc)
 
