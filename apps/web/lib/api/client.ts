@@ -50,6 +50,10 @@ async function getAuthHeaders(headers?: HeadersInit, forceRefresh = false) {
 }
 
 function getApiUrl() {
+  if (typeof window !== "undefined") {
+    return "/api/backend";
+  }
+
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
   if (apiUrl) {
