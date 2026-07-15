@@ -32,9 +32,15 @@ allowed_origins = ["http://localhost:3000"]
 if settings.frontend_url and settings.frontend_url not in allowed_origins:
     allowed_origins.append(settings.frontend_url)
 
+allowed_origin_regex = (
+    settings.frontend_origin_regex
+    or r"https://(jobbyweb|jobby-[a-z0-9-]+-jobbydev)\.vercel\.app"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

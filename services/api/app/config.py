@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     resend_api_key: str = Field(default="", alias="RESEND_API_KEY")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
     frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
+    frontend_origin_regex: str = Field(default="", alias="FRONTEND_ORIGIN_REGEX")
     public_app_url: str = Field(
         default="http://localhost:3000",
         alias="NEXT_PUBLIC_APP_URL",
