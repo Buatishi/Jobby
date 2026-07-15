@@ -50,6 +50,10 @@ class CVStructuredData(BaseModel):
     certifications: list[ParsedCertification] = Field(default_factory=list)
 
 
+def _deepseek_api_key() -> str:
+    return settings.deepseek_api_key.strip().strip('"').strip("'")
+
+
 def _system_prompt() -> str:
     return (
         "You are a bilingual CV parser for Spanish and English resumes. "
@@ -110,7 +114,8 @@ def _parse_json_content(content: str) -> dict[str, Any]:
 
 
 async def _call_deepseek(cv_text: str, correction_hint: str | None = None) -> str:
-    if not settings.deepseek_api_key:
+    api_key = _deepseek_api_key()
+    if not api_key:
         raise CVParsingError("Falta DEEPSEEK_API_KEY.", "DEEPSEEK_NOT_CONFIGURED")
 
     payload = {
@@ -123,13 +128,26 @@ async def _call_deepseek(cv_text: str, correction_hint: str | None = None) -> st
         "temperature": 0.1,
     }
     headers = {
-        "Authorization": f"Bearer {settings.deepseek_api_key}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(DEEPSEEK_CHAT_URL, json=payload, headers=headers)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            if status_code == 401:
+                raise CVParsingError(
+                    "DeepSeek rechazo la API key configurada. "
+                    "Revisa DEEPSEEK_API_KEY en Render.",
+                    "DEEPSEEK_UNAUTHORIZED",
+                ) from exc
+            raise CVParsingError(
+                f"DeepSeek devolvio HTTP {status_code}.",
+                "DEEPSEEK_REQUEST_FAILED",
+            ) from exc
         response_payload = response.json()
 
     return _extract_content(response_payload)

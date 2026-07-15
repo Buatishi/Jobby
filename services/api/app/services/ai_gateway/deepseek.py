@@ -14,7 +14,8 @@ class DeepSeekProvider:
     model = "deepseek-chat"
 
     def __init__(self, api_key: str | None = None) -> None:
-        self.api_key = api_key if api_key is not None else settings.deepseek_api_key
+        raw_api_key = api_key if api_key is not None else settings.deepseek_api_key
+        self.api_key = raw_api_key.strip().strip('"').strip("'")
 
     async def generate(
         self,

@@ -1,8 +1,14 @@
 from pathlib import Path
 
+import httpx
 import pytest
 
-from app.services.cv_parser import CVParsingError, CVStructuredData, extract_pdf_text
+from app.services.cv_parser import (
+    CVParsingError,
+    CVStructuredData,
+    ai_structurer,
+    extract_pdf_text,
+)
 from app.services.cv_parser.ai_structurer import ParsedSkill
 from app.services.cv_parser.merge_logic import merge_parsed_skills
 
@@ -92,3 +98,47 @@ def test_merge_parsed_skills_deduplicates_and_keeps_confirmed() -> None:
     assert python_skill["confirmed"] is True
     assert fastapi_skill["in_cv"] is True
     assert len(merged) == 2
+
+
+def test_deepseek_api_key_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ai_structurer.settings, "deepseek_api_key", ' "sk-test" ')
+
+    assert ai_structurer._deepseek_api_key() == "sk-test"
+
+
+@pytest.mark.asyncio
+async def test_deepseek_unauthorized_returns_actionable_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 401
+
+        def raise_for_status(self) -> None:
+            request = httpx.Request("POST", ai_structurer.DEEPSEEK_CHAT_URL)
+            response = httpx.Response(401, request=request)
+            raise httpx.HTTPStatusError(
+                "unauthorized",
+                request=request,
+                response=response,
+            )
+
+    class FakeClient:
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(ai_structurer.settings, "deepseek_api_key", "bad-key")
+    monkeypatch.setattr(ai_structurer.httpx, "AsyncClient", FakeClient)
+
+    with pytest.raises(CVParsingError) as exc_info:
+        await ai_structurer._call_deepseek("Python FastAPI")
+
+    assert exc_info.value.code == "DEEPSEEK_UNAUTHORIZED"
