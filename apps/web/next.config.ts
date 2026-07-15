@@ -26,7 +26,33 @@ const sensitiveHeaders = [
   }
 ];
 
+function getBackendBaseUrl() {
+  return (
+    process.env.API_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "https://jobby-fp0r.onrender.com"
+  )
+    .replace(/\/$/, "")
+    .replace(/\/api\/v1$/, "");
+}
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    const backendUrl = getBackendBaseUrl();
+
+    return {
+      beforeFiles: [
+        {
+          source: "/api/backend/api/v1/:path*",
+          destination: `${backendUrl}/api/v1/:path*`
+        },
+        {
+          source: "/api/backend/:path*",
+          destination: `${backendUrl}/api/v1/:path*`
+        }
+      ]
+    };
+  },
   async headers() {
     return [
       {

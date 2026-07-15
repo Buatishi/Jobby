@@ -22,7 +22,9 @@ function getBackendBaseUrl() {
     process.env.API_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
     "http://localhost:8000"
-  ).replace(/\/$/, "");
+  )
+    .replace(/\/$/, "")
+    .replace(/\/api\/v1$/, "");
 }
 
 function forwardHeaders(request: NextRequest) {
