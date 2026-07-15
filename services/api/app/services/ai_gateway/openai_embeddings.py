@@ -15,7 +15,8 @@ class OpenAIEmbeddingsProvider:
     dimensions = 1536
 
     def __init__(self, api_key: str | None = None) -> None:
-        self.api_key = api_key if api_key is not None else settings.openai_api_key
+        raw_api_key = api_key if api_key is not None else settings.openai_api_key
+        self.api_key = raw_api_key.strip().strip('"').strip("'")
 
     async def embed(self, text: str) -> list[float]:
         async def operation() -> list[float]:
@@ -43,7 +44,20 @@ class OpenAIEmbeddingsProvider:
                 json=payload,
                 headers=headers,
             )
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                if status_code == 401:
+                    raise ProviderUnavailableError(
+                        self.name,
+                        "OpenAI rechazo la API key configurada. "
+                        "Revisa OPENAI_API_KEY en Render.",
+                    ) from exc
+                raise ProviderUnavailableError(
+                    self.name,
+                    f"OpenAI embeddings devolvio HTTP {status_code}.",
+                ) from exc
             data: dict[str, Any] = response.json()
 
         embeddings = data.get("data")

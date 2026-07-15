@@ -1,7 +1,15 @@
+import httpx
 import pytest
 
 from app.services.ai_gateway import AIGateway
-from app.services.ai_gateway.errors import PremiumRequiredError
+from app.services.ai_gateway.errors import (
+    PremiumRequiredError,
+    ProviderUnavailableError,
+)
+from app.services.ai_gateway.openai_embeddings import (
+    OPENAI_EMBEDDINGS_URL,
+    OpenAIEmbeddingsProvider,
+)
 
 
 class MockProvider:
@@ -100,3 +108,51 @@ async def test_premium_only_tasks_reject_free_tier() -> None:
 
     with pytest.raises(PremiumRequiredError):
         await gateway.generate("interview_kit", "free", "kit")
+
+
+def test_openai_embeddings_api_key_is_normalized() -> None:
+    provider = OpenAIEmbeddingsProvider(' "sk-test" ')
+
+    assert provider.api_key == "sk-test"
+
+
+@pytest.mark.asyncio
+async def test_openai_embeddings_unauthorized_returns_actionable_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 401
+
+        def raise_for_status(self) -> None:
+            request = httpx.Request("POST", OPENAI_EMBEDDINGS_URL)
+            response = httpx.Response(401, request=request)
+            raise httpx.HTTPStatusError(
+                "unauthorized",
+                request=request,
+                response=response,
+            )
+
+    class FakeClient:
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.services.ai_gateway.openai_embeddings.httpx.AsyncClient",
+        FakeClient,
+    )
+
+    provider = OpenAIEmbeddingsProvider("bad-key")
+
+    with pytest.raises(ProviderUnavailableError) as exc_info:
+        await provider.embed("Python")
+
+    assert "OPENAI_API_KEY" in str(exc_info.value)
