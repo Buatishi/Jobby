@@ -4,6 +4,8 @@ type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
+const BACKEND_PROXY_TIMEOUT_MS = 30_000;
+
 const hopByHopHeaders = new Set([
   "connection",
   "content-length",
@@ -50,12 +52,26 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
   const method = request.method.toUpperCase();
   const hasBody = !["GET", "HEAD"].includes(method);
 
-  const response = await fetch(backendUrl, {
-    method,
-    headers: forwardHeaders(request),
-    body: hasBody ? await request.arrayBuffer() : undefined,
-    cache: "no-store"
-  });
+  let response: Response;
+  try {
+    response = await fetch(backendUrl, {
+      method,
+      headers: forwardHeaders(request),
+      body: hasBody ? await request.arrayBuffer() : undefined,
+      cache: "no-store",
+      signal: AbortSignal.timeout(BACKEND_PROXY_TIMEOUT_MS)
+    });
+  } catch {
+    return Response.json(
+      {
+        error:
+          "No pudimos conectar con el servidor. Revisá la configuración y volvé a intentar.",
+        code: "BACKEND_UNAVAILABLE",
+        details: {}
+      },
+      { status: 502 }
+    );
+  }
 
   const responseHeaders = new Headers(response.headers);
   for (const header of hopByHopHeaders) {
