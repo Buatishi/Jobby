@@ -213,3 +213,152 @@ merge).
 Pendiente de investigación de Codex sobre límites del plan free de Render para workers en
 background (especialmente el worker de scraping con Playwright, más pesado) y si
 migrar de plan entra en el presupuesto de USD 20/mes.
+
+---
+
+## Decisión 2 — Dónde persistir el rol admin (cierra la pendiente)
+
+**Estado:** Aprobada (2026-09-20).
+
+**Elegida:** columna `role` en la tabla `users` (`'user'` o `'admin'`, por defecto
+`'user'`), en una migración nueva (023). Se lee en `get_current_user` y se exige con una
+dependencia `require_admin` (403 si no es admin).
+
+**Alternativas evaluadas:** claim `role` en `app_metadata` del JWT de Supabase —
+descartada: el rol viajaría dentro del token y no se consultaría como un dato más del
+dominio (la consigna 3.4.2 pide roles persistidos), y un cambio de rol no se reflejaría
+hasta renovar el token.
+
+**Fundamento:** mismo patrón que `tier`, testeable contra la base de pruebas y sin
+depender de la emisión del token. No agrega consultas: se suma `role` al select que ya
+existe.
+
+**Alcance del admin:** solo métricas agregadas, sin acceso a CVs ni a datos personales
+(decisión previa reafirmada).
+
+---
+
+## Decisión 6 — Cómo conectar el gate de CI con Vercel y Render (cierra la pendiente)
+
+**Estado:** Aprobada (2026-09-20).
+
+**Elegida:** el workflow de CI tiene un job `deploy` con `needs:` sobre los jobs de
+backend (tests y cobertura >= 65 %) y de frontend; corre solo en `push` a `main`. El
+auto-deploy nativo de Render y de Vercel se apaga y el despliegue lo dispara ese job
+mediante deploy hooks guardados como secretos de GitHub.
+
+**Alternativas evaluadas:** dejar el auto-deploy nativo y solo exigir status checks para
+mergear — descartada: bloquea el merge pero no el despliegue, que es lo que exige la
+consigna 3.6.2.
+
+**Fundamento:** un pipeline que puede fallar y cortar el despliegue.
+
+**Prerrequisito descubierto:** GitHub Actions hoy no arranca. Cada run termina en
+`startup_failure` con "The job was not started because recent account payments have
+failed or your spending limit needs to be increased". Hay que resolver la facturación de
+la cuenta (o pasar el repo a público) antes de implementar el gate.
+
+**Prestación resignada:** los servicios pasan a depender de `main` y de secretos extra.
+
+---
+
+## Decisión 7 — Actualización de evidencia (2026-09-20)
+
+**Estado:** Pendiente, con evidencia nueva.
+
+Los Deployments de GitHub muestran un único servicio de Render (`jobmatch-api`); no se
+observan deploys de `jobmatch-worker-*`. Existe además un proyecto de Railway
+(`elegant-energy / production`) con 6 deploys entre 2026-06-30 y 2026-07-15. Un
+`GET /api/v1/tasks/{id}` con un id inexistente respondió 500 en producción. Hay que
+confirmar en los dashboards dónde corre (o si corre) el worker de Celery antes de
+declarar la cola como tecnología avanzada (Decisión 9).
+
+---
+
+## Decisión 8 — Datos inválidos responden 400
+
+**Estado:** Aprobada (2026-09-20).
+
+**Elegida:** el handler global de `RequestValidationError` responde 400 con código
+`VALIDATION_ERROR`, y se agregan límites (`Field`) a las entradas más expuestas (por
+ejemplo `raw_text`).
+
+**Alternativas evaluadas:** mantener 422 (default de FastAPI) y justificarlo — descartada:
+la consigna 3.2 y 3.7.2 piden 400.
+
+**Prestación resignada:** se aparta del default de FastAPI; hay que actualizar tests y
+cualquier consumidor.
+
+---
+
+## Decisión 9 — Tecnología avanzada declarada: cola de tareas
+
+**Estado:** Aprobada (2026-09-20), condicionada a la Decisión 7.
+
+**Elegida:** cola de tareas (Celery + Redis) como única capacidad declarada. Parsear un
+CV y analizar un puesto con IA tarda entre 10 y 60 s y no puede bloquear la petición
+HTTP: la API responde 202 con un `task_id`, un consumidor independiente procesa la tarea
+y el frontend sigue el estado por SSE.
+
+**Alternativas evaluadas:** declarar además integración con terceros y almacenamiento de
+archivos — descartada: la consigna recomienda una sola capacidad, comprendida en
+profundidad, y una adicional resuelta de forma deficiente resta.
+
+**Prestación resignada:** depende de que un worker corra de forma sostenida (costo o
+plan de Render, o el proyecto de Railway).
+
+---
+
+## Decisión 10 — Diagramas como código con PlantUML
+
+**Estado:** Aprobada (2026-09-20).
+
+**Elegida:** PlantUML: texto versionable en el repo y editable sin asistencia de IA. Los
+PDF se generan desde HTML con Microsoft Edge en modo headless.
+
+**Alternativas evaluadas:** draw.io — edición visual, pero el archivo no se revisa como
+texto en un diff.
+
+**Herramientas instaladas (2026-09-20, fuentes oficiales, SHA-256 verificado):** Temurin
+JRE 21 (Adoptium) y `plantuml.jar` 1.2026.8 (repositorio `plantuml/plantuml`), fuera del
+repo, en `C:\Users\juany\tools`.
+
+---
+
+## Decisión 11 — Estrategia de ramas
+
+**Estado:** Aprobada (2026-09-20).
+
+**Elegida:** `main` es el tronco y la rama de producción; el trabajo va en ramas
+temáticas con prefijo (`feat/`, `fix/`, `docs/`, `test/`, `ci/`, `chore/`) integradas por
+PR. `feat/jobmatch-phase-1-2` queda congelada como historial. Los hitos se etiquetan con
+tags `milestone/NN-...` y el estado previo con `backup/pre-reorg-2026-09-20`. No se
+reescribe historial. Detalle en `docs/00-flujo-de-ramas.md`.
+
+**Alternativas evaluadas:** renombrar `feat/jobmatch-phase-1-2` a `main` — descartada:
+rompe las integraciones (Render, Vercel, Railway) que apuntan al nombre. Subramas con la
+forma `main/<algo>` — imposible: Git no admite `main` y `main/<algo>` a la vez.
+
+---
+
+## Decisión 12 — Protección de la rama principal
+
+**Estado:** Aprobada como recomendación; pendiente de ejecución.
+
+**Elegida:** mantener el repo privado y habilitar GitHub Pro (por ejemplo con el Student
+Developer Pack, si corresponde) para proteger `main`. Hasta entonces la regla se cumple
+por convención (PR obligatorio) y por el gate del job `deploy`.
+
+**Hallazgo:** en el plan Free de un repo privado, GitHub responde 403 ("Upgrade to GitHub
+Pro or make this repository public to enable this feature").
+
+**Alternativas evaluadas:** repo público — habilita la protección y los minutos de
+Actions, pero expone el código de un producto con usuarios reales.
+
+---
+
+## Aclaración — Decisión 5 duplicada
+
+El archivo contiene dos entradas "Decisión 5". La vigente es la primera (Aprobada); la
+segunda (Pendiente) es un residuo anterior y queda sin efecto. Estado del bug:
+`account_deletion.py` sigue usando `cv-docs`; la corrección está en el plan.
