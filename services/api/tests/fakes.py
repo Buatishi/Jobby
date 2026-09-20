@@ -15,7 +15,7 @@ class FakeTableQuery:
         self.filters: dict[str, Any] = {}
         self.update_payload: dict[str, Any] | None = None
         self.insert_payload: dict[str, Any] | None = None
-        self.upsert_payload: dict[str, Any] | None = None
+        self.upsert_payload: dict[str, Any] | list[dict[str, Any]] | None = None
         self.should_delete = False
         self.single_row = False
         self.limit_count: int | None = None
@@ -50,7 +50,7 @@ class FakeTableQuery:
         self.insert_payload = payload
         return self
 
-    def upsert(self, payload: dict[str, Any]) -> FakeTableQuery:
+    def upsert(self, payload: dict[str, Any] | list[dict[str, Any]]) -> FakeTableQuery:
         self.upsert_payload = payload
         return self
 
@@ -68,10 +68,18 @@ class FakeTableQuery:
             return FakeResponse([inserted.copy()])
 
         if self.upsert_payload is not None:
-            upserted = self.upsert_payload.copy()
-            upserted.setdefault("id", f"{self.table_name}-{len(rows) + 1}")
-            rows.append(upserted)
-            return FakeResponse([upserted.copy()])
+            payloads = (
+                self.upsert_payload
+                if isinstance(self.upsert_payload, list)
+                else [self.upsert_payload]
+            )
+            upserted_rows = []
+            for payload in payloads:
+                upserted = payload.copy()
+                upserted.setdefault("id", f"{self.table_name}-{len(rows) + 1}")
+                rows.append(upserted)
+                upserted_rows.append(upserted.copy())
+            return FakeResponse(upserted_rows)
 
         if self.should_delete:
             kept_rows = []

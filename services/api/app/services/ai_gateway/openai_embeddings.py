@@ -20,17 +20,27 @@ class OpenAIEmbeddingsProvider:
 
     async def embed(self, text: str) -> list[float]:
         async def operation() -> list[float]:
-            return await self._embed_once(text)
+            embeddings = await self._embed_many_once([text])
+            return embeddings[0]
 
         return await retry_with_backoff(operation, delays=(30.0, 30.0))
 
-    async def _embed_once(self, text: str) -> list[float]:
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        async def operation() -> list[list[float]]:
+            return await self._embed_many_once(texts)
+
+        return await retry_with_backoff(operation, delays=(30.0, 30.0))
+
+    async def _embed_many_once(self, texts: list[str]) -> list[list[float]]:
         if not self.api_key:
             raise ProviderUnavailableError(self.name, "Missing OPENAI_API_KEY.")
 
         payload = {
             "model": self.model,
-            "input": text,
+            "input": texts,
             "dimensions": self.dimensions,
         }
         headers = {
@@ -61,14 +71,26 @@ class OpenAIEmbeddingsProvider:
             data: dict[str, Any] = response.json()
 
         embeddings = data.get("data")
-        if not isinstance(embeddings, list) or not embeddings:
+        if not isinstance(embeddings, list) or len(embeddings) != len(texts):
             raise ProviderUnavailableError(self.name, "OpenAI returned no embeddings.")
 
-        vector = embeddings[0].get("embedding")
-        if not isinstance(vector, list) or len(vector) != self.dimensions:
-            raise ProviderUnavailableError(
-                self.name,
-                "OpenAI returned an invalid embedding dimension.",
-            )
+        ordered_embeddings = sorted(
+            embeddings,
+            key=lambda item: item.get("index", 0) if isinstance(item, dict) else 0,
+        )
+        vectors: list[list[float]] = []
+        for embedding in ordered_embeddings:
+            if not isinstance(embedding, dict):
+                raise ProviderUnavailableError(
+                    self.name,
+                    "OpenAI returned an invalid embedding payload.",
+                )
+            vector = embedding.get("embedding")
+            if not isinstance(vector, list) or len(vector) != self.dimensions:
+                raise ProviderUnavailableError(
+                    self.name,
+                    "OpenAI returned an invalid embedding dimension.",
+                )
+            vectors.append([float(value) for value in vector])
 
-        return [float(value) for value in vector]
+        return vectors
