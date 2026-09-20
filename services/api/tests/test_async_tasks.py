@@ -25,6 +25,9 @@ class FakeGateway:
     async def embed(self, _text: str) -> list[float]:
         return [0.1] * 1536
 
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        return [[0.1] * 1536 for _text in texts]
+
 
 def test_create_document_enqueues_parse_task(
     client: TestClient,

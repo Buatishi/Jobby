@@ -31,6 +31,9 @@ class MockEmbeddingsProvider:
     async def embed(self, _text: str) -> list[float]:
         return [0.1] * 1536
 
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        return [[0.1] * 1536 for _text in texts]
+
 
 @pytest.mark.asyncio
 async def test_cv_parsing_always_uses_deepseek() -> None:
@@ -156,3 +159,49 @@ async def test_openai_embeddings_unauthorized_returns_actionable_error(
         await provider.embed("Python")
 
     assert "OPENAI_API_KEY" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_openai_embeddings_batches_multiple_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {
+                "data": [
+                    {"index": 0, "embedding": [0.1] * 1536},
+                    {"index": 1, "embedding": [0.2] * 1536},
+                ]
+            }
+
+    class FakeClient:
+        posted_payloads: list[dict[str, object]] = []
+
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> FakeResponse:
+            self.posted_payloads.append(kwargs["json"])  # type: ignore[arg-type]
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "app.services.ai_gateway.openai_embeddings.httpx.AsyncClient",
+        FakeClient,
+    )
+
+    provider = OpenAIEmbeddingsProvider("sk-test")
+    result = await provider.embed_many(["Python", "FastAPI"])
+
+    assert result == [[0.1] * 1536, [0.2] * 1536]
+    assert FakeClient.posted_payloads[0]["input"] == ["Python", "FastAPI"]

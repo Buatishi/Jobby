@@ -67,18 +67,25 @@ async def _upsert_skill_embeddings(
     skills: list[dict[str, Any]],
     gateway: AIGateway,
 ) -> None:
-    for skill in skills:
-        embedding = await gateway.embed(str(skill["name"]))
-        payload = {
-            "profile_id": profile_id,
-            "name": skill["name"],
-            "category": skill.get("category"),
-            "level": skill.get("level"),
-            "in_cv": True,
-            "confirmed": skill.get("confirmed", False),
-            "embedding": embedding,
-        }
-        await _execute(supabase.table("skills").upsert(payload))
+    if not skills:
+        return
+
+    skill_names = [str(skill["name"]) for skill in skills]
+    embeddings = await gateway.embed_many(skill_names)
+    payloads = []
+    for skill, embedding in zip(skills, embeddings, strict=True):
+        payloads.append(
+            {
+                "profile_id": profile_id,
+                "name": skill["name"],
+                "category": skill.get("category"),
+                "level": skill.get("level"),
+                "in_cv": True,
+                "confirmed": skill.get("confirmed", False),
+                "embedding": embedding,
+            }
+        )
+    await _execute(supabase.table("skills").upsert(payloads))
 
 
 async def run_parse_cv(

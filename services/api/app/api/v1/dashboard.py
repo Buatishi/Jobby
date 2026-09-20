@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Annotated, Any
 
@@ -110,10 +111,11 @@ async def _latest_matches(
         return []
 
     matches: list[DashboardMatch] = []
-    for row in data:
-        if not isinstance(row, dict):
-            continue
-        job = await _fetch_job(supabase, row.get("job_id"), user_id)
+    rows = [row for row in data if isinstance(row, dict)]
+    jobs = await asyncio.gather(
+        *[_fetch_job(supabase, row.get("job_id"), user_id) for row in rows],
+    )
+    for row, job in zip(rows, jobs, strict=True):
         matches.append(
             DashboardMatch(
                 id=str(row.get("job_id") or row.get("id")),
@@ -149,23 +151,29 @@ async def get_dashboard_summary(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> DashboardSummary:
-    user_data = await _execute(
-        supabase.table("users")
-        .select("email,full_name")
-        .eq("id", current_user.id)
-        .single()
-    )
-    profile = await _execute(
-        supabase.table("master_profiles")
-        .select("*")
-        .eq("user_id", current_user.id)
-        .single()
+    user_data, profile = await asyncio.gather(
+        _execute(
+            supabase.table("users")
+            .select("email,full_name")
+            .eq("id", current_user.id)
+            .single()
+        ),
+        _execute(
+            supabase.table("master_profiles")
+            .select("*")
+            .eq("user_id", current_user.id)
+            .single()
+        ),
     )
     profile_data = profile if isinstance(profile, dict) else None
     completeness_pct = _as_int(
         profile_data.get("completeness_pct") if profile_data else 0
     )
-    latest_matches = await _latest_matches(supabase, current_user.id)
+    latest_matches, missing_tip, pending_analyses_count = await asyncio.gather(
+        _latest_matches(supabase, current_user.id),
+        _missing_tip(supabase, current_user.id, profile_data),
+        _pending_count(supabase, current_user.id),
+    )
     match_scores = [
         match.match_score
         for match in latest_matches
@@ -183,7 +191,7 @@ async def get_dashboard_summary(
         full_name=user_data.get("full_name") if isinstance(user_data, dict) else None,
         employability_score=employability_score,
         completeness_pct=completeness_pct,
-        missing_tip=await _missing_tip(supabase, current_user.id, profile_data),
-        pending_analyses_count=await _pending_count(supabase, current_user.id),
+        missing_tip=missing_tip,
+        pending_analyses_count=pending_analyses_count,
         latest_matches=latest_matches,
     )

@@ -10,6 +10,8 @@ services:
     envVars:
       - key: PORT
         value: 8000
+      - key: ENVIRONMENT
+        value: production
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -48,8 +50,10 @@ services:
     dockerContext: ./services/api
     # Por ahora usamos free para validar deploys sin costo.
     plan: free
-    dockerCommand: celery -A app.tasks:celery_app worker -Q parsing,analysis --loglevel=INFO
+    dockerCommand: celery -A app.tasks:celery_app worker -Q parsing,analysis --loglevel=INFO --concurrency=2
     envVars:
+      - key: ENVIRONMENT
+        value: production
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -72,8 +76,10 @@ services:
     dockerContext: ./services/api
     # Por ahora usamos free para validar deploys sin costo.
     plan: free
-    dockerCommand: celery -A app.tasks:celery_app worker -Q scraping --loglevel=INFO
+    dockerCommand: celery -A app.tasks:celery_app worker -Q scraping --loglevel=INFO --concurrency=1
     envVars:
+      - key: ENVIRONMENT
+        value: production
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY

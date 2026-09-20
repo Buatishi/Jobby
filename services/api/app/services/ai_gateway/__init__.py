@@ -64,6 +64,13 @@ class AIGateway:
             capture_exception(exc)
             raise
 
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        try:
+            return await self.embeddings.embed_many(texts)
+        except Exception as exc:
+            capture_exception(exc)
+            raise
+
 
 __all__ = [
     "AIGateway",
