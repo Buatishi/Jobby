@@ -10,6 +10,13 @@ JobMatch AI is a monorepo for matching candidates against job descriptions, impr
 - `services/api/migrations` - numbered Supabase SQL migrations.
 - `tests/load` - k6 load tests for backend workflows.
 
+## Branching
+
+`main` is the single trunk and the production branch. Work happens in short-lived topic
+branches (`feat/`, `fix/`, `docs/`, `test/`, `ci/`, `chore/`) merged through pull requests.
+See [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) and
+[docs/00-vision.md](docs/00-vision.md).
+
 ## Local Setup
 
 Prerequisites:
