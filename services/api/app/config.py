@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     task_execution_mode: str = Field(default="celery", alias="TASK_EXECUTION_MODE")
+    local_task_max_concurrency: int = Field(
+        default=2,
+        alias="LOCAL_TASK_MAX_CONCURRENCY",
+    )
     lemonsqueezy_api_key: str = Field(default="", alias="LEMONSQUEEZY_API_KEY")
     lemonsqueezy_store_id: str = Field(default="", alias="LEMONSQUEEZY_STORE_ID")
     lemonsqueezy_webhook_secret: str = Field(

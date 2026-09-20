@@ -4,6 +4,8 @@ import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any, Literal
 
+from app.config import settings
+
 TaskState = Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"]
 
 
@@ -22,6 +24,7 @@ class LocalTaskResult:
 
 _tasks: dict[str, LocalTaskResult] = {}
 _lock = threading.Lock()
+_semaphore = threading.BoundedSemaphore(settings.local_task_max_concurrency)
 
 
 def get_local_task(task_id: str) -> LocalTaskResult | None:
@@ -39,6 +42,15 @@ def enqueue_local_task(
         _tasks[task_id] = LocalTaskResult(task_id, "PENDING")
 
     def runner() -> None:
+        if not _semaphore.acquire(blocking=False):
+            error = RuntimeError(
+                "Local task capacity exceeded. Configure Celery workers "
+                "or retry when the current background task finishes."
+            )
+            with _lock:
+                _tasks[task_id] = LocalTaskResult(task_id, "FAILURE", error)
+            return
+
         with _lock:
             _tasks[task_id] = LocalTaskResult(task_id, "STARTED")
         try:
@@ -47,6 +59,8 @@ def enqueue_local_task(
             with _lock:
                 _tasks[task_id] = LocalTaskResult(task_id, "FAILURE", exc)
             return
+        finally:
+            _semaphore.release()
 
         with _lock:
             _tasks[task_id] = LocalTaskResult(task_id, "SUCCESS", result)
