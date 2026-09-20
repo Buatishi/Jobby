@@ -25,7 +25,13 @@ if settings.sentry_dsn:
         environment="production",
     )
 
-app = FastAPI(title="JobMatch AI API", version="0.1.0")
+app = FastAPI(
+    title="JobMatch AI API",
+    version="0.1.0",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 app.state.limiter = limiter
 
 allowed_origins = ["http://localhost:3000"]
@@ -66,6 +72,40 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=(), payment=()",
+        )
+        response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+
+        if settings.is_production:
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+            response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+            response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+            response.headers.setdefault("Cross-Origin-Embedder-Policy", "require-corp")
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; "
+                "form-action 'none'",
+            )
+
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
