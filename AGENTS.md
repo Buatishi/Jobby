@@ -1,43 +1,82 @@
-# Repository Guidelines
+# AGENTS.md — JobMatch AI (repositorio raíz)
 
-## Project Structure & Module Organization
+Prioridad de instrucciones: (1) reglas de la plataforma/sistema, (2) pedido explícito del
+usuario en la tarea actual, (3) este archivo, (4) los AGENTS.md de `services/api/` y
+`apps/web/` (detalle de stack de cada workspace; léelos al trabajar ahí, no los repitas).
 
-JobMatch AI is a monorepo with three main workspaces:
+## 0. Contexto estable
+- Monorepo pnpm: `apps/web` (Next.js 15 + React 19 + TS estricto), `services/api` (FastAPI +
+  Python 3.13+, Poetry), `packages/shared-types` (tipos TS compartidos).
+- Supabase: Postgres + pgvector + Auth + Storage. Celery + Redis para tareas async.
+- AI Gateway: DeepSeek es el proveedor principal (flujo free); Claude es ampliación premium,
+  no el foco de desarrollo; OpenAI se usa únicamente para embeddings.
+- Billing (LemonSqueezy) separa plan **free/premium**; independiente del rol **user/admin**.
+  No mezclar ambos ejes en una misma condición.
+- El admin solo accede a métricas agregadas. Nunca al contenido de CV ni a datos personales
+  de otro usuario.
+- Flujo core: registro → carga CV → análisis → creación de puesto → comparación →
+  MatchScore → reporte ATS.
+- Fuente de verdad: este repositorio y sus Markdown. No asumir contexto no documentado acá.
+- Nunca hardcodear secretos, tokens ni datos personales reales (código, tests, fixtures, docs).
+- Presupuesto operativo: máx. USD 20/mes, plazo máx. 3 meses. Toda dependencia o servicio
+  que lo comprometa se señala explícitamente antes de adoptarse.
 
-- `apps/web/` contains the Next.js 15 frontend using strict TypeScript.
-- `services/api/` contains the FastAPI backend targeting Python 3.13+.
-- `packages/shared-types/` contains shared TypeScript types consumed by other packages.
+## 1. El sistema está en producción real
+- Hay usuarios, datos y pagos reales (Render, Supabase, LemonSqueezy). Un cambio roto no es
+  un error académico: rompe algo que funciona ahora mismo.
+- Extremar cuidado y avisar explícitamente antes de tocar: `render.yaml`, `.github/workflows/`,
+  variables de entorno, webhooks de LemonSqueezy, o cualquier cosa que afecte el pipeline de
+  despliegue o el cobro real a usuarios premium.
+- Ante duda entre una solución rápida y una segura, priorizar la que no arriesgue producción.
 
-Keep changes scoped to the relevant workspace. Do not modify `services/api/migrations/` unless explicitly instructed. For SQL schema changes, create a new migration rather than editing one that has already been applied.
+## 2. Antes de modificar
+- Inspeccionar el estado real (código, tests, migraciones, docs afectadas) antes de tocar nada.
+- Cargar solo el contexto de la tarea puntual; no releer todo el repo por defecto.
+- No modificar `services/api/migrations/` ya aplicadas. Cambios de esquema van en una
+  migración nueva.
 
-## Build, Test, and Development Commands
+## 3. Jerarquía de intención (distinguir siempre)
+1. **Requisito obligatorio**: pedido explícito del usuario.
+2. **Decisión aprobada**: elección ya confirmada (stack, librería, enfoque).
+3. **Opción no aprobada**: algo mencionado o explorado sin confirmación.
+No tratar (3) como (1) o (2). Si no fue confirmado, preguntar o presentarlo como propuesta
+aparte, no implementarlo.
 
-Run the relevant CI checks before opening a PR:
+## 4. Alcance
+- Priorizar solo requisitos vigentes + decisiones explícitas ya aprobadas.
+- No agregar funcionalidades, refactors o "mejoras" no pedidas; proponerlas aparte.
+- No agregar dependencias nuevas sin justificar en una línea qué requisito cubren.
 
-- `cd apps/web && pnpm typecheck && pnpm lint` checks frontend types and lint rules.
-- `cd services/api && poetry run mypy app/ && poetry run pytest` checks backend typing and tests.
-- `cd packages/shared-types && pnpm build` builds the shared TypeScript package.
+## 5. Cómo evaluar cada cambio
+Resumir antes de codear: **Requisito** (qué pide) · **Impacto** (qué workspace/módulo toca) ·
+**Riesgo** (qué puede romperse: auth, roles, plan free/premium, datos de CV, despliegue,
+cobros) · **Prueba** (cómo se verifica).
 
-Do not install new dependencies unless the prompt or issue explains why they are needed.
+## 6. Ejecución
+- Cambios pequeños y verificables: un requisito por cambio, fácil de revisar y revertir.
+- Preservar código y decisiones existentes del usuario; no reformatear código no relacionado.
+- TypeScript estricto sin `any`. Backend Python async en toda ruta de I/O; nada bloqueante
+  en el event loop.
+- Identificadores/APIs/nombres de archivo en inglés; comentarios en español solo si aclaran
+  intención o un caso borde no obvio.
 
-## Coding Style & Naming Conventions
+## 7. Tests y documentación
+- Todo comportamiento nuevo o modificado necesita test (unitario o de integración según
+  workspace).
+- Actualizar solo la documentación directamente afectada.
+- Una función está terminada solo con: código + tests + documentación relacionada + evidencia
+  de que funciona. Sin alguno de los cuatro, no está terminada.
 
-Write code identifiers, APIs, filenames, and commit messages in English. Comments should be in Spanish and should explain intent, edge cases, or non-obvious behavior.
+## 8. Delegación a subagentes
+- Delegar solo si la subtarea es independiente y mejora tiempo o calidad real.
+- Sintetizar y verificar (código, tests o evidencia) todo resultado de un subagente antes de
+  integrarlo. No integrar output no verificado.
 
-Use strict TypeScript practices in the frontend and shared packages. Do not use `any`; prefer precise types, discriminated unions, generics, or `unknown` with narrowing. Backend code should use async functions throughout and must not run blocking work on the event loop.
+## 9. Comunicación
+- Explicar brevemente el porqué de cada cambio importante (requisito + decisión tomada).
+- Todo el trabajo debe ser defendible por el usuario sin asistencia de IA.
+- No presentar una opción explorada como si fuera una decisión ya tomada.
 
-## Testing Guidelines
-
-Every PR should include tests for new behavior. Place tests near the relevant workspace conventions, for example backend tests under the FastAPI test suite and frontend tests alongside or near the related feature when the project structure supports it.
-
-Before requesting review, run the workspace checks listed above and fix failures locally.
-
-## Commit & Pull Request Guidelines
-
-Keep commits focused and descriptive, using concise English summaries such as `Add candidate matching endpoint` or `Fix shared job status type`.
-
-Pull requests should include a clear description, linked issue or task when available, test results, and screenshots or recordings for user-facing frontend changes. Call out migrations, environment variable changes, and any skipped checks explicitly.
-
-## Security & Configuration
-
-Never hardcode secrets, tokens, credentials, or private URLs. Use backend environment configuration through `config.py` and frontend values through `.env.local`. Document any new required environment variables in the relevant workspace documentation or PR description.
+## 10. Referencias
+- Stack backend, esquema de error y comandos: `services/api/AGENTS.md`.
+- Stack frontend, rutas y convenciones de componentes: `apps/web/AGENTS.md`.
