@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.production)",
+      "Read(./services/api/.env)",
+      "Read(./services/api/.env.production)",
+      "Read(./apps/web/.env.local)",
+      "Read(./apps/web/.env.production)",
+      "Bash(*E2E_LIVE*)"
+    ],
+    "allow": [
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm test)",
+      "Bash(pnpm build)",
+      "Bash(poetry run pytest*)",
+      "Bash(poetry run mypy*)",
+      "Bash(poetry run ruff*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_paths.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
