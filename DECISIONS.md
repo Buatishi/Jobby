@@ -268,10 +268,9 @@ la cuenta (o pasar el repo a público) antes de implementar el gate.
 
 Los Deployments de GitHub muestran un único servicio de Render (`jobmatch-api`); no se
 observan deploys de `jobmatch-worker-*`. Existe además un proyecto de Railway
-(`elegant-energy / production`) con 6 deploys entre 2026-06-30 y 2026-07-15. Un
-`GET /api/v1/tasks/{id}` con un id inexistente respondió 500 en producción. Hay que
-confirmar en los dashboards dónde corre (o si corre) el worker de Celery antes de
-declarar la cola como tecnología avanzada (Decisión 9).
+(`elegant-energy / production`) con 6 deploys entre 2026-06-30 y 2026-07-15 y ningún
+servicio activo. Hay que confirmar dónde corre (o si corre) el worker de Celery antes
+de declarar la cola como tecnología avanzada (Decisión 9).
 
 ---
 
@@ -362,3 +361,42 @@ Actions, pero expone el código de un producto con usuarios reales.
 El archivo contiene dos entradas "Decisión 5". La vigente es la primera (Aprobada); la
 segunda (Pendiente) es un residuo anterior y queda sin efecto. Estado del bug:
 `account_deletion.py` sigue usando `cv-docs`; la corrección está en el plan.
+
+---
+
+## Actualización — Decisión 5 (2026-09-20)
+
+**Estado:** Corregida.
+
+El borrado de cuenta usa ahora el bucket real `cv-documents`, borra bajo el uid de
+Supabase Auth (la carpeta donde el frontend sube los CV) y también las rutas
+registradas en `uploaded_documents.storage_path`. Hay tests que fallan si vuelve el
+bucket equivocado. Queda pendiente eliminar a mano el bucket huérfano `cv-docs` desde el
+dashboard de Supabase.
+
+---
+
+## Decisión 13 — Repositorio público
+
+**Estado:** Aprobada (2026-09-20).
+
+**Elegida:** publicar el repositorio tras un saneamiento previo.
+
+**Alternativas evaluadas:** (a) mantenerlo privado y resolver la facturación de GitHub —
+descartada: no habilita la protección de rama y depende de un método de pago;
+(b) GitHub Pro con el Student Developer Pack — posible, pero depende de una verificación
+externa.
+
+**Fundamento:** habilita Actions sin costo, la protección de `main` y el acceso del
+docente sin invitaciones; la consigna no exige un repositorio privado.
+
+**Saneamiento previo (verificado):** sin secretos en el historial ni archivos
+`.env` o binarios versionados; guarda anti-SSRF en las URLs que visita el servidor;
+`/tasks` exige autenticación y solo devuelve tareas propias; los errores hacia el usuario
+no exponen detalles internos; límites de tamaño en las entradas libres; secretos de
+producción sin uso eliminados de GitHub Actions; `LICENSE` (todos los derechos
+reservados) y `SECURITY.md`.
+
+**Prestaciones resignadas:** el código, los prompts y la fórmula de match quedan
+visibles, y el email de autor de los commits existentes queda público (no se reescribe
+historial). Los commits nuevos usan el email `noreply` de GitHub.

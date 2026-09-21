@@ -23,13 +23,13 @@ class MasterProfile(BaseModel):
 
 
 class MasterProfileUpdate(BaseModel):
-    headline: str | None = None
-    summary: str | None = None
-    target_role: str | None = None
-    target_seniority: str | None = None
-    work_modality: str | None = None
-    target_industry: list[str] | None = None
-    linkedin_url: str | None = None
+    headline: str | None = Field(default=None, max_length=200)
+    summary: str | None = Field(default=None, max_length=5000)
+    target_role: str | None = Field(default=None, max_length=200)
+    target_seniority: str | None = Field(default=None, max_length=100)
+    work_modality: str | None = Field(default=None, max_length=100)
+    target_industry: list[str] | None = Field(default=None, max_length=20)
+    linkedin_url: str | None = Field(default=None, max_length=2048)
 
     def to_update_payload(self) -> dict[str, Any]:
         return self.model_dump(exclude_unset=True)

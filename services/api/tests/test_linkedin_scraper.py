@@ -23,6 +23,9 @@ class FakePage:
     async def goto(self, _url: str, wait_until: str, timeout: int) -> None:
         return None
 
+    async def route(self, _pattern: str, _handler: Any) -> None:
+        return None
+
     def locator(self, _selector: str) -> FakeBody:
         return self.body
 

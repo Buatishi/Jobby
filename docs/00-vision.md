@@ -19,7 +19,7 @@ agregadas, nunca datos personales ni CVs.
 |---|---|---|---|---|
 | Cliente | Navegador | Vercel; Supabase Auth y Storage (login, OAuth y subida de CV) | HTTPS 443 | Sí |
 | Frontend Next.js 15 | Vercel (`jobbyweb.vercel.app`) | API, mediante el rewrite `/api/backend/*` | HTTPS 443 | Sí |
-| API FastAPI | Render, Docker (`jobby-fp0r.onrender.com`) | Supabase (PostgREST), Redis, proveedores de IA, Resend | HTTPS 443; rediss 6379 | Sí |
+| API FastAPI | Render, Docker (servicio `jobmatch-api`) | Supabase (PostgREST), Redis, proveedores de IA, Resend | HTTPS 443; rediss 6379 | Sí |
 | Workers Celery | Render (a confirmar, ver sección 10) | Redis, Supabase, proveedores de IA | rediss 6379; HTTPS 443 | Sí |
 | Datos | Supabase: Postgres 16 + pgvector, Auth y Storage (`cv-documents`) | — | 443 | Sí |
 | Cola y límites de uso | Upstash Redis | — | 6379 (TLS) | Sí |
@@ -97,24 +97,13 @@ IA). Diagramas como código con PlantUML (Decisión 10).
 
 Ver [`DECISIONS.md`](../DECISIONS.md): decisiones 1 a 12.
 
-## 10. Hallazgos y riesgos abiertos (relevados el 2026-09-20)
+## 10. Pendientes conocidos
 
-- **GitHub Actions no arranca.** Cada ejecución termina en `startup_failure` con el
-  mensaje "recent account payments have failed or your spending limit needs to be
-  increased". Hasta resolver la facturación de la cuenta el pipeline no puede correr.
-- **Sin protección de rama.** En el plan Free de un repo privado GitHub la rechaza
-  (403). Ver Decisión 12.
-- **Render sigue la rama `feat/jobmatch-phase-1-2`.** Hay que apuntarlo a `main`.
-- **Worker de Celery sin ubicación confirmada.** En los Deployments de GitHub solo
-  aparece `jobmatch-api` de Render; existe además un proyecto de Railway
-  (`elegant-energy`) con 6 deploys entre 2026-06-30 y 2026-07-15.
-- **`ENVIRONMENT=production` no está seteada en Render**: `/docs` sigue público y faltan
-  HSTS y CSP.
-- **Frontend fijado.** `jobbyweb.vercel.app` apunta al deployment del commit `0abca0b`
-  (2026-07-14); los deployments de producción posteriores no se asignan al dominio. No
-  promover hasta mitigar el cold start: el proxy de Next corta a los 30 s y Render Free
-  tarda ~40 s en despertar, lo que produce un 500 en la primera petición.
-- **Endpoints y datos:** `/api/v1/tasks/{id}` sin autenticación y borrado de cuenta sobre
-  el bucket equivocado (`cv-docs`).
-- **Higiene local:** 3 refs ocultas `refs/codex/*` con binarios y ~155 MiB de temporales
-  huérfanos en `.git`. No usar `git push --mirror`.
+- **CI/CD:** activar GitHub Actions con cobertura mínima y un job de despliegue que
+  dependa de los tests (Decisión 6).
+- **Protección de `main`:** pull request obligatorio (Decisión 12).
+- **Cola de tareas:** confirmar el worker de Celery en producción (Decisión 7).
+- **Frontend:** completar el traspaso del dominio público al despliegue actual.
+- **Disponibilidad:** el plan gratuito de Render duerme el servicio tras un rato sin
+  tráfico y la primera petición tarda decenas de segundos.
+- **Tests de integración** contra una base de pruebas separada (Decisión 4).

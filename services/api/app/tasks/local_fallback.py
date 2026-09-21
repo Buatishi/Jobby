@@ -1,10 +1,10 @@
 import asyncio
 import threading
-import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any, Literal
 
 from app.config import settings
+from app.core.task_ids import new_task_id
 
 TaskState = Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"]
 
@@ -36,8 +36,9 @@ def enqueue_local_task(
     task_factory: Callable[[], Coroutine[Any, Any, Any]],
     *,
     prefix: str,
+    owner_id: str,
 ) -> str:
-    task_id = f"{prefix}-{uuid.uuid4()}"
+    task_id = new_task_id(owner_id, prefix)
     with _lock:
         _tasks[task_id] = LocalTaskResult(task_id, "PENDING")
 

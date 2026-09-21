@@ -1,9 +1,12 @@
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from app.config import settings
+from app.core.public_errors import public_error_message
+from app.core.task_ids import new_task_id
 from app.database import get_supabase_client
 from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
@@ -15,6 +18,8 @@ from app.tasks import celery_app
 from app.tasks.local_fallback import enqueue_local_task
 
 DOCUMENTS_BUCKET = "cv-documents"
+
+logger = logging.getLogger("jobmatch.tasks")
 
 
 async def _execute(query: Any) -> Any:
@@ -151,9 +156,10 @@ async def run_parse_cv(
         ).execute()
         return parsed_data
     except Exception as exc:
+        logger.exception("CV parsing failed for document %s", document_id)
         await _execute(
             supabase_client.table("uploaded_documents")
-            .update({"status": "failed", "error_msg": str(exc)})
+            .update({"status": "failed", "error_msg": public_error_message(exc)})
             .eq("id", document_id)
         )
         raise
@@ -167,19 +173,25 @@ def parse_cv_task(document_id: str) -> dict[str, Any]:
     return asyncio.run(run_parse_cv(document_id))
 
 
-def enqueue_parse_cv(document_id: str) -> str:
+def enqueue_parse_cv(document_id: str, owner_id: str) -> str:
     if settings.task_execution_mode.lower() == "local":
         return enqueue_local_task(
             lambda: run_parse_cv(document_id),
             prefix="local-parse-cv",
+            owner_id=owner_id,
         )
 
     try:
-        async_result = parse_cv_task.apply_async((document_id,), retry=False)
+        async_result = parse_cv_task.apply_async(
+            (document_id,),
+            retry=False,
+            task_id=new_task_id(owner_id, "cv"),
+        )
     except Exception:
         return enqueue_local_task(
             lambda: run_parse_cv(document_id),
             prefix="local-parse-cv",
+            owner_id=owner_id,
         )
 
     return str(async_result.id)

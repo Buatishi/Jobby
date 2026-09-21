@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 
+from app.core.public_errors import public_error_message
+from app.core.task_ids import new_task_id
 from app.database import get_supabase_client
 from app.models.interview_kits import InterviewKitContent
 from app.models.jobs import StructuredJobDescription
@@ -20,6 +22,7 @@ from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
 
 JobSource = Literal["url", "text"]
+MAX_JOB_TEXT_CHARS = 30_000
 
 
 async def _execute(query: Any) -> Any:
@@ -271,6 +274,7 @@ async def run_job_analysis(
     job_text = await scrape_url(url) if source == "url" and url else raw_text
     if not job_text:
         raise ValueError("Job text is required for analysis.")
+    job_text = job_text[:MAX_JOB_TEXT_CHARS]
 
     content = await ai_gateway.generate(
         "match_reasoning",
@@ -334,7 +338,10 @@ def enqueue_job_analysis(
     url: str | None,
     raw_text: str | None,
 ) -> str:
-    async_result = job_analysis_task.delay(job_id, user_id, source, url, raw_text)
+    async_result = job_analysis_task.apply_async(
+        (job_id, user_id, source, url, raw_text),
+        task_id=new_task_id(user_id, "job"),
+    )
     return str(async_result.id)
 
 
@@ -348,7 +355,10 @@ def match_task(job_id: str, profile_id: str, user_id: str) -> dict[str, Any]:
 
 
 def enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
-    async_result = match_task.delay(job_id, profile_id, user_id)
+    async_result = match_task.apply_async(
+        (job_id, profile_id, user_id),
+        task_id=new_task_id(user_id, "match"),
+    )
     return str(async_result.id)
 
 
@@ -479,7 +489,7 @@ async def run_interview_kit(
         capture_exception(exc)
         await _execute(
             supabase_client.table("interview_kits")
-            .update({"status": "failed", "error_msg": str(exc)})
+            .update({"status": "failed", "error_msg": public_error_message(exc)})
             .eq("id", kit_id)
         )
         raise
@@ -495,5 +505,8 @@ def interview_kit_task(kit_id: str, user_id: str) -> dict[str, Any]:
 
 
 def enqueue_interview_kit(kit_id: str, user_id: str) -> str:
-    async_result = interview_kit_task.delay(kit_id, user_id)
+    async_result = interview_kit_task.apply_async(
+        (kit_id, user_id),
+        task_id=new_task_id(user_id, "kit"),
+    )
     return str(async_result.id)

@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class JobAnalysisRequest(BaseModel):
     source: Literal["url", "text"]
-    url: str | None = None
-    raw_text: str | None = None
+    url: str | None = Field(default=None, max_length=2048)
+    raw_text: str | None = Field(default=None, max_length=30_000)
 
 
 class JobAnalyzeResponse(BaseModel):

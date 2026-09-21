@@ -69,13 +69,8 @@ Ver el detalle de cualquiera con `git show milestone/03-match-ats-interview-kits
 
 ## 4. Puntos de integración que dependen de la rama
 
-| Servicio | Estado al 2026-09-20 | Acción |
-|---|---|---|
-| GitHub | `main` es la rama por defecto | Hecho |
-| Render (API y workers) | Sigue `feat/jobmatch-phase-1-2` | Apuntar cada servicio a `main` |
-| Vercel (`jobby-web`) | Los deployments salen de Git; el dominio `jobbyweb.vercel.app` está fijado a un deployment antiguo | Ver `00-vision.md`, sección 10 |
-| Railway (`elegant-energy`) | Proyecto conectado al repo; uso sin confirmar | Revisar rama, servicios y si aloja el worker |
-
-Mientras Render siga apuntando a la rama vieja, un merge a `main` no despliega la API. Si
-hiciera falta un deploy antes del cambio, se avanza esa rama con un fast-forward:
-`git push origin main:feat/jobmatch-phase-1-2`.
+| Servicio | Estado |
+|---|---|
+| GitHub | `main` es la rama por defecto y exige pull request |
+| Render (API) | Los servicios siguen `main` y se despliegan con cada merge |
+| Vercel (`jobby-web`) | La rama de producción es `main`; el dominio público se asigna al promover un despliegue |

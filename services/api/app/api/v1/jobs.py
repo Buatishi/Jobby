@@ -12,6 +12,7 @@ from app.services.rate_limits import (
     RateLimitKind,
     increment_rate_limit,
 )
+from app.services.scraper.url_guard import UnsafeUrlError, ensure_public_http_url
 from app.tasks.analysis import enqueue_job_analysis
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -50,7 +51,7 @@ async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
     return "free"
 
 
-def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
+async def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
     if payload.source == "url" and not payload.url:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -60,6 +61,18 @@ def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
                 "details": {},
             },
         )
+    if payload.source == "url" and payload.url:
+        try:
+            await ensure_public_http_url(payload.url)
+        except UnsafeUrlError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "La URL del puesto no es válida o no está permitida",
+                    "code": "JOB_URL_INVALID",
+                    "details": {},
+                },
+            ) from exc
     if payload.source == "text" and not payload.raw_text:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -77,7 +90,7 @@ async def analyze_job(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> JobAnalyzeResponse:
-    _validate_analysis_request(payload)
+    await _validate_analysis_request(payload)
     profile = await _fetch_profile(supabase, current_user.id)
     completeness_pct = int(profile.get("completeness_pct") or 0)
     if completeness_pct < 60:

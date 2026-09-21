@@ -26,7 +26,7 @@ async def create_billing_checkout(
             detail={
                 "error": "No se pudo crear el checkout",
                 "code": "BILLING_CHECKOUT_FAILED",
-                "details": {"reason": str(exc)},
+                "details": {},
             },
         ) from exc
     return CheckoutResponse(checkout_url=checkout_url)

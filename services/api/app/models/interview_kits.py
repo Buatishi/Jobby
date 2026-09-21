@@ -44,10 +44,10 @@ class InterviewKitContent(BaseModel):
 class InterviewKitCreate(BaseModel):
     job_id: str
     match_id: str | None = None
-    company_linkedin_url: str | None = None
-    interviewer_linkedin_url: str | None = None
-    interviewer_name: str | None = None
-    interviewer_role: str | None = None
+    company_linkedin_url: str | None = Field(default=None, max_length=2048)
+    interviewer_linkedin_url: str | None = Field(default=None, max_length=2048)
+    interviewer_name: str | None = Field(default=None, max_length=200)
+    interviewer_role: str | None = Field(default=None, max_length=200)
 
 
 class InterviewKitRatingUpdate(BaseModel):
