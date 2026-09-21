@@ -268,8 +268,15 @@ class FakeStorageBucket:
 
 
 class FakeStorage:
-    def __init__(self) -> None:
-        self.files: dict[str, bytes] = {}
+    """Solo el bucket real guarda archivos; cualquier otro nombre esta vacio."""
 
-    def from_(self, _bucket: str) -> FakeStorageBucket:
+    def __init__(self, bucket: str = "cv-documents") -> None:
+        self.bucket = bucket
+        self.files: dict[str, bytes] = {}
+        self.requested_buckets: set[str] = set()
+
+    def from_(self, bucket: str) -> FakeStorageBucket:
+        self.requested_buckets.add(bucket)
+        if bucket != self.bucket:
+            return FakeStorageBucket(FakeStorage(bucket))
         return FakeStorageBucket(self)

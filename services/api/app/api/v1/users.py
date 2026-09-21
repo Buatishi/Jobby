@@ -31,7 +31,18 @@ async def delete_current_user(
             capture_exception(exc)
 
     async def delete_storage() -> None:
-        await delete_storage_prefix(supabase, current_user.id)
+        # Los CV viven bajo la carpeta del uid de Supabase Auth, no del id interno.
+        rows = await _execute(
+            supabase.table("uploaded_documents")
+            .select("storage_path")
+            .eq("user_id", current_user.id)
+        )
+        stored_paths = [
+            str(row["storage_path"])
+            for row in rows or []
+            if isinstance(row, dict) and row.get("storage_path")
+        ]
+        await delete_storage_prefix(supabase, current_user.supabase_uid, stored_paths)
 
     async def invalidate_redis() -> None:
         await invalidate_user_redis(current_user.id)

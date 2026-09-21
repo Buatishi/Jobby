@@ -1,11 +1,12 @@
 import inspect
+from collections.abc import Sequence
 from typing import Any
 
 from redis.asyncio import Redis
 
 from app.config import settings
 
-DOCUMENTS_BUCKET = "cv-docs"
+DOCUMENTS_BUCKET = "cv-documents"
 
 
 def capture_exception(exc: Exception) -> None:
@@ -24,9 +25,13 @@ async def maybe_await(value: Any) -> Any:
     return value
 
 
-async def delete_storage_prefix(supabase: Any, user_id: str) -> None:
+async def delete_storage_prefix(
+    supabase: Any,
+    owner_prefix: str,
+    extra_paths: Sequence[str] = (),
+) -> None:
     bucket = supabase.storage.from_(DOCUMENTS_BUCKET)
-    prefix = user_id.strip("/")
+    prefix = owner_prefix.strip("/")
 
     async def collect(path: str) -> list[str]:
         entries = await maybe_await(bucket.list(path))
@@ -52,7 +57,7 @@ async def delete_storage_prefix(supabase: Any, user_id: str) -> None:
                 files.append(full_path)
         return files
 
-    paths = await collect(prefix)
+    paths = list(dict.fromkeys([*await collect(prefix), *extra_paths]))
     if paths:
         await maybe_await(bucket.remove(paths))
 
