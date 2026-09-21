@@ -1,0 +1,18 @@
+@startuml
+!pragma layout smetana
+left to right direction
+title Ejemplo de humo: casos de uso (no es el diagrama oficial)
+
+actor "Persona usuaria" as U
+actor "Administrador" as A
+
+rectangle "Jobby" {
+  usecase "Subir CV" as UC1
+  usecase "Analizar puesto" as UC2
+  usecase "Ver métricas agregadas" as UC3
+}
+
+U --> UC1
+U --> UC2
+A --> UC3
+@enduml

@@ -1,0 +1,22 @@
+{
+  "plantuml": {
+    "version": "1.2026.8",
+    "jar": "plantuml.jar",
+    "sha256": "5e1ecfa8ecd32c90b03bbf3b1eb6f020943f98ab0fcf4032be31a0002ee2c462",
+    "source": "https://github.com/plantuml/plantuml/releases/tag/v1.2026.8",
+    "license": "LGPL-3.0"
+  },
+  "mermaid": {
+    "version": "12.0.0",
+    "npm_integrity": "sha512-/wQXC9iBxoGV8p3erbvaXs9h77VyLDBH6GdayVjj3hEcSQhFU4N1WUhUppotCEqlIxI2pRMwjwBSwTB1MfZBgQ==",
+    "file": "package/dist/mermaid.min.js",
+    "sha256": "28fca7ae6ebc7ed7bb63bde63136a74bfef14f296a57e403657eeb8b32836073",
+    "source": "https://www.npmjs.com/package/mermaid/v/12.0.0",
+    "license": "MIT"
+  },
+  "java": {
+    "distribution": "Eclipse Temurin JRE",
+    "version": "21",
+    "note": "Se instala una vez; setup_tools.py --check la busca en JAVA, en el PATH y en la carpeta de herramientas."
+  }
+}

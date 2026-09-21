@@ -109,7 +109,8 @@ Ver [`DECISIONS.md`](../DECISIONS.md): decisiones 1 a 12.
 - **Protección de `main`:** pull request obligatorio (Decisión 12).
 - **Cola de tareas:** producción usa el modo local por ahora (Decisión 15); el worker de
   Celery (USD 7/mes) o Render Starter quedan para evaluar más adelante.
-- **Frontend:** el dominio público pasó al despliegue actual el 2026-09-21.
+- **Frontend:** el dominio público pasó al despliegue actual el 2026-09-21. Pendientes
+  de producto y frontend en `docs/05-pendientes-producto.md`.
 - **Disponibilidad:** el plan gratuito de Render duerme el servicio tras un rato sin
   tráfico. Mitigado con el pre-calentamiento al abrir la web y el reintento de los GET
   (Decisión 14); una primera petición en frío sin visita previa sigue tardando unos 42 s.
