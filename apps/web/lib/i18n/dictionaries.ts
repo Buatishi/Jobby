@@ -29,7 +29,10 @@ export const dictionaries: Record<Language, TranslationTree> = {
       register: "Registrarse",
       close: "Cerrar",
       openMenu: "Abrir menú",
-      closeMenu: "Cerrar navegación"
+      closeMenu: "Cerrar navegación",
+      coldStartTitle: "Seguimos trabajando en tu pedido",
+      coldStartBody:
+        "Esto tarda más de lo normal. Si el servidor estaba inactivo, puede demorar hasta un minuto en arrancar."
     },
     landing: {
       navFeatures: "Funciones",
@@ -239,7 +242,10 @@ export const dictionaries: Record<Language, TranslationTree> = {
       register: "Sign up",
       close: "Close",
       openMenu: "Open menu",
-      closeMenu: "Close navigation"
+      closeMenu: "Close navigation",
+      coldStartTitle: "We are still working on your request",
+      coldStartBody:
+        "This is taking longer than usual. If the server was idle, it can take up to a minute to start."
     },
     landing: {
       navFeatures: "Features",

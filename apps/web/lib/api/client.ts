@@ -1,3 +1,7 @@
+import {
+  fetchWithColdStartRetry,
+  trackSlowRequest
+} from "@/lib/api/cold-start";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ApiClientOptions = Omit<RequestInit, "headers"> & {
@@ -93,6 +97,13 @@ async function parseApiError(response: Response) {
   );
 }
 
+function requestWithColdStartHandling(
+  send: () => Promise<Response>,
+  method?: string
+) {
+  return trackSlowRequest(() => fetchWithColdStartRetry(send, { method }));
+}
+
 export async function apiClient<TResponse>(
   path: string,
   options: ApiClientOptions = {}
@@ -114,7 +125,10 @@ export async function apiClient<TResponse>(
 
   let response: Response;
   try {
-    response = await sendRequest();
+    response = await requestWithColdStartHandling(
+      () => sendRequest(),
+      requestOptions.method
+    );
   } catch {
     throw new ApiConnectionError();
   }
@@ -155,7 +169,7 @@ export async function apiStream(
 
   let response: Response;
   try {
-    response = await openStream();
+    response = await requestWithColdStartHandling(() => openStream(), "GET");
   } catch {
     throw new ApiConnectionError();
   }
