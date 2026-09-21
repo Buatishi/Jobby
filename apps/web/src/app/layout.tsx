@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 
+import { ColdStartNotice } from "@/components/cold-start-notice";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const geistSans = Geist({
@@ -45,7 +46,10 @@ export default function RootLayout({
   return (
     <html className="light" lang="es" suppressHydrationWarning>
       <body className={`${geistSans.variable} font-sans`}>
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          {children}
+          <ColdStartNotice />
+        </I18nProvider>
       </body>
     </html>
   );
