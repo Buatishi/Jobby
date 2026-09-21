@@ -71,6 +71,11 @@ la tarea y el frontend sigue el estado por SSE. Condición: confirmar en producc
 worker corre (Decisión 7). Las integraciones con IA, Storage y pagos son parte del
 producto y no se reclaman como capacidades adicionales.
 
+Nota (2026-09-21, Decisión 15): en producción las tareas corren en modo local, sin
+consumidor independiente, así que la cola no puede declararse hoy como capacidad
+avanzada. La capacidad se confirma cuando se resuelva el modo de USD 7 (worker o Render
+Starter) o se elija otra.
+
 ## 6. Estrategia de tests
 
 - `tests/unit/`: lógica pura de negocio (motor de match, ATS, reglas de límites, merge de
@@ -102,8 +107,10 @@ Ver [`DECISIONS.md`](../DECISIONS.md): decisiones 1 a 12.
 - **CI/CD:** activar GitHub Actions con cobertura mínima y un job de despliegue que
   dependa de los tests (Decisión 6).
 - **Protección de `main`:** pull request obligatorio (Decisión 12).
-- **Cola de tareas:** confirmar el worker de Celery en producción (Decisión 7).
-- **Frontend:** completar el traspaso del dominio público al despliegue actual.
+- **Cola de tareas:** producción usa el modo local por ahora (Decisión 15); el worker de
+  Celery (USD 7/mes) o Render Starter quedan para evaluar más adelante.
+- **Frontend:** el dominio público pasó al despliegue actual el 2026-09-21.
 - **Disponibilidad:** el plan gratuito de Render duerme el servicio tras un rato sin
-  tráfico y la primera petición tarda decenas de segundos.
+  tráfico. Mitigado con el pre-calentamiento al abrir la web y el reintento de los GET
+  (Decisión 14); una primera petición en frío sin visita previa sigue tardando unos 42 s.
 - **Tests de integración** contra una base de pruebas separada (Decisión 4).

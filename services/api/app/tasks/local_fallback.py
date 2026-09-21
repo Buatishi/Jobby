@@ -8,6 +8,10 @@ from app.core.task_ids import new_task_id
 
 TaskState = Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"]
 
+# Una tarea encadenada (por ejemplo el match que sigue a un analisis) espera su
+# turno en lugar de fallar mientras la tarea que la encadena aun ocupa un cupo.
+LOCAL_SLOT_WAIT_SECONDS = 300.0
+
 
 class LocalTaskResult:
     def __init__(self, task_id: str, state: TaskState, result: Any = None) -> None:
@@ -37,13 +41,18 @@ def enqueue_local_task(
     *,
     prefix: str,
     owner_id: str,
+    wait_for_slot: bool = False,
 ) -> str:
     task_id = new_task_id(owner_id, prefix)
     with _lock:
         _tasks[task_id] = LocalTaskResult(task_id, "PENDING")
 
     def runner() -> None:
-        if not _semaphore.acquire(blocking=False):
+        if wait_for_slot:
+            acquired = _semaphore.acquire(timeout=LOCAL_SLOT_WAIT_SECONDS)
+        else:
+            acquired = _semaphore.acquire(blocking=False)
+        if not acquired:
             error = RuntimeError(
                 "Local task capacity exceeded. Configure Celery workers "
                 "or retry when the current background task finishes."

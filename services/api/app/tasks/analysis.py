@@ -1,11 +1,13 @@
 import asyncio
 import json
 import re
+from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import ValidationError
 
+from app.config import settings
 from app.core.public_errors import public_error_message
 from app.core.task_ids import new_task_id
 from app.database import get_supabase_client
@@ -20,6 +22,7 @@ from app.services.ai_gateway.prompts.interview_kit_v1 import build_user_prompt
 from app.services.match_engine import MatchResult, compute_match_score
 from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
+from app.tasks.local_fallback import enqueue_local_task
 
 JobSource = Literal["url", "text"]
 MAX_JOB_TEXT_CHARS = 30_000
@@ -316,6 +319,24 @@ async def run_job_analysis(
     return payload
 
 
+def _use_local_execution() -> bool:
+    return settings.task_execution_mode.lower() == "local"
+
+
+def _local_factory(
+    run: Callable[..., Awaitable[dict[str, Any]]],
+    *args: Any,
+) -> Callable[[], Coroutine[Any, Any, dict[str, Any]]]:
+    async def factory() -> dict[str, Any]:
+        try:
+            return await run(*args)
+        except Exception as exc:
+            capture_exception(exc)
+            raise
+
+    return factory
+
+
 @celery_app.task(name="app.tasks.analysis.job_analysis_task", queue="analysis")  # type: ignore[untyped-decorator]
 def job_analysis_task(
     job_id: str,
@@ -338,6 +359,13 @@ def enqueue_job_analysis(
     url: str | None,
     raw_text: str | None,
 ) -> str:
+    if _use_local_execution():
+        return enqueue_local_task(
+            _local_factory(run_job_analysis, job_id, user_id, source, url, raw_text),
+            prefix="local-job",
+            owner_id=user_id,
+        )
+
     async_result = job_analysis_task.apply_async(
         (job_id, user_id, source, url, raw_text),
         task_id=new_task_id(user_id, "job"),
@@ -355,6 +383,15 @@ def match_task(job_id: str, profile_id: str, user_id: str) -> dict[str, Any]:
 
 
 def enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
+    if _use_local_execution():
+        # Encadenada desde el analisis, que todavia ocupa un cupo: espera su turno.
+        return enqueue_local_task(
+            _local_factory(run_match, job_id, profile_id, user_id),
+            prefix="local-match",
+            owner_id=user_id,
+            wait_for_slot=True,
+        )
+
     async_result = match_task.apply_async(
         (job_id, profile_id, user_id),
         task_id=new_task_id(user_id, "match"),
@@ -505,6 +542,13 @@ def interview_kit_task(kit_id: str, user_id: str) -> dict[str, Any]:
 
 
 def enqueue_interview_kit(kit_id: str, user_id: str) -> str:
+    if _use_local_execution():
+        return enqueue_local_task(
+            _local_factory(run_interview_kit, kit_id, user_id),
+            prefix="local-kit",
+            owner_id=user_id,
+        )
+
     async_result = interview_kit_task.apply_async(
         (kit_id, user_id),
         task_id=new_task_id(user_id, "kit"),
