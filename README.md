@@ -17,6 +17,15 @@ branches (`feat/`, `fix/`, `docs/`, `test/`, `ci/`, `chore/`) merged through pul
 See [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) and
 [docs/00-vision.md](docs/00-vision.md).
 
+## Documentation
+
+- [docs/00-vision.md](docs/00-vision.md): target architecture, access model and known pending items.
+- [DECISIONS.md](DECISIONS.md): append-only log of technical decisions.
+- [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md): Render Free cold starts and the free-tier suspension rules (Supabase, Upstash).
+- [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md): running background tasks inside the API process.
+- [docs/tools/README.md](docs/tools/README.md): Mermaid and PlantUML rendering and PDF export.
+- [docs/05-pendientes-producto.md](docs/05-pendientes-producto.md): product and frontend backlog.
+
 ## Local Setup
 
 Prerequisites:
@@ -115,6 +124,11 @@ Render creates:
 - Celery worker for `parsing,analysis`.
 - Celery worker for `scraping`; move this off the free plan before real scraping because Playwright needs more memory.
 
+Render has no free background workers (from USD 7/month), so production runs the tasks inside
+the API process with `TASK_EXECUTION_MODE=local` (Decision 15,
+[docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md)). The worker
+declarations above apply only if a paid worker is created.
+
 Use Upstash Redis with a TLS URL:
 
 ```text
@@ -146,6 +160,8 @@ Backend:
 - `ANTHROPIC_API_KEY`
 - `DEEPSEEK_API_KEY`
 - `REDIS_URL`
+- `TASK_EXECUTION_MODE` (`celery` by default, or `local`)
+- `LOCAL_TASK_MAX_CONCURRENCY` (2 by default)
 - `LEMONSQUEEZY_API_KEY`
 - `LEMONSQUEEZY_STORE_ID`
 - `LEMONSQUEEZY_WEBHOOK_SECRET`
