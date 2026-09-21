@@ -427,3 +427,35 @@ justifica.
 **Límites:** los POST no se reintentan; no evita reinicios ni deploys; no evita la pausa de
 Supabase por inactividad (7 días), que se cubre con una regla operativa. Detalle, validación
 y reglas en `docs/operacion/arranque-en-frio.md`.
+
+## Decisión 15 — Tareas en segundo plano: modo local por ahora
+
+**Estado:** Aprobada (2026-09-21). Cierra de forma provisoria la Decisión 7.
+
+**Elegida:** en producción las tareas de parseo de CV, análisis de puestos, match y kits de
+entrevista se ejecutan dentro del proceso de la API (`TASK_EXECUTION_MODE=local`), con
+concurrencia acotada (`LOCAL_TASK_MAX_CONCURRENCY`, 2 por defecto). El match encadenado tras
+un análisis espera su cupo (hasta 300 s) en lugar de fallar. El worker de Celery no se
+despliega por ahora.
+
+**Alternativas evaluadas:** (a) Background Worker de Render — mínimo USD 7/mes, no existe
+plan gratis, se factura por segundo; (b) Render Starter para la API (USD 7/mes, siempre
+despierta) combinado con el modo local; (c) worker embebido en el contenedor de la API —
+descartada: comparte los 512 MB y se duerme junto con la API.
+
+**Fundamento:** costo USD 0. Sin worker, las tareas encoladas en Redis nunca se procesaban
+y el flujo central no terminaba en producción. El modo local ya existía para el parseo; este
+cambio lo extiende a análisis, match y kits sin tocar el código de Celery.
+
+**Límites:** el estado de las tareas vive en la memoria del proceso y se pierde si el
+servicio se reinicia o se duerme durante una tarea; una sola instancia; comparte memoria con
+la API; un pedido directo con la capacidad llena falla enseguida. El scraping por URL con
+Chromium no está instalado en la imagen (pendiente aparte).
+
+**Efecto sobre la tecnología avanzada:** la cola Celery + Redis deja de tener un consumidor
+independiente en producción, así que hoy no puede declararse como capacidad avanzada
+(sección 5 de `docs/00-vision.md`). La capacidad a declarar se decide cuando se resuelva el
+modo de USD 7 (worker o Render Starter).
+
+**Activación:** variable de entorno en Render, con aprobación explícita. Detalle, validación
+y reversión en `docs/operacion/modo-local-de-tareas.md`.
