@@ -1,187 +1,185 @@
-# JobMatch AI
+# JobMatch AI (Jobby)
 
-JobMatch AI is a monorepo for matching candidates against job descriptions, improving ATS coverage, and generating premium interview preparation kits.
+Jobby compara tu CV con una oferta laboral y te dice cuánto coincidís (Match Score), qué te
+falta y cómo mejorar tu postulación. El plan premium suma kits de preparación para
+entrevistas.
 
-## Project Structure
+Flujo principal: registro, carga del CV, análisis, creación de un puesto, comparación, Match
+Score y reporte ATS.
 
-- `apps/web` - Next.js 15 App Router frontend.
-- `services/api` - FastAPI backend, Celery workers, Supabase integration.
-- `packages/shared-types` - shared TypeScript contracts.
-- `services/api/migrations` - numbered Supabase SQL migrations.
-- `tests/load` - k6 load tests for backend workflows.
+## En producción
 
-## Branching
+| Componente | Dirección | Plataforma |
+|---|---|---|
+| Web | <https://jobbyweb.vercel.app> | Vercel |
+| API | <https://jobmatch-api-9xel.onrender.com> (estado en `/health`) | Render |
+| Base de datos, login y archivos | Supabase (PostgreSQL, Auth y Storage) | Supabase |
 
-`main` is the single trunk and the production branch. Work happens in short-lived topic
-branches (`feat/`, `fix/`, `docs/`, `test/`, `ci/`, `chore/`) merged through pull requests.
-See [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) and
-[docs/00-vision.md](docs/00-vision.md).
+La API corre en el plan gratuito de Render: si pasa 15 minutos sin uso se duerme y el primer
+pedido puede tardar unos 40 segundos. La web la despierta al abrirse. Más detalle en
+[docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md).
 
-## Documentation
+## Estructura del proyecto
 
-- [docs/00-vision.md](docs/00-vision.md): target architecture, access model and known pending items.
-- [DECISIONS.md](DECISIONS.md): append-only log of technical decisions.
-- [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md): Render Free cold starts and the free-tier suspension rules (Supabase, Upstash).
-- [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md): running background tasks inside the API process.
-- [docs/tools/README.md](docs/tools/README.md): Mermaid and PlantUML rendering and PDF export.
-- [docs/05-pendientes-producto.md](docs/05-pendientes-producto.md): product and frontend backlog.
+- `apps/web`: frontend (Next.js 15).
+- `services/api`: API (FastAPI), tareas en segundo plano e integración con Supabase.
+- `packages/shared-types`: tipos de TypeScript compartidos.
+- `services/api/migrations`: migraciones SQL numeradas de Supabase.
+- `tests/load`: pruebas de carga con k6.
 
-## Local Setup
+## Cómo trabajamos
 
-Prerequisites:
+`main` es la única rama principal y es la que se despliega. El trabajo se hace en ramas cortas
+(`feat/`, `fix/`, `docs/`, `test/`, `ci/`, `chore/`) que se integran con pull requests. Detalle
+en [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) y [docs/00-vision.md](docs/00-vision.md).
 
-- Node.js 22+
-- pnpm 9+
-- Python 3.13+
-- Poetry 1.8+
-- Docker Desktop
+## Documentación
 
-Start local infrastructure:
+- [docs/00-vision.md](docs/00-vision.md): arquitectura objetivo, modelo de acceso y pendientes.
+- [DECISIONS.md](DECISIONS.md): registro de decisiones técnicas (solo se agregan entradas).
+- [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md): arranque en frío de Render y reglas de suspensión de los planes gratuitos.
+- [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md): tareas en segundo plano dentro de la API.
+- [docs/tools/README.md](docs/tools/README.md): diagramas con Mermaid y PlantUML, y exportación a PDF.
+- [docs/05-pendientes-producto.md](docs/05-pendientes-producto.md): pendientes de producto y frontend.
+
+## Puesta en marcha local
+
+Requisitos: Node.js 22+, pnpm 9+, Python 3.13+, Poetry 1.8+ y Docker Desktop.
+
+1. Levantar la infraestructura local (Redis):
+
+   ```powershell
+   docker compose up -d
+   ```
+
+2. Crear los archivos de entorno a partir de `.env.example` y completarlos. Nunca subas
+   claves reales al repositorio.
+
+3. Instalar las dependencias:
+
+   ```powershell
+   pnpm install
+   cd services/api
+   poetry install
+   poetry run playwright install chromium
+   ```
+
+4. Levantar la API y la web (cada una en su terminal):
+
+   ```powershell
+   cd services/api
+   poetry run uvicorn app.main:app --reload
+   ```
+
+   ```powershell
+   cd apps/web
+   pnpm dev
+   ```
+
+La web queda en `http://localhost:3000` y la API en `http://localhost:8000`.
+
+## Migraciones de Supabase
+
+Aplicá las migraciones de `services/api/migrations` en orden, desde el editor SQL o la CLI de
+Supabase. **No edites una migración ya aplicada**: para cambiar el esquema, creá una nueva.
+
+Configuración necesaria en Supabase:
+
+- Activar las extensiones `pgcrypto` y `vector`.
+- Crear el bucket privado `cv-documents` en Storage.
+- Configurar los proveedores de Auth y permitir la URL de redirección
+  `<dominio de la web>/api/auth/callback`.
+- Aplicar las políticas RLS de las migraciones antes de probar flujos con sesión iniciada.
+
+## Controles antes de un pull request
+
+Web (desde `apps/web`):
 
 ```powershell
-docker compose up -d
-```
-
-Create env files from `.env.example`, then install dependencies:
-
-```powershell
-pnpm install
-cd services/api
-poetry install
-poetry run playwright install chromium
-```
-
-Run the app:
-
-```powershell
-cd services/api
-poetry run uvicorn app.main:app --reload
-```
-
-```powershell
-cd apps/web
-pnpm dev
-```
-
-Frontend runs at `http://localhost:3000`; backend runs at `http://localhost:8000`.
-
-## Supabase Migrations
-
-Apply migrations in order from `services/api/migrations` using the Supabase SQL editor or CLI. Do not edit an already-applied migration; create a new numbered migration instead.
-
-Required Supabase setup:
-
-- Enable PostgreSQL extensions used by the migrations, including `pgcrypto` and `vector`.
-- Create the `cv-docs` Storage bucket.
-- Configure Auth providers and callback URLs for the frontend domain.
-- Apply RLS policies from the migration set before testing authenticated flows.
-
-## Checks
-
-Run before each PR:
-
-```powershell
-cd apps/web
 pnpm typecheck
 pnpm lint
+pnpm test
 pnpm build
 ```
 
+API (desde `services/api`):
+
 ```powershell
-cd services/api
 poetry run ruff check app tests
 poetry run mypy app/
 poetry run pytest --basetemp=.pytest-tmp
 ```
 
-```powershell
-cd packages/shared-types
-pnpm build
-```
+Tipos compartidos (desde `packages/shared-types`): `pnpm build`.
 
-E2E tests:
+Pruebas E2E (desde `apps/web`): `pnpm exec playwright test`. El flujo completo solo corre con
+`E2E_LIVE=1` y **registra y borra usuarios reales**: no se ejecuta contra producción.
 
-```powershell
-cd apps/web
-pnpm exec playwright test
-```
-
-Load tests:
+Pruebas de carga:
 
 ```powershell
 k6 run -e API_URL=http://localhost:8000 -e AUTH_TOKEN=<jwt> tests/load/jobmatch.k6.js
 ```
 
-## Deploy
+## Despliegue
 
-Frontend deploys to Vercel from `apps/web`. Configure Supabase public keys, backend URL, Lemon Squeezy public app URL, and Sentry DSN in Vercel environment variables.
+- **Web:** Vercel, desde `apps/web`. En las variables de entorno de Vercel se configuran las
+  claves públicas de Supabase, la URL de la API, la URL de la web y el DSN de Sentry.
+- **API:** Render, con el archivo `render.yaml` de la raíz. Railway ya no es el destino activo;
+  si desplegás ahí a mano, replicá el mismo Dockerfile y las mismas variables.
+- **Tareas en segundo plano:** `render.yaml` declara dos workers de Celery, pero Render no
+  ofrece workers gratuitos (desde USD 7 por mes). Por eso producción ejecuta las tareas dentro
+  de la API con `TASK_EXECUTION_MODE=local` (Decisión 15,
+  [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md)). Los workers
+  solo aplican si se crea uno pago.
+- **Redis:** Upstash, con una URL TLS:
 
-Backend deploys are configured for Render with `render.yaml` at the repository root. Railway is not the active backend target in this repo anymore; if you deploy there manually, mirror the same Dockerfile, worker commands, and environment variables from `render.yaml`.
+  ```text
+  rediss://default:<UPSTASH_REDIS_PASSWORD>@<UPSTASH_REDIS_HOST>:6379
+  ```
 
-Render creates:
+### Webhook de Lemon Squeezy
 
-- FastAPI web service from `services/api/Dockerfile` on port `8000`.
-- Celery worker for `parsing,analysis`.
-- Celery worker for `scraping`; move this off the free plan before real scraping because Playwright needs more memory.
-
-Render has no free background workers (from USD 7/month), so production runs the tasks inside
-the API process with `TASK_EXECUTION_MODE=local` (Decision 15,
-[docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md)). The worker
-declarations above apply only if a paid worker is created.
-
-Use Upstash Redis with a TLS URL:
-
-```text
-rediss://default:<UPSTASH_REDIS_PASSWORD>@<UPSTASH_REDIS_HOST>:6379
-```
-
-### Lemon Squeezy webhook
-
-Create a webhook in the Lemon Squeezy dashboard pointing to:
+En el panel de Lemon Squeezy creá un webhook que apunte a:
 
 ```text
-https://<render-api-domain>/api/v1/webhooks/lemonsqueezy
+https://<dominio de la API>/api/v1/webhooks/lemonsqueezy
 ```
 
-Enable these events: `order_created`, `subscription_created`,
-`subscription_updated`, `subscription_cancelled`, `subscription_expired`,
-`subscription_payment_success`, and `subscription_payment_failed`. Copy the
-signing secret into `LEMONSQUEEZY_WEBHOOK_SECRET`.
+Activá los eventos `order_created`, `subscription_created`, `subscription_updated`,
+`subscription_cancelled`, `subscription_expired`, `subscription_payment_success` y
+`subscription_payment_failed`. Copiá el secreto de firma en `LEMONSQUEEZY_WEBHOOK_SECRET`.
 
-## Environment Variables
+## Variables de entorno
 
-Backend:
+API:
 
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_JWT_SECRET`
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `DEEPSEEK_API_KEY`
-- `REDIS_URL`
-- `TASK_EXECUTION_MODE` (`celery` by default, or `local`)
-- `LOCAL_TASK_MAX_CONCURRENCY` (2 by default)
-- `LEMONSQUEEZY_API_KEY`
-- `LEMONSQUEEZY_STORE_ID`
-- `LEMONSQUEEZY_WEBHOOK_SECRET`
-- `LEMONSQUEEZY_PREMIUM_VARIANT_ID`
-- `RESEND_API_KEY`
-- `SENTRY_DSN`
-- `FRONTEND_URL`
+| Variable | Para qué sirve |
+|---|---|
+| `SUPABASE_URL` | Dirección del proyecto de Supabase |
+| `SUPABASE_ANON_KEY` | Clave pública de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave de servicio (secreta, solo backend) |
+| `SUPABASE_JWT_SECRET` | Secreto para validar los tokens de sesión |
+| `OPENAI_API_KEY` | Solo para generar embeddings |
+| `ANTHROPIC_API_KEY` | Modelos del plan premium |
+| `DEEPSEEK_API_KEY` | Proveedor de IA principal |
+| `REDIS_URL` | Redis de Upstash (cola y límites de uso) |
+| `TASK_EXECUTION_MODE` | `celery` (por defecto) o `local` |
+| `LOCAL_TASK_MAX_CONCURRENCY` | Tareas locales simultáneas (2 por defecto) |
+| `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_PREMIUM_VARIANT_ID` | Cobros del plan premium |
+| `RESEND_API_KEY` | Envío de emails |
+| `SENTRY_DSN` | Reporte de errores |
+| `FRONTEND_URL` | Dirección de la web (orígenes permitidos por CORS) |
 
-Frontend:
+Web:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_API_URL`
-- `NEXT_PUBLIC_APP_URL`
-- `NEXT_PUBLIC_PRICE_MONTHLY`
-- `NEXT_PUBLIC_PRICE_YEARLY`
-- `NEXT_PUBLIC_SENTRY_DSN`
+| Variable | Para qué sirve |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Conexión pública a Supabase |
+| `NEXT_PUBLIC_API_URL` | Dirección de la API |
+| `NEXT_PUBLIC_APP_URL` | Dirección de la web |
+| `NEXT_PUBLIC_PRICE_MONTHLY`, `NEXT_PUBLIC_PRICE_YEARLY` | Precios que se muestran |
+| `NEXT_PUBLIC_SENTRY_DSN` | Reporte de errores del navegador |
 
-GitHub preview deploy secrets:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+Secretos de GitHub para los despliegues de vista previa: `VERCEL_TOKEN`, `VERCEL_ORG_ID` y
+`VERCEL_PROJECT_ID`.

@@ -1,11 +1,11 @@
-# Security policy
+# Política de seguridad
 
-If you find a vulnerability in Jobby, please **do not open a public issue**. Report it
-privately through GitHub: on the repository page open **Security > Report a
-vulnerability**.
+Si encontrás una vulnerabilidad en Jobby, **no abras un issue público**. Reportala en privado
+desde GitHub: en la página del repositorio andá a **Security > Report a vulnerability**.
 
-Include what you found, the steps to reproduce it and its impact. Please do not access
-data that is not yours, do not run automated load or scanning tools against the
-production services and do not disclose the problem before it is fixed.
+Incluí qué encontraste, los pasos para reproducirlo y su impacto. Por favor, no accedas a
+datos que no sean tuyos, no ejecutes herramientas automáticas de carga o escaneo contra los
+servicios de producción y no divulgues el problema antes de que esté corregido.
 
-This is a student project maintained by one person, so responses may take a few days.
+Es un proyecto estudiantil mantenido por una sola persona, así que la respuesta puede
+demorar unos días.
