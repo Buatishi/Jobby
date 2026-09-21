@@ -3,14 +3,17 @@
 These k6 scripts provide repeatable, non-destructive load checks for the
 deployed frontend/backend pair.
 
+> Ejecutá estas pruebas solo contra tu propio entorno. No las apuntes a servicios de
+> terceros ni a producción sin autorización.
+
 ## Requirements
 
 - Install k6: https://k6.io/docs/get-started/installation/
 - Set environment variables before running:
 
 ```powershell
-$env:FRONTEND_URL="https://jobbyweb.vercel.app"
-$env:API_URL="https://jobby-fp0r.onrender.com"
+$env:FRONTEND_URL="https://<tu-frontend>"
+$env:API_URL="https://<tu-api>"
 $env:AUTH_TOKEN="<supabase-access-token>"
 ```
 
