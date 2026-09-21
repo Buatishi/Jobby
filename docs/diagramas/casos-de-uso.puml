@@ -1,0 +1,105 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam usecase {
+  BackgroundColor #F4F8F6
+  BorderColor #0F6E56
+}
+skinparam actor {
+  BorderColor #0F6E56
+}
+skinparam rectangle {
+  BorderColor #9DB8AF
+}
+title Diagrama de casos de uso de Jobby
+
+actor "Visitante" as V
+actor "Persona usuaria" as U
+actor "Persona usuaria\npremium" as P
+actor "Administrador\n(planificado)" as A
+
+rectangle "Jobby" {
+  rectangle "Cuenta y acceso" {
+    usecase "Registrar cuenta" as CU01
+    usecase "Iniciar sesión" as CU02
+    usecase "Recuperar contraseña" as CU03
+    usecase "Autenticar con Google" as CU04
+    usecase "Eliminar cuenta" as CU22
+  }
+  rectangle "CV y perfil" {
+    usecase "Cargar CV" as CU05
+    usecase "Estructurar CV con IA" as CU06
+    usecase "Confirmar perfil" as CU07
+  }
+  rectangle "Puestos y compatibilidad" {
+    usecase "Analizar puesto" as CU08
+    usecase "Leer página del puesto" as CU09
+    usecase "Estructurar puesto con IA" as CU10
+    usecase "Calcular Match Score" as CU11
+    usecase "Consultar reporte ATS" as CU12
+    usecase "Ver Reality Gap" as CU13
+    usecase "Ver resumen del panel" as CU17
+    usecase "Valorar resultado" as CU18
+  }
+  rectangle "Plan premium" {
+    usecase "Optimizar CV" as CU14
+    usecase "Generar kit de entrevista" as CU15
+    usecase "Verificar plan premium" as CU16
+    usecase "Suscribirse al plan premium" as CU19
+    usecase "Procesar evento de suscripción" as CU20
+    usecase "Enviar aviso de suscripción" as CU21
+  }
+  rectangle "Administración" {
+    usecase "Consultar métricas agregadas" as CU23
+  }
+}
+
+actor "Supabase Auth\ncon Google" as ID <<sistema>>
+actor "Proveedores de IA" as IA <<sistema>>
+actor "Sitios de ofertas\ny LinkedIn" as W <<sistema>>
+actor "LemonSqueezy" as LS <<sistema>>
+actor "Servicio de email" as EM <<sistema>>
+
+P --|> U
+
+V --> CU01
+V --> CU02
+V --> CU03
+CU04 .> CU01 : <<extend>>
+CU04 .> CU02 : <<extend>>
+
+U --> CU05
+U --> CU07
+U --> CU08
+U --> CU12
+U --> CU13
+U --> CU17
+U --> CU18
+U --> CU19
+U --> CU22
+P --> CU14
+P --> CU15
+
+CU05 ..> CU06 : <<include>>
+CU08 ..> CU10 : <<include>>
+CU08 ..> CU11 : <<include>>
+CU09 .> CU08 : <<extend>>
+CU14 .> CU12 : <<extend>>
+CU14 ..> CU16 : <<include>>
+CU15 ..> CU16 : <<include>>
+CU21 .> CU20 : <<extend>>
+
+A --> CU23
+
+CU02 -- ID
+CU04 -- ID
+CU06 -- IA
+CU10 -- IA
+CU14 -- IA
+CU15 -- IA
+CU09 -- W
+CU20 -- LS
+CU21 -- EM
+@enduml
