@@ -15,6 +15,8 @@ Mediciones del 2026-09-21 sobre `/health` (respuesta fija, sin base de datos ni 
 | Primer pedido tras estar dormida | **42,3 s** |
 | Segundo pedido (ya despierta) | 0,24 s |
 | Primera llamada 45 s después de abrir la web (con pre-calentamiento) | **0,245 s** |
+| Pedido a través del dominio público (proxy de Vercel) con la API dormida | 43,5 s, HTTP 200 |
+| Primera llamada directa 50 s después de abrir la web pública | **0,28 s** (la API duplicada `Jobby`, usada como control y sin visita, tardó 42,7 s) |
 
 Los logs de Render muestran que su propio health check llama a `/health` cada 5 s mientras
 el servicio corre y, aun así, el servicio estaba dormido: ese chequeo no cuenta como
@@ -69,8 +71,10 @@ en el layout raíz, así que cubre también a quien entra directo a una pantalla
   web hace que sea poco probable.
 - En una build autoalojada (`next start`) el proxy de Next corta a los 30 s con un 500
   (medido el 2026-09-21); el pedido de pre-calentamiento falla, pero la API igual despierta.
-  El comportamiento del proxy de Vercel ante una API dormida se valida tras cada promoción
-  (sección 6).
+- El proxy de Vercel, en cambio, **espera** al arranque: medido el 2026-09-21 a las 16:38 UTC,
+  un pedido a través de `jobbyweb.vercel.app` con la API dormida devolvió 200 tras 43,5 s.
+  Sin pre-calentamiento un pedido real también terminaría bien, pero después de esa espera;
+  el aviso de demora y el reintento son la red de seguridad ante otros cortes.
 
 ## 5. Reglas operativas
 
@@ -91,7 +95,10 @@ en el layout raíz, así que cubre también a quien entra directo a una pantalla
 2. Con la API dormida, abrir la web en una pestaña nueva, esperar 45 s y repetir el
    `curl`: debería responder en menos de 1 s.
 3. Tras cada promoción en Vercel, con la API dormida, pedir
-   `https://jobbyweb.vercel.app/api/backend/health` y registrar el estado HTTP y el tiempo.
+   `https://jobbyweb.vercel.app/api/backend/health` y registrar el estado HTTP y el tiempo
+   (resultado del 2026-09-21: 200 en 43,5 s). Para confirmar a qué API apunta el frontend,
+   probar las dos APIs 50 s después: la del frontend debe responder en menos de 1 s y la
+   otra tardar unos 42 s.
 4. Tests automáticos: `cd apps/web && pnpm test` (`lib/api/cold-start.test.ts`, 19 casos:
    TTL del pre-calentamiento, ausencia de credenciales, reintentos solo en GET, límites de
    reintento y aviso de demora).
