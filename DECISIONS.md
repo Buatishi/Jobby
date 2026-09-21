@@ -399,3 +399,31 @@ reservados) y `SECURITY.md`.
 **Prestaciones resignadas:** el código, los prompts y la fórmula de match quedan
 visibles, y el email de autor de los commits existentes queda público (no se reescribe
 historial). Los commits nuevos usan el email `noreply` de GitHub.
+
+## Decisión 14 — Arranque en frío de la API: pre-calentamiento por intención de uso
+
+**Estado:** Aprobada (2026-09-21).
+
+**Elegida:** el frontend despierta la API cuando alguien abre la web (un `GET /health`
+público y sin credenciales, una vez cada 10 minutos por pestaña), reintenta con espera
+creciente los GET que fallan por red o por puerta de enlace (502, 503, 504) y muestra un
+aviso si un pedido tarda más de 4 s. Costo: USD 0, sin servicios externos.
+
+**Alternativas evaluadas:** (a) monitor externo cada 5 minutos — descartada como
+principal: consume 720 a 744 de las 750 horas gratis del workspace de Render y, si se
+agotan, Render suspende todos los servicios gratis; además `/health` no toca la base y no
+evita la pausa de Supabase; (b) health check nativo de Render — no evita el sueño
+(observado en logs); (c) cron job de Render — mínimo USD 1/mes; (d) GitHub Actions
+programado — cuenta bloqueada y se apaga a los 60 días sin actividad; (e) optimizar la
+imagen — no separable del tiempo de plataforma; (f) Render Starter (USD 7/mes) — único
+arreglo total, queda para evaluar.
+
+**Fundamento:** medición del 2026-09-21: 42,3 s el primer pedido tras inactividad y 0,24 s
+el segundo; con el pre-calentamiento, una visita nueva seguida de 45 s dejó la primera
+llamada real en 0,245 s. Render documenta que las instancias Free no son para producción y
+no menciona los pings; UptimeRobot permite uso comercial pero el costo en horas no lo
+justifica.
+
+**Límites:** los POST no se reintentan; no evita reinicios ni deploys; no evita la pausa de
+Supabase por inactividad (7 días), que se cubre con una regla operativa. Detalle, validación
+y reglas en `docs/operacion/arranque-en-frio.md`.
