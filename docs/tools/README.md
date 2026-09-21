@@ -35,6 +35,9 @@ python docs/tools/render_diagrams.py
 
 # 2) PDF de un documento (por defecto en docs/pdf/<nombre>.pdf)
 python docs/tools/build_pdf.py docs/tools/ejemplo/ejemplo.md
+
+# Con hojas apaisadas, útil para diagramas anchos como los DFD
+python docs/tools/build_pdf.py docs/01-dfd.md --landscape
 ```
 
 `docs/tools/ejemplo/` es un ejemplo de humo con los cuatro tipos de diagrama: sirve de

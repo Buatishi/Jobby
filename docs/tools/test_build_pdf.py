@@ -61,6 +61,20 @@ class RenderHtmlTest(unittest.TestCase):
         self.assertNotIn("mermaid.min.js", page)
 
 
+class PageOrientationTest(unittest.TestCase):
+    def test_landscape_flag_changes_the_page_size(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = pathlib.Path(tmp) / "doc.md"
+            source.write_text("# Hola\n", encoding="utf-8")
+
+            portrait, _ = render_html(source)
+            landscape, _ = render_html(source, landscape=True)
+
+        self.assertIn("size: A4;", portrait)
+        self.assertIn("size: A4 landscape;", landscape)
+        self.assertNotIn("landscape", portrait)
+
+
 class LockFileTest(unittest.TestCase):
     def test_lock_pins_tools_with_hashes(self) -> None:
         lock = load_lock()
