@@ -39,7 +39,7 @@ def test_create_document_enqueues_parse_task(
     async def fake_client() -> FakeSupabase:
         return fake_supabase
 
-    def fake_enqueue(document_id: str) -> str:
+    def fake_enqueue(document_id: str, owner_id: str) -> str:
         enqueued.append(document_id)
         return "task-123"
 
@@ -89,7 +89,7 @@ def test_create_document_replaces_existing_cv_slot_before_enqueue(
     async def fake_client() -> FakeSupabase:
         return fake_supabase
 
-    def fake_enqueue(document_id: str) -> str:
+    def fake_enqueue(document_id: str, owner_id: str) -> str:
         enqueued.append(document_id)
         return "task-retry"
 
@@ -151,7 +151,7 @@ def test_set_primary_document_switches_atomically_and_requeues(
     async def fake_client() -> FakeSupabase:
         return fake_supabase
 
-    def fake_enqueue(document_id: str) -> str:
+    def fake_enqueue(document_id: str, owner_id: str) -> str:
         enqueued.append(document_id)
         return "task-456"
 
@@ -263,12 +263,13 @@ def test_get_task_status_reads_celery_result(
             return True
 
     monkeypatch.setattr("app.api.v1.tasks.AsyncResult", FakeAsyncResult)
+    app.dependency_overrides[get_current_user] = _fake_current_user
 
-    response = client.get("/api/v1/tasks/task-123")
+    response = client.get("/api/v1/tasks/user-1.task-123")
 
     assert response.status_code == 200
     assert response.json() == {
-        "task_id": "task-123",
+        "task_id": "user-1.task-123",
         "status": "done",
         "result": {"ok": True},
         "error": None,

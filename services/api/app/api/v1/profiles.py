@@ -222,7 +222,7 @@ async def create_profile_document(
             },
         )
 
-    task_id = parsing_tasks.enqueue_parse_cv(str(document["id"]))
+    task_id = parsing_tasks.enqueue_parse_cv(str(document["id"]), current_user.id)
     document["task_id"] = task_id
     return UploadedDocument.model_validate(document)
 
@@ -251,7 +251,7 @@ async def set_primary_profile_document(
             },
         )
 
-    task_id = parsing_tasks.enqueue_parse_cv(document_id)
+    task_id = parsing_tasks.enqueue_parse_cv(document_id, current_user.id)
     document["task_id"] = task_id
     return UploadedDocument.model_validate(document)
 
