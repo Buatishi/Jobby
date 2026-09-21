@@ -267,9 +267,8 @@ la cuenta (o pasar el repo a público) antes de implementar el gate.
 **Estado:** Pendiente, con evidencia nueva.
 
 Los Deployments de GitHub muestran un único servicio de Render (`jobmatch-api`); no se
-observan deploys de `jobmatch-worker-*`. Existe además un proyecto de Railway
-(`elegant-energy / production`) con 6 deploys entre 2026-06-30 y 2026-07-15 y ningún
-servicio activo. Hay que confirmar dónde corre (o si corre) el worker de Celery antes
+observan deploys de `jobmatch-worker-*`. Existe además un proyecto de Railway con
+6 deploys entre 2026-06-30 y 2026-07-15 y ningún servicio activo. Hay que confirmar dónde corre (o si corre) el worker de Celery antes
 de declarar la cola como tecnología avanzada (Decisión 9).
 
 ---
