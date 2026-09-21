@@ -15,6 +15,11 @@ from app.services.rate_limits import (
     RateLimitKind,
     increment_rate_limit,
 )
+from app.services.scraper.url_guard import (
+    UnsafeUrlError,
+    ensure_linkedin_host,
+    ensure_public_http_url,
+)
 from app.tasks.analysis import enqueue_interview_kit
 
 router = APIRouter(prefix="/interview-kits", tags=["interview-kits"])
@@ -98,6 +103,24 @@ def _rate_limit_error(exc: RateLimitExceededError) -> HTTPException:
     )
 
 
+async def _validate_linkedin_urls(payload: InterviewKitCreate) -> None:
+    for url in (payload.company_linkedin_url, payload.interviewer_linkedin_url):
+        if not url:
+            continue
+        try:
+            ensure_linkedin_host(url)
+            await ensure_public_http_url(url)
+        except UnsafeUrlError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "La URL de LinkedIn no es válida",
+                    "code": "LINKEDIN_URL_INVALID",
+                    "details": {},
+                },
+            ) from exc
+
+
 @router.post("", response_model=InterviewKit, status_code=202)
 async def create_interview_kit(
     payload: InterviewKitCreate,
@@ -118,6 +141,7 @@ async def create_interview_kit(
                 "details": {"completeness_pct": profile.get("completeness_pct", 0)},
             },
         )
+    await _validate_linkedin_urls(payload)
     try:
         await increment_rate_limit(current_user.id, user_tier, RateLimitKind.KITS)
     except RateLimitExceededError as exc:

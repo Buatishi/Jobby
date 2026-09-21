@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from app.database import get_supabase_client
+from app.services.scraper.url_guard import ensure_public_http_url, make_route_guard
 
 PlaywrightTimeoutError: type[Exception]
 async_playwright: Any
@@ -117,7 +118,8 @@ async def _scrape_text(url: str, sleep: Any = asyncio.sleep) -> str:
     if async_playwright is None:
         raise RuntimeError("playwright_not_available")
 
-    await _respect_domain_delay(url, sleep)
+    safe_url = await ensure_public_http_url(url)
+    await _respect_domain_delay(safe_url, sleep)
     user_agent = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -128,7 +130,8 @@ async def _scrape_text(url: str, sleep: Any = asyncio.sleep) -> str:
             browser = await playwright.chromium.launch(headless=True)
             try:
                 page = await browser.new_page(user_agent=user_agent)
-                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                await page.route("**/*", make_route_guard())
+                await page.goto(safe_url, wait_until="domcontentloaded", timeout=30_000)
                 text = await page.locator("body").inner_text(timeout=30_000)
             finally:
                 await browser.close()

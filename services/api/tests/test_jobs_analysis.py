@@ -161,6 +161,9 @@ class FakePage:
         if self.body.should_timeout:
             raise TimeoutError("timeout")
 
+    async def route(self, _pattern: str, _handler: Any) -> None:
+        return None
+
     def locator(self, _selector: str) -> FakeBody:
         return self.body
 
