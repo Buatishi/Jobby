@@ -39,6 +39,7 @@ en [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) y [docs/00-vision.md](
 - [DECISIONS.md](DECISIONS.md): registro de decisiones técnicas (solo se agregan entradas).
 - [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md): arranque en frío de Render y reglas de suspensión de los planes gratuitos.
 - [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md): tareas en segundo plano dentro de la API.
+- [docs/operacion/configuracion-claude-code.md](docs/operacion/configuracion-claude-code.md): controles automáticos de Claude Code (bloqueo de `.env` y migraciones, confirmaciones).
 - [docs/tools/README.md](docs/tools/README.md): diagramas con Mermaid y PlantUML, y exportación a PDF.
 - [docs/05-pendientes-producto.md](docs/05-pendientes-producto.md): pendientes de producto y frontend.
 
