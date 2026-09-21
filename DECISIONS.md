@@ -459,3 +459,32 @@ modo de USD 7 (worker o Render Starter).
 
 **Activación:** variable de entorno en Render, con aprobación explícita. Detalle, validación
 y reversión en `docs/operacion/modo-local-de-tareas.md`.
+
+## Decisión 16 — Herramientas de documentación y diagramas
+
+**Estado:** Aprobada (2026-09-21).
+
+**Elegida:** Markdown en `docs/` como fuente; Mermaid 12.0.0 (MIT) para DFD, secuencia, ER
+y flujos dentro de los `.md`; PlantUML 1.2026.8 (LGPL-3.0) para el UML formal (casos de uso
+y despliegue) con el `.puml` y el `.svg` versionados; PDF con `docs/tools/build_pdf.py`
+(Markdown, HTML y Edge headless). Las versiones se fijan y verifican por hash en
+`docs/tools/tools.lock.json` y se instalan fuera del repositorio, en `~/tools`. La skill
+`frontend-design` de Anthropic se instaló a nivel usuario para una pasada visual deliberada.
+
+**Alternativas evaluadas:** (a) solo PlantUML (lo aprobado en la visión) — se mantiene para
+UML formal, pero GitHub no lo dibuja; (b) solo Mermaid — su diagrama de casos de uso es
+`usecase-beta` desde la 12.0.0, todavía no apto para entregables; (c) D2 (MPL-2.0), draw.io
+MCP (Apache-2.0), MkDocs Material (MIT) y tbls (MIT, requiere una base de datos) — no
+hacen falta hoy; (d) Graphify — no instalada: hooks en cada búsqueda e instalación de
+paquetes sin versión fija.
+
+**Fundamento:** GitHub dibuja Mermaid de forma nativa, así que los diagramas se revisan en
+el pull request; PlantUML cubre la notación UML que pide la consigna. La instalación de
+Mermaid se rechaza si el hash del paquete de npm no coincide con el fijado, y el `.jar` de
+PlantUML coincide con el digest oficial del release. Todo es gratuito y sin credenciales.
+
+**Límites:** la versión de Mermaid de GitHub puede diferir de la 12.0.0 (probar la sintaxis
+en un pull request borrador antes de depender de ella); el PDF requiere Microsoft Edge;
+las herramientas viven en la máquina de quien documenta, no en el repositorio.
+
+**Uso:** `docs/tools/README.md`.
