@@ -1,0 +1,63 @@
+@startuml
+' Arquitectura lógica de Jobby. Verificado contra apps/web (next.config.ts, lib/api/client.ts, lib/supabase),
+' services/api (main.py, dependencies.py, tasks/, services/), render.yaml y README.md (sección En producción).
+!pragma layout smetana
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #4A5568
+skinparam ArrowFontSize 11
+skinparam RectangleBorderColor #4A5568
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title Arquitectura de Jobby: componentes y cómo se comunican
+
+actor "Persona usuaria\n(navegador web)" as U #D5EBE3
+
+rectangle "Web · Next.js 15 y React 19\nVercel · jobbyweb.vercel.app\n\n• Pantallas, asistente y reportes\n• Guarda la sesión de Supabase\n• Reenvía /api/backend/* a la API\n• Reintenta y avisa si la API arranca en frío" as WEB #D6E2F3
+
+rectangle "API · FastAPI (Python 3.13)\nRender · jobmatch-api-9xel.onrender.com\n\n• 30 endpoints bajo /api/v1 (y /health)\n• Valida el token de cada pedido\n• Reglas de negocio y límites por plan\n• Errores con formato único" as API #D6E2F3
+
+rectangle "Tareas en segundo plano\n(dentro del proceso de la API)\n\n• Analizar CV y puesto, calcular match,\n  generar kits de entrevista\n• Estado consultable por SSE" as TASK #D6E2F3
+
+rectangle "Worker Celery\n(declarado en render.yaml,\nno desplegado)" as WORK #F1F1F1
+
+rectangle "Supabase (sa-east-1)\n\n• Auth: registro, login, Google, JWT\n• Postgres 17 + pgvector: 13 tablas con RLS\n• Storage: bucket privado cv-documents" as SUP #E3F1EC
+
+rectangle "Redis · Upstash\n\n• Contadores de límites por plan\n• Firmas de pago ya procesadas\n• Cola de Celery (si hubiera worker)" as RED #EDEFF2
+
+rectangle "IA de terceros\n\n• DeepSeek: CV, puestos, explicaciones\n• OpenAI: vectores (embeddings)\n• Anthropic Claude: plan premium" as IA #FFE9AE
+
+rectangle "LemonSqueezy\ncobro del plan premium" as LS #FFE9AE
+rectangle "Resend\navisos por email" as RES #FFE9AE
+rectangle "Sentry\nreporte de errores" as SEN #FFE9AE
+rectangle "Sitios de ofertas\ny LinkedIn" as SITES #FFE9AE
+
+U --> WEB : 1 · HTTPS 443
+U --> SUP : 2 · HTTPS 443\nlogin y subida del PDF
+WEB --> API : 3 · HTTPS 443, JSON\n(reescritura de rutas)
+API --> SUP : 4 · HTTPS 443\nvalida token, datos y archivos
+API --> TASK : 5 · encola
+TASK --> SUP : 6 · HTTPS 443
+API --> RED : 7 · rediss 6379 (TLS)
+TASK --> IA : 8 · HTTPS 443
+TASK --> SITES : 9 · HTTP(S) 80/443\nvía Chromium
+LS --> API : 10 · HTTPS 443, webhook\nfirmado con HMAC
+API --> RES : 11 · HTTPS 443
+API --> SEN : 12 · HTTPS
+WEB --> SEN : 12 · HTTPS
+API ..> WORK : Redis (no activo)
+WORK ..> RED
+
+legend right
+  |<#D6E2F3>      | Código propio de Jobby |
+  |<#E3F1EC>      | Supabase (datos, archivos e identidad) |
+  |<#EDEFF2>      | Redis administrado (Upstash) |
+  |<#FFE9AE>      | Servicios de terceros |
+  |<#F1F1F1>      | Declarado pero sin desplegar |
+  Todo el tráfico entre componentes cruza Internet, cifrado (TLS).
+  Los números remiten a la tabla de la explicación del diagrama.
+endlegend
+@enduml

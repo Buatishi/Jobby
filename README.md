@@ -37,8 +37,14 @@ en [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) y [docs/00-vision.md](
 
 - [docs/00-vision.md](docs/00-vision.md): arquitectura objetivo, modelo de acceso y pendientes.
 - [DECISIONS.md](DECISIONS.md): registro de decisiones técnicas (solo se agregan entradas).
+- [docs/00-propuesta.md](docs/00-propuesta.md): propuesta de proyecto (semana 1).
 - [docs/01-dfd.md](docs/01-dfd.md): diagramas de flujo de datos, niveles 0 y 1.
 - [docs/02-casos-de-uso.md](docs/02-casos-de-uso.md): diagrama de casos de uso y narrativas de los tres principales.
+- [docs/03-dfd-nivel-2.md](docs/03-dfd-nivel-2.md): DFD nivel 2 de los procesos 2 (CV y perfil) y 4 (compatibilidad).
+- [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md): modelo entidad-relación verificado contra la base real.
+- [docs/06-arquitectura-y-despliegue.md](docs/06-arquitectura-y-despliegue.md): componentes, protocolos y puertos, secretos, recorrido hasta producción y ambiente local.
+- [docs/07-decisiones-tecnicas.md](docs/07-decisiones-tecnicas.md): decisiones técnicas de la Etapa 1 y declaración de uso de IA.
+- [docs/pdf/](docs/pdf/): la documentación de la Etapa 1 en PDF, generada con `docs/tools/build_pdf.py`.
 - [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md): arranque en frío de Render y reglas de suspensión de los planes gratuitos.
 - [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md): tareas en segundo plano dentro de la API.
 - [docs/operacion/configuracion-claude-code.md](docs/operacion/configuracion-claude-code.md): controles automáticos de Claude Code (bloqueo de `.env` y migraciones, confirmaciones).

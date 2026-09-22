@@ -1,6 +1,12 @@
 # Diagramas de flujo de datos (DFD)
 
-Estado: Etapa 1, niveles 0 y 1. El nivel 2 se agrega en el siguiente documento de la serie.
+Estado: Etapa 1, niveles 0 y 1. El nivel 2 está en [03-dfd-nivel-2.md](03-dfd-nivel-2.md).
+
+**Corrección del 2026-09-22.** Al descomponer el proceso 4 en el nivel 2 aparecieron dos flujos que
+el código tiene y este nivel no dibujaba: la lectura del CV principal (`D3` hacia el proceso 4, que
+usan el Match Score, el reporte ATS, el Reality Gap y el optimizador de CV) y los vectores del reporte
+ATS (`F25.4` y `F27.4`). Se agregaron en las vistas 1B y 1C y en la tabla de correspondencia; el
+nivel 0 no cambia porque `F25` y `F27` ya estaban.
 
 ## Convenciones
 
@@ -198,8 +204,8 @@ flowchart LR
     IA -->|"F26.3 Datos estructurados<br/>F27.3 Vectores de significado"| P3
     P3 -->|"F31.3 Solicitud de la página"| W
     W -->|"F32.3 Contenido de la página"| P3
-    P4 -->|"F24.4 Instrucciones con texto del CV"| IA
-    IA -->|"F26.4 Texto generado"| P4
+    P4 -->|"F24.4 Instrucciones con texto del CV y del puesto<br/>F25.4 Palabras y términos a vectorizar"| IA
+    IA -->|"F26.4 Texto generado<br/>F27.4 Vectores de significado"| P4
     P5 -->|"F24.5 Instrucciones con perfil, puesto y LinkedIn"| IA
     IA -->|"F26.5 Texto generado"| P5
     P5 -->|"F31.5 Solicitud de perfil de LinkedIn"| W
@@ -243,6 +249,7 @@ flowchart LR
     D1 -->|"Plan de la persona"| P4
     D2 -->|"Perfil y habilidades"| P4
     D4 -->|"Puesto estructurado"| P4
+    D3 -->|"Texto del CV principal"| P4
     P4 <-->|"Resultados de compatibilidad"| D5
     D1 -->|"Plan de la persona"| P5
     D2 -->|"Perfil y habilidades"| P5
@@ -306,9 +313,9 @@ el proceso 3 con el 4.
 | F19, F20 | F19, F20 | 7 |
 | F15 | F15.2, F15.3, F15.4 y F15.5 | 2, 3, 4 y 5 |
 | F24 | F24.2, F24.3, F24.4 y F24.5 | 2, 3, 4 y 5 |
-| F25 | F25.2 y F25.3 | 2 y 3 |
+| F25 | F25.2, F25.3 y F25.4 | 2, 3 y 4 |
 | F26 | F26.2, F26.3, F26.4 y F26.5 | 2, 3, 4 y 5 |
-| F27 | F27.2 y F27.3 | 2 y 3 |
+| F27 | F27.2, F27.3 y F27.4 | 2, 3 y 4 |
 | F31 | F31.3 y F31.5 | 3 y 5 |
 | F32 | F32.3 y F32.5 | 3 y 5 |
 | F34 | F34 (desde el conjunto de procesos) | 1 a 6 |

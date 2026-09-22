@@ -1,0 +1,100 @@
+@startuml
+' DFD nivel 2 del proceso 4 (Evaluar compatibilidad). Descompone el proceso 4 del nivel 1 de docs/01-dfd.md.
+' Verificado el 2026-09-21 contra services/api/app/tasks/analysis.py (run_match), app/services/match_engine/*,
+' app/api/v1/matches.py, ats.py, dashboard.py, profiles.py (reality-gap) y app/services/ats_analyzer/*.
+' Notación: rectángulo = entidad externa, elipse numerada = proceso, cilindro D# = almacén de datos.
+!pragma layout smetana
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #4A5568
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #2D3748
+skinparam RectangleBorderColor #4A5568
+skinparam UsecaseBorderColor #4A5568
+skinparam DatabaseBorderColor #4A5568
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title DFD nivel 2 — Proceso 4: Evaluar compatibilidad
+
+rectangle "Persona\nusuaria" as U #D5EBE3
+rectangle "Proveedores de IA\nDeepSeek y Claude (texto)\nOpenAI (vectores)" as IA #FFE9AE
+usecase "3\nAnalizar puesto\n(proceso vecino)" as P3 #F1F1F1
+
+usecase "4.1\nCalcular los puntajes\nde compatibilidad" as P41 #D6E2F3
+usecase "4.2\nExplicar el resultado\ncon IA y guardarlo" as P42 #D6E2F3
+usecase "4.3\nEntregar el reporte\ny registrar la valoración" as P43 #D6E2F3
+usecase "4.4\nArmar el\nreporte ATS" as P44 #D6E2F3
+usecase "4.5\nAnalizar la brecha\nde realidad" as P45 #D6E2F3
+usecase "4.6\nOptimizar el CV con IA\n(solo premium)" as P46 #EDE7F6
+usecase "4.7\nArmar el resumen\ndel panel" as P47 #D6E2F3
+usecase "4.8\nInformar el estado\nde la tarea" as P48 #D6E2F3
+
+database "D1\nUsuarios y planes" as D1 #E3F1EC
+database "D2\nPerfil maestro" as D2 #E3F1EC
+database "D3\nDocumentos de CV" as D3 #E3F1EC
+database "D4\nPuestos" as D4 #E3F1EC
+database "D5\nResultados de\ncompatibilidad" as D5 #E3F1EC
+database "D8\nEstado de tareas\ny límites" as D8 #EDEFF2
+
+P3 --> P41 : Identificadores\nde puesto y perfil
+D2 --> P41 : Perfil, habilidades con vector,\nestudios, idiomas y certificaciones
+D4 --> P41 : Puesto estructurado\ncon su vector
+D3 --> P41 : Texto del CV principal
+P41 --> D8 : Estado de la tarea
+P41 --> P42 : Puntajes, potencial\ny origen de la brecha
+
+D1 --> P42 : Plan de la persona
+P42 --> IA : F24.4 Instrucciones con\nel resultado y el puesto
+IA --> P42 : F26.4 Explicación\ny recomendaciones
+P42 --> D5 : MatchScore, potencial, brecha\ny recomendaciones
+
+D5 --> P43 : Resultado guardado
+D4 --> P43 : Puesto
+U --> P43 : F5.1 Valoración\ndel match
+P43 --> D5 : Valoración de 1 a 5
+P43 --> U : F12.1 Reporte\nde compatibilidad
+
+D4 --> P44 : Puesto y sus requisitos
+D3 --> P44 : Texto del CV principal
+D1 --> P44 : Plan de la persona
+P44 --> D8 : Contador de reportes del día
+P44 --> IA : F24.4 Instrucciones para extraer\npalabras clave\nF25.4 Palabras y términos\na vectorizar
+IA --> P44 : F26.4 Palabras clave del puesto\nF27.4 Vectores de significado
+P44 --> U : F12.2 Reporte ATS
+
+D2 --> P45 : Habilidades confirmadas
+D3 --> P45 : Texto del CV principal
+P45 --> U : F12.3 Reporte de\nbrecha de realidad
+
+U --> P46 : F8 Solicitud de\nCV optimizado
+D1 --> P46 : Plan de la persona
+D3 --> P46 : Secciones del CV
+D4 --> P46 : Puesto y palabras clave
+P46 --> IA : F24.4 Instrucciones con las\nsecciones a reescribir
+IA --> P46 : F26.4 Secciones reescritas
+P46 --> U : F13 CV optimizado
+
+D2 --> P47 : Porcentaje de perfil\ny habilidades
+D5 --> P47 : Últimos resultados
+P47 --> U : F17 Resumen\ndel panel
+
+D8 --> P48 : Estado de la tarea
+P48 --> U : F15.4 Estado\nde la tarea
+
+legend right
+  |<#D5EBE3>      | Entidad externa: persona usuaria |
+  |<#FFE9AE>      | Entidad externa: sistema de terceros |
+  |<#D6E2F3>      | Subproceso del proceso 4 |
+  |<#EDE7F6>      | Subproceso exclusivo del plan premium |
+  |<#F1F1F1>      | Proceso vecino del nivel 1 |
+  |<#E3F1EC>      | Almacén en Supabase |
+  |<#EDEFF2>      | Almacén en Redis |
+  Coinciden con el nivel 1 los flujos F5.1, F8, F12, F13, F15.4, F17, F24.4, F25.4, F26.4 y F27.4,
+  el enlace desde el proceso 3 y los almacenes D1, D2, D3, D4, D5 y D8.
+  La lectura del CV principal (D3 hacia 4.1, 4.4, 4.5 y 4.6) y los vectores del reporte ATS
+  (F25.4 y F27.4) aparecieron en esta descomposición y se agregaron al nivel 1 el 2026-09-22.
+endlegend
+@enduml

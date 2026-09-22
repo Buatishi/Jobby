@@ -8,7 +8,8 @@ como **planificado**.
 
 ![Diagrama de casos de uso de Jobby](diagramas/casos-de-uso.svg)
 
-Fuente del diagrama: [diagramas/casos-de-uso.puml](diagramas/casos-de-uso.puml).
+Fuente del diagrama: [diagramas/casos-de-uso.puml](diagramas/casos-de-uso.puml). Para imprimir:
+lámina A3 en [pdf/laminas/casos-de-uso.pdf](pdf/laminas/casos-de-uso.pdf).
 
 ### Actores
 

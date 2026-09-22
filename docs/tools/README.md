@@ -38,6 +38,34 @@ python docs/tools/build_pdf.py docs/tools/ejemplo/ejemplo.md
 
 # Con hojas apaisadas, útil para diagramas anchos como los DFD
 python docs/tools/build_pdf.py docs/01-dfd.md --landscape
+
+# Hoja A3, para que los diagramas grandes se impriman con el texto legible
+python docs/tools/build_pdf.py docs/03-dfd-nivel-2.md --paper A3
+
+# Un único diagrama .svg en su propia hoja, con título
+python docs/tools/build_pdf.py docs/diagramas/modelo-entidad-relacion.svg --paper A3 --landscape --title "Modelo de datos"
+```
+
+Los PDF de la Etapa 1 (`docs/pdf/`) se generan así; las láminas A3 son para imprimir cada
+diagrama con el texto legible (letra mínima de 5,8 pt):
+
+```bash
+python docs/tools/build_pdf.py docs/00-propuesta.md
+python docs/tools/build_pdf.py docs/01-dfd.md --paper A3 --landscape
+python docs/tools/build_pdf.py docs/02-casos-de-uso.md
+python docs/tools/build_pdf.py docs/03-dfd-nivel-2.md
+python docs/tools/build_pdf.py docs/04-modelo-de-datos.md
+python docs/tools/build_pdf.py docs/06-arquitectura-y-despliegue.md
+python docs/tools/build_pdf.py docs/07-decisiones-tecnicas.md
+
+L=docs/pdf/laminas
+python docs/tools/build_pdf.py docs/diagramas/dfd-nivel-2-proceso-2.svg --paper A3 -o $L/dfd-nivel-2-proceso-2.pdf --title "4.3 · DFD nivel 2 del proceso 2: Procesar CV y perfil"
+python docs/tools/build_pdf.py docs/diagramas/dfd-nivel-2-proceso-4.svg --paper A3 --landscape -o $L/dfd-nivel-2-proceso-4.pdf --title "4.3 · DFD nivel 2 del proceso 4: Evaluar compatibilidad"
+python docs/tools/build_pdf.py docs/diagramas/casos-de-uso.svg --paper A3 -o $L/casos-de-uso.pdf --title "4.4 · Diagrama de casos de uso"
+python docs/tools/build_pdf.py docs/diagramas/modelo-entidad-relacion.svg --paper A3 --landscape -o $L/modelo-entidad-relacion.pdf --title "4.5 · Modelo de datos (DER)"
+python docs/tools/build_pdf.py docs/diagramas/arquitectura.svg --paper A3 --landscape -o $L/arquitectura.pdf --title "4.6 · Arquitectura: componentes y comunicaciones"
+python docs/tools/build_pdf.py docs/diagramas/despliegue-y-secretos.svg --paper A3 --landscape -o $L/despliegue-y-secretos.pdf --title "4.6 · Despliegue en producción y secretos"
+python docs/tools/build_pdf.py docs/diagramas/recorrido-del-codigo.svg --paper A3 --landscape -o $L/recorrido-del-codigo.pdf --title "4.6 · Recorrido del código hasta producción"
 ```
 
 `docs/tools/ejemplo/` es un ejemplo de humo con los cuatro tipos de diagrama: sirve de

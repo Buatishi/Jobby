@@ -1,0 +1,71 @@
+@startuml
+' Recorrido del código hasta producción. Verificado contra .github/workflows/ci.yml y deploy-preview.yml, render.yaml,
+' la protección de main (API de GitHub, 2026-09-21) y el historial de Actions (84 ejecuciones: 83 propias sin ningún paso ejecutado y 1 de Dependabot).
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam ArrowColor #4A5568
+skinparam ActivityBorderColor #4A5568
+skinparam ConditionBorderColor #4A5568
+skinparam ConditionBackgroundColor #FFFFFF
+skinparam swimlaneTitleFontSize 15
+skinparam swimlaneTitleFontStyle bold
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title Recorrido del código hasta producción y estado real de cada etapa
+
+|#E6F2EE|Desarrollo|
+|#EAF0F8|GitHub|
+|#FFF4D6|Render y Vercel|
+
+|Desarrollo|
+start
+:**1 · Cambio en una rama**
+Trabaja en una rama corta (feat/, fix/, docs/…)
+y ejecuta typecheck, lint, tests y build en su equipo; <<#D5EBE3>>
+:**2 · Pull request hacia main**
+Evento: pull_request; <<#D5EBE3>>
+|GitHub|
+:Se disparan «CI» y «Deploy Preview»
+(instalar, verificar y construir, y vista previa en Vercel); <<#D6E2F3>>
+:Estado real: los trabajos no arrancan.
+GitHub responde «account is locked due to
+a billing issue». Ninguna de las 83 corridas
+propias ejecutó un paso (hay 1 más, de Dependabot); <<#FDECEC>>
+:**3 · Protección de main** (verificada)
+Pull request obligatorio, también para administradores,
+sin force-push ni borrado. No exige checks de CI; <<#D6E2F3>>
+:**4 · Merge a main**
+Evento: push a main; <<#D6E2F3>>
+fork
+  :**5a · Pipeline «CI»** (ci.yml). Evento: push y pull_request
+  Web: typecheck, lint, build · API: mypy y pytest
+  Tipos compartidos: build
+  No mide cobertura ni bloquea despliegues; <<#FDECEC>>
+fork again
+  |Render y Vercel|
+  :**5b · Render**. Evento: push a main (integración Git)
+  Construye la imagen Docker de main
+  y despliega jobmatch-api (y el servicio heredado Jobby),
+  comprueba /health. No espera al CI; <<#FFE9AE>>
+  :**5c · Vercel**. Evento: push a main (integración Git)
+  Construye main como vista previa.
+  El dominio público se promueve a mano
+  (alias jobbyweb.vercel.app, 2026-09-21); <<#FFE9AE>>
+end fork
+:**6 · Producción**
+Web en Vercel y API en Render, ambas por HTTPS; <<#FFE9AE>>
+|GitHub|
+:Falta el «gate» de despliegue (Decisión 6):
+un paso de despliegue que dependa del CI,
+con cobertura mínima del 65 % (Decisión 3); <<#FDECEC>>
+stop
+
+legend right
+  |<#D5EBE3>      | Acción de la persona |
+  |<#D6E2F3>      | GitHub (repositorio y automatizaciones) |
+  |<#FFE9AE>      | Plataformas de despliegue |
+  |<#FDECEC>      | No funciona hoy o no está implementado |
+endlegend
+@enduml
