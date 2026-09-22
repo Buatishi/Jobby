@@ -1,0 +1,54 @@
+@startuml
+' DFD nivel 0 (diagrama de contexto) de Jobby. Flujos de docs/01-dfd.md §1, verificados contra
+' services/api/app/api/v1/, services/api/app/tasks/ y apps/web. Pasado de Mermaid a PlantUML el 2026-09-22 (Decisión 18).
+' Notación: rectángulo = entidad externa, elipse numerada = proceso. Los flujos entre el mismo par
+' de elementos y en el mismo sentido van en una sola flecha, con un rótulo por flujo.
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #4A5568
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #2D3748
+skinparam RectangleBorderColor #4A5568
+skinparam UsecaseBorderColor #4A5568
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title DFD nivel 0 — Diagrama de contexto de Jobby
+
+rectangle "Persona usuaria" as U #D5EBE3
+rectangle "Administrador\n(planificado)" as A #F1F1F1;line.dashed
+usecase "0\nSistema\nJobby" as P #D6E2F3
+rectangle "Proveedor de identidad\nSupabase Auth con Google" as ID #FFE9AE
+rectangle "Proveedores de IA\nDeepSeek, Anthropic y OpenAI" as IA #FFE9AE
+rectangle "LemonSqueezy" as LS #FFE9AE
+rectangle "Sitios de ofertas laborales\ny LinkedIn" as W #FFE9AE
+rectangle "Servicio de email\nResend" as EM #FFE9AE
+rectangle "Sentry" as SE #FFE9AE
+
+U --> P : F1 Credenciales y datos de registro\nF2 CV en PDF\nF3 Datos del perfil\nF4 Oferta laboral\nF5 Valoración de resultados\nF6 Solicitud de plan premium\nF7 Solicitud de baja de cuenta\nF8 Solicitud de CV optimizado\nF9 Solicitud de kit de entrevista
+P --> U : F11 Perfil estructurado del CV\nF12 Resultados de compatibilidad\nF13 CV optimizado\nF14 Kit de entrevista\nF15 Estado de las tareas\nF16 Enlace de pago\nF17 Resumen del panel\nF18 Confirmación de baja
+A --> P : F19 Solicitud de métricas
+P --> A : F20 Métricas agregadas de uso
+P --> ID : F21 Credenciales a verificar\nF23 Orden de eliminar identidad
+ID --> P : F22 Sesión e identidad verificada
+P --> IA : F24 Instrucciones con texto del CV o de la oferta\nF25 Textos a vectorizar
+IA --> P : F26 Datos estructurados o texto generado\nF27 Vectores de significado
+P --> LS : F28 Solicitud de checkout
+LS --> P : F29 Enlace de pago del checkout\nF30 Eventos de suscripción firmados
+P --> W : F31 Solicitud de una página web
+W --> P : F32 Contenido de la página web
+P --> EM : F33 Mensaje de aviso de suscripción
+P --> SE : F34 Eventos de error
+
+legend right
+  |<#D5EBE3>      | Entidad externa: persona |
+  |<#FFE9AE>      | Entidad externa: sistema de terceros |
+  |<#D6E2F3>      | El sistema completo como un único proceso |
+  |<#F1F1F1>      | Planificado: todavía no existe |
+  33 flujos (F1 a F34, sin F10), rotulados con el dato que viaja.
+  Los flujos entre el mismo par y en el mismo sentido comparten flecha.
+endlegend
+@enduml
