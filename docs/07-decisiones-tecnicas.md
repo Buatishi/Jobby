@@ -60,17 +60,17 @@
 ### 5. Tecnología avanzada
 
 - **Opción adoptada:** integración con servicios de terceros: pasarela de IA propia con ruteo
-  por plan (DeepSeek en el gratuito, Claude en premium, OpenAI para vectores), más almacenamiento
-  de archivos externo con control de acceso por usuario.
+  por plan (DeepSeek en el gratuito, Claude en premium, OpenAI para vectores).
 - **Alternativas evaluadas:** (a) cola de tareas con consumidor independiente (Celery y Redis);
-  (b) caché; (c) tiempo real.
+  (b) almacenamiento de archivos con control de acceso, como segunda capacidad; (c) caché.
 - **Fundamento:** analizar un CV o un puesto demanda entre 10 y 60 s y depende de servicios que
   fallan o demoran. La pasarela lo aísla con tiempo límite de 60 s, reintentos con espera
   creciente, proveedor según el plan y traducción de cualquier error a un mensaje comprensible,
-  dejando el detalle en los registros; tiene tests propios. La cola se descartó: exige un proceso
-  de trabajo permanente que Render no ofrece gratis, y sin él no se puede mostrar el mensaje
-  entrando y saliendo. La caché existe en el código pero no se usa, y el tiempo real no aporta a
-  un producto de un solo usuario por sesión.
+  dejando el detalle en los registros; tiene tests propios. La cola exige un proceso de trabajo
+  permanente que Render no ofrece gratis, y sin él no se puede mostrar el mensaje entrando y
+  saliendo. El almacenamiento existe (bucket privado con políticas por persona) pero no se
+  declara: la consigna recomienda una sola capacidad y descuenta si una adicional queda
+  incompleta. La caché existe en el código pero no se usa.
 - **Prestación resignada:** las tareas largas corren dentro de la API (hasta dos a la vez) y su
   estado vive en memoria: si el servicio se reinicia, se pierde el seguimiento de una tarea en
   curso.
@@ -78,9 +78,9 @@
 ## Autoría
 
 El proyecto fue desarrollado íntegramente por Bautista Giraud hasta la fecha de esta entrega:
-análisis, diseño, backend, frontend, base de datos, despliegue y documentación. Los 102 commits
-del repositorio, desde el 2026-06-27, son de ese único autor; los 42 de septiembre corresponden
-a este trimestre y los anteriores, a la base preexistente del proyecto.
+análisis, diseño, backend, frontend, base de datos, despliegue y documentación. Al 2026-09-21
+el repositorio tenía 102 commits desde el 2026-06-27, todos de ese único autor: los 42 de
+septiembre corresponden a este trimestre y los anteriores, a la base preexistente del proyecto.
 
 ## Uso de herramientas de inteligencia artificial
 
@@ -93,5 +93,5 @@ diseño, la arquitectura y el alcance son propias; el resultado de las herramien
 antes de incorporarse. Se comprende la totalidad del código entregado y no se usarán
 asistentes durante la defensa individual.
 
-*El registro completo de decisiones operativas (16 entradas) está en `DECISIONS.md`; este
+*El registro completo de decisiones operativas (Decisiones 1 a 18) está en `DECISIONS.md`; este
 documento resume las cinco decisiones estructurales que pide la consigna.*
