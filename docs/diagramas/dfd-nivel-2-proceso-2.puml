@@ -1,0 +1,84 @@
+@startuml
+' DFD nivel 2 del proceso 2 (Procesar CV y perfil). Descompone el proceso 2 del nivel 1 de docs/01-dfd.md.
+' Verificado el 2026-09-21 contra apps/web/src/app/(app)/wizard/*, services/api/app/api/v1/profiles.py y tasks.py,
+' services/api/app/tasks/parsing.py y services/api/app/services/cv_parser/*.
+' Notación: rectángulo = entidad externa, elipse numerada = proceso, cilindro D# = almacén de datos.
+!pragma layout smetana
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #4A5568
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #2D3748
+skinparam RectangleBorderColor #4A5568
+skinparam UsecaseBorderColor #4A5568
+skinparam DatabaseBorderColor #4A5568
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title DFD nivel 2 — Proceso 2: Procesar CV y perfil
+
+rectangle "Persona\nusuaria" as U #D5EBE3
+rectangle "Proveedores de IA\nDeepSeek (texto)\nOpenAI (vectores)" as IA #FFE9AE
+
+usecase "2.1\nRegistrar el CV\ny encolar el análisis" as P21 #D6E2F3
+usecase "2.2\nExtraer el texto\ndel PDF" as P22 #D6E2F3
+usecase "2.3\nEstructurar\nel CV con IA" as P23 #D6E2F3
+usecase "2.4\nGenerar los vectores\nde las habilidades" as P24 #D6E2F3
+usecase "2.5\nFusionar y guardar\nel perfil del CV" as P25 #D6E2F3
+usecase "2.6\nConfirmar habilidades\ny completar el perfil" as P26 #D6E2F3
+usecase "2.7\nRecalcular el %\nde perfil completo" as P27 #D6E2F3
+usecase "2.8\nInformar el estado\nde la tarea" as P28 #D6E2F3
+
+database "D2\nPerfil maestro" as D2 #E3F1EC
+database "D3\nDocumentos de CV" as D3 #E3F1EC
+database "D8\nEstado de tareas\ny límites" as D8 #EDEFF2
+
+U --> P21 : F2 CV en PDF
+P21 --> D3 : Documento con estado\n«pendiente» y ruta del archivo
+P21 --> D8 : Tarea encolada
+P21 --> U : F15.2 Identificador\nde la tarea
+
+D3 --> P22 : Archivo PDF
+P22 --> D3 : Estado «procesando»\no «fallido» con su mensaje
+P22 --> P23 : Texto del CV
+
+P23 --> IA : F24.2 Instrucciones\ncon el texto del CV
+IA --> P23 : F26.2 CV estructurado\nen JSON
+P23 --> P24 : Habilidades detectadas
+P23 --> P25 : CV estructurado
+
+P24 --> IA : F25.2 Habilidades\na vectorizar
+IA --> P24 : F27.2 Vectores\nde significado
+P24 --> P25 : Habilidades con su vector
+
+D2 --> P25 : Habilidades ya confirmadas
+P25 --> D2 : Habilidades, experiencia,\nestudios e idiomas del CV
+P25 --> D3 : Datos del CV\ny estado «hecho»
+P25 --> P27 : Aviso de perfil actualizado
+
+U --> P26 : F3 Datos del perfil\ny confirmación de habilidades
+D2 --> P26 : Perfil y habilidades
+P26 --> D2 : Habilidades confirmadas\no rechazadas y datos nuevos
+P26 --> U : F11 Perfil estructurado\ndel CV
+P26 --> P27 : Aviso de perfil actualizado
+
+D2 --> P27 : Datos del perfil,\ndel CV y de las habilidades
+P27 --> D2 : Porcentaje de perfil completo
+
+D8 --> P28 : Estado de la tarea
+P28 --> U : F15.2 Estado de la tarea
+
+legend right
+  |<#D5EBE3>      | Entidad externa: persona usuaria |
+  |<#FFE9AE>      | Entidad externa: sistema de terceros |
+  |<#D6E2F3>      | Subproceso del proceso 2 |
+  |<#E3F1EC>      | Almacén en Supabase |
+  |<#EDEFF2>      | Almacén en Redis |
+  Los flujos con identificador (F2, F3, F11, F15.2, F24.2, F25.2, F26.2 y F27.2) son los
+  mismos que el nivel 1 asigna al proceso 2: ninguno se agrega y ninguno desaparece.
+  Los flujos sin identificador son internos de esta descomposición.
+  Los almacenes D2, D3 y D8 son los del nivel 1.
+endlegend
+@enduml

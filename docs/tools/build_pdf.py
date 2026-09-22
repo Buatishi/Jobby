@@ -1,12 +1,16 @@
 """Convierte un documento Markdown en PDF (con diagramas Mermaid e imágenes) usando Edge.
 
     python docs/tools/build_pdf.py docs/tools/ejemplo/ejemplo.md [-o salida.pdf] [--landscape]
+    python docs/tools/build_pdf.py docs/diagramas/x.svg --paper A3 [--title "Título"]
 
 - Los bloques ```mermaid se dibujan con Mermaid (local, versión fijada en tools.lock.json).
 - Las imágenes (por ejemplo los SVG que genera render_diagrams.py) se resuelven respecto
   del Markdown.
+- Un .svg como entrada genera un PDF con ese único diagrama y su título.
+- Los enlaces a archivos del repositorio quedan como texto; los enlaces web se conservan.
 - Sin -o, el PDF se escribe en `docs/pdf/<nombre>.pdf`.
-- --landscape genera las hojas A4 apaisadas (útil para diagramas anchos).
+- --landscape genera las hojas apaisadas (útil para diagramas anchos).
+- --paper A3 usa hojas A3: los diagramas grandes se imprimen con el texto legible.
 """
 
 from __future__ import annotations
@@ -25,6 +29,16 @@ import markdown
 from tooling import HERE, find_edge, load_lock, mermaid_js_path
 
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", re.DOTALL | re.MULTILINE)
+LINK = re.compile(r'<a href="([^"]*)"[^>]*>(.*?)</a>', re.DOTALL)
+EXTERNAL_HREF = re.compile(r"^(https?:|mailto:|#)")
+
+# Alto máximo de cada diagrama según la hoja: deja lugar al título dentro del margen.
+DIAGRAM_HEIGHT = {
+    ("A4", False): "225mm",
+    ("A4", True): "150mm",
+    ("A3", False): "330mm",
+    ("A3", True): "225mm",
+}
 
 PAGE = string.Template(
     """<!doctype html>
@@ -73,10 +87,38 @@ def convert_mermaid_blocks(text: str) -> tuple[str, int]:
     return MERMAID_BLOCK.sub(replace, text), count
 
 
-def render_html(source: pathlib.Path, landscape: bool = False) -> tuple[str, int]:
-    text, diagrams = convert_mermaid_blocks(source.read_text(encoding="utf-8"))
-    body = markdown.markdown(
-        text, extensions=["tables", "fenced_code", "toc", "sane_lists", "attr_list"]
+def unlink_relative_links(body: str) -> str:
+    """Deja como texto los enlaces a archivos del repositorio.
+
+    Edge los convertiría en rutas absolutas del equipo (`C:/Users/...`): no abren para quien
+    recibe el PDF y exponen la ruta local. Los enlaces web y las anclas se conservan.
+    """
+    return LINK.sub(
+        lambda m: m.group(0) if EXTERNAL_HREF.match(m.group(1)) else m.group(2), body
+    )
+
+
+def svg_as_markdown(source: pathlib.Path, title: str | None = None) -> str:
+    """Documento mínimo con un único diagrama SVG y su título."""
+    heading = title or source.stem.replace("-", " ").replace("_", " ").capitalize()
+    return f"# {heading}\n\n![{heading}]({source.name})\n"
+
+
+def render_html(
+    source: pathlib.Path,
+    landscape: bool = False,
+    paper: str = "A4",
+    title: str | None = None,
+) -> tuple[str, int]:
+    if source.suffix.lower() == ".svg":
+        raw = svg_as_markdown(source, title)
+    else:
+        raw = source.read_text(encoding="utf-8")
+    text, diagrams = convert_mermaid_blocks(raw)
+    body = unlink_relative_links(
+        markdown.markdown(
+            text, extensions=["tables", "fenced_code", "toc", "sane_lists", "attr_list"]
+        )
     )
     script = ""
     if diagrams:
@@ -87,9 +129,9 @@ def render_html(source: pathlib.Path, landscape: bool = False) -> tuple[str, int
             )
         script = MERMAID_SCRIPT.substitute(src=mermaid_js.as_uri())
     page = PAGE.substitute(
-        title=html.escape(source.stem),
-        page_size="A4 landscape" if landscape else "A4",
-        diagram_height="150mm" if landscape else "225mm",
+        title=html.escape(title or source.stem),
+        page_size=f"{paper} landscape" if landscape else paper,
+        diagram_height=DIAGRAM_HEIGHT[(paper, landscape)],
         base=source.parent.resolve().as_uri() + "/",
         body=body,
         script=script,
@@ -97,11 +139,17 @@ def render_html(source: pathlib.Path, landscape: bool = False) -> tuple[str, int
     return page, diagrams
 
 
-def build(source: pathlib.Path, output: pathlib.Path, landscape: bool = False) -> None:
+def build(
+    source: pathlib.Path,
+    output: pathlib.Path,
+    landscape: bool = False,
+    paper: str = "A4",
+    title: str | None = None,
+) -> None:
     edge = find_edge()
     if edge is None:
         raise SystemExit("No se encontró Microsoft Edge (definir EDGE_PATH).")
-    page, _ = render_html(source, landscape)
+    page, _ = render_html(source, landscape, paper, title)
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         html_path = pathlib.Path(tmp) / "documento.html"
@@ -124,11 +172,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("markdown", type=pathlib.Path)
     parser.add_argument("-o", "--output", type=pathlib.Path)
-    parser.add_argument("--landscape", action="store_true", help="hojas A4 apaisadas")
+    parser.add_argument("--landscape", action="store_true", help="hojas apaisadas")
+    parser.add_argument("--paper", choices=("A4", "A3"), default="A4", help="tamaño de hoja")
+    parser.add_argument("--title", help="título del PDF cuando la entrada es un .svg")
     args = parser.parse_args()
 
     output = args.output or HERE.parent / "pdf" / f"{args.markdown.stem}.pdf"
-    build(args.markdown, output, args.landscape)
+    build(args.markdown, output, args.landscape, args.paper, args.title)
     print(f"PDF generado: {output} ({output.stat().st_size / 1024:.0f} KB)")
     return 0
 

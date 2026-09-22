@@ -1,0 +1,222 @@
+@startuml
+' Modelo entidad-relación de Jobby. Fuente: services/api/migrations/001 a 022, contrastado el 2026-09-21
+' con la base de Supabase (13 tablas del esquema public, RLS activo en todas). No se dibuja auth.users salvo como referencia.
+!pragma layout smetana
+hide circle
+hide methods
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam linetype ortho
+skinparam ArrowColor #4A5568
+skinparam ClassBorderColor #4A5568
+skinparam ClassHeaderBackgroundColor #FFFFFF
+skinparam ClassAttributeIconSize 0
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title Modelo de datos de Jobby (esquema public de Supabase, 13 tablas)
+
+entity "auth.users\n(Supabase Auth)" as authusers #EDEFF2 {
+  id : uuid <<PK>>
+  email, contraseña con hash, ...
+}
+
+entity users #D5EBE3 {
+  * id : uuid <<PK>>
+  --
+  * supabase_uid : uuid <<FK, único>>
+  * email : text
+  full_name : text
+  * tier : text  'free' | 'premium'
+  payment_provider : text
+  subscription_status : text
+  current_period_end : timestamptz
+  lemonsqueezy_customer_id : text
+  lemonsqueezy_subscription_id : text
+  stripe_customer_id : text (en desuso)
+  created_at, updated_at : timestamptz
+}
+
+entity master_profiles #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK, único>>
+  headline, summary : text
+  target_role, target_seniority : text
+  work_modality, linkedin_url : text
+  target_industry : text[]
+  completeness_pct : int2
+  inferred_soft_skills : text[]
+  soft_skills_computed_at : timestamptz
+  created_at, updated_at : timestamptz
+}
+
+entity uploaded_documents #FFE9AE {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * profile_id : uuid <<FK>>
+  * type : text  'cv' | 'linkedin'
+  cv_slot : int2  (1 o 2)
+  * is_primary : bool
+  * storage_path : text
+  original_filename, mime_type : text
+  file_size : int4
+  status : text  pending | processing | done | failed
+  parsed_data : jsonb
+  error_msg : text
+  created_at, updated_at : timestamptz
+}
+
+entity skills #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * profile_id : uuid <<FK>>
+  * name : text
+  category, level : text
+  in_cv, in_linkedin, confirmed : bool
+  embedding : vector(1536)
+  created_at : timestamptz
+}
+
+entity experiences #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * profile_id : uuid <<FK>>
+  * company, title : text
+  started_at, ended_at : date
+  is_current : bool
+  description : text
+  achievements : text[]
+  created_at : timestamptz
+}
+
+entity educations #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * profile_id : uuid <<FK>>
+  * institution : text
+  field_of_study, degree_level : text
+  started_at, ended_at : date
+  is_ongoing : bool
+  embedding : vector(1536)
+  created_at : timestamptz
+}
+
+entity languages #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * profile_id : uuid <<FK>>
+  * name : text
+  proficiency : text
+  created_at : timestamptz
+}
+
+entity certifications #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * profile_id : uuid <<FK>>
+  * name : text
+  issuer, credential_url : text
+  issued_at, expires_at : date
+  created_at : timestamptz
+}
+
+entity rejected_skills #D6E2F3 {
+  * id : uuid <<PK>>
+  --
+  * profile_id : uuid <<FK>>
+  * name : text
+  source, reason : text
+  created_at : timestamptz
+}
+
+entity job_descriptions #E8DFF5 {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  source_url, raw_text : text
+  job_title, company_name : text
+  required_seniority, required_modality : text
+  industry, required_education, currency : text
+  tech_stack, soft_skills : text[]
+  required_skills, required_languages : jsonb
+  salary_min, salary_max : int4
+  embedding : vector(1536)
+  created_at : timestamptz
+}
+
+entity job_matches #E8DFF5 {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * profile_id : uuid <<FK>>
+  * job_id : uuid <<FK>>
+  match_score, potential_score : int2
+  representation_score : int2
+  gap_origin : text
+  score_breakdown, recommendations : jsonb
+  user_rating : int2  (1 a 5)
+  ai_model_used : text
+  created_at : timestamptz
+}
+
+entity interview_kits #E8DFF5 {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * profile_id : uuid <<FK>>
+  * job_id : uuid <<FK>>
+  match_id : uuid <<FK, opcional>>
+  title : text
+  questions, prep_notes : jsonb
+  * status : text
+  error_msg : text
+  user_rating : int2
+  ai_model_used : text
+  created_at, updated_at : timestamptz
+}
+
+entity linkedin_scrape_cache #FFE9AE {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * linkedin_url : text
+  raw_data : jsonb
+  scraped_at, expires_at : timestamptz
+  created_at : timestamptz
+  único (user_id, linkedin_url)
+}
+
+authusers ||--o| users
+users ||--o| master_profiles
+users ||--o{ uploaded_documents
+master_profiles ||--o{ uploaded_documents
+master_profiles ||--o{ skills
+master_profiles ||--o{ experiences
+master_profiles ||--o{ educations
+master_profiles ||--o{ languages
+master_profiles ||--o{ certifications
+master_profiles ||--o{ rejected_skills
+users ||--o{ job_descriptions
+users ||--o{ job_matches
+master_profiles ||--o{ job_matches
+job_descriptions ||--o{ job_matches
+users ||--o{ interview_kits
+master_profiles ||--o{ interview_kits
+job_descriptions ||--o{ interview_kits
+job_matches |o--o{ interview_kits
+users ||--o{ linkedin_scrape_cache
+
+legend right
+  |<#D5EBE3>      | Cuenta y plan |
+  |<#D6E2F3>      | Perfil maestro y sus datos |
+  |<#FFE9AE>      | Archivos y caché |
+  |<#E8DFF5>      | Puestos y resultados |
+  Notación patas de gallo: ||  uno y solo uno · o{  cero o muchos · |o  cero o uno.
+  De las 18 FK entre tablas de la aplicación, 17 usan ON DELETE CASCADE e
+  interview_kits.match_id usa SET NULL. La FK users.supabase_uid hacia auth.users no borra en cascada.
+  Las columnas con asterisco (*) son obligatorias (NOT NULL).
+endlegend
+@enduml

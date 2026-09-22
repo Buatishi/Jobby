@@ -488,3 +488,54 @@ en un pull request borrador antes de depender de ella); el PDF requiere Microsof
 las herramientas viven en la máquina de quien documenta, no en el repositorio.
 
 **Uso:** `docs/tools/README.md`.
+
+## Decisión 17 — Tecnología avanzada declarada: integración con servicios de terceros
+
+**Estado:** Aprobada (2026-09-22). Reemplaza a la Decisión 9 y cierra lo que la Decisión 15 dejó
+pendiente.
+
+**Elegida:** integración con servicios de terceros como única capacidad declarada: la pasarela
+de IA propia (`services/api/app/services/ai_gateway`) con ruteo por plan (DeepSeek en el
+gratuito, Claude en premium y OpenAI solo para vectores), tiempo límite de 60 s, reintentos con
+espera creciente y errores públicos sanitizados. Resuelve un problema concreto: analizar un CV o
+un puesto depende de servicios externos que fallan o demoran.
+
+**Alternativas evaluadas:** (a) cola de tareas con consumidor independiente (Decisión 9) —
+descartada: exige un proceso de trabajo permanente que Render no ofrece gratis (USD 7/mes,
+Decisión 15) y sin él no se puede mostrar el mensaje entrando y saliendo de la cola; (b) declarar
+además el almacenamiento de archivos — descartada: la consigna recomienda una sola capacidad y
+descuenta si una adicional queda incompleta, y hoy `POST /profiles/documents` acepta la ruta del
+archivo sin verificar que pertenezca a la persona; (c) caché — el módulo existe pero no se usa.
+
+**Fundamento:** es lo que el flujo central ya usa en producción, tiene tests propios (ruteo por
+plan y manejo de errores) y cumple la condición de la consigna de contemplar la falla o la demora
+del servicio externo, sin costo adicional.
+
+**Prestación resignada:** la demostración en vivo depende de la disponibilidad y del saldo de los
+proveedores; las tareas corren dentro de la API con su estado en memoria (Decisión 15). El
+almacenamiento sigue siendo parte del producto, pero no se presenta como tecnología avanzada.
+
+## Decisión 18 — Diagramas entregables en PlantUML
+
+**Estado:** Aprobada (2026-09-22). Actualiza la Decisión 16 en lo que respecta a los diagramas
+que se entregan.
+
+**Elegida:** todos los diagramas entregables (DFD 0, 1 y 2, casos de uso, DER, arquitectura,
+despliegue y recorrido del código) se escriben en PlantUML, con el `.puml` y el `.svg`
+versionados en `docs/diagramas/`. El PDF de cada documento y una lámina A3 por diagrama se
+generan con `docs/tools/build_pdf.py`. Mermaid queda solo para borradores o documentos internos.
+
+**Alternativas evaluadas:** (a) Mermaid para DFD y DER, como indicaba la Decisión 16 —
+descartada para entregables: al generar el PDF, Edge convirtió esos diagramas en imágenes (el PDF
+de los DFD 0 y 1 pesaba 1 MB y su texto no era vectorial) y el acomodo automático de diagramas
+grandes es difícil de controlar; (b) mezclar ambos lenguajes — dos notaciones para mantener y
+explicar en la defensa, con aspecto distinto entre diagramas.
+
+**Fundamento:** salida vectorial que se imprime nítida (letra mínima de 5,8 pt en A3), resultado
+reproducible con la versión fijada por hash, notación UML completa y un solo lenguaje para todos
+los diagramas. Los DFD 0 y 1 se pasaron de Mermaid a PlantUML el 2026-09-22 sin cambiar ningún
+flujo: los 110 flujos se compararon uno por uno.
+
+**Prestación resignada:** GitHub no dibuja PlantUML dentro del Markdown, así que después de editar
+un `.puml` hay que regenerar su `.svg` (`python docs/tools/render_diagrams.py`) y versionar ambos;
+generarlos requiere Java.

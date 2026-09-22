@@ -1,0 +1,62 @@
+@startuml
+' DFD nivel 1, vista 1B: procesos y sistemas externos. Flujos de docs/01-dfd.md §2, verificados contra
+' services/api/app/api/v1/, services/api/app/tasks/ y apps/web. Pasado de Mermaid a PlantUML el 2026-09-22 (Decisión 18).
+' El proceso 7 no aparece porque no intercambia datos con sistemas externos.
+' Las respuestas se escriben «destino <-- origen» para que el dibujo no las acomode como vueltas.
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #4A5568
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #2D3748
+skinparam RectangleBorderColor #4A5568
+skinparam UsecaseBorderColor #4A5568
+skinparam legendBackgroundColor #FFFFFF
+skinparam legendBorderColor #9AA5B1
+
+title DFD nivel 1 — Vista 1B: procesos y sistemas externos
+
+rectangle "Sistema Jobby" as SIS #FFFFFF {
+  usecase "1\nGestionar cuenta\ny acceso" as P1 #D6E2F3
+  usecase "2\nProcesar CV\ny perfil" as P2 #D6E2F3
+  usecase "3\nAnalizar\npuesto" as P3 #D6E2F3
+  usecase "4\nEvaluar\ncompatibilidad" as P4 #D6E2F3
+  usecase "5\nGenerar kit\nde entrevista" as P5 #D6E2F3
+  usecase "6\nGestionar\nsuscripción" as P6 #D6E2F3
+}
+
+rectangle "Proveedor de identidad" as ID #FFE9AE
+rectangle "Proveedores de IA" as IA #FFE9AE
+rectangle "LemonSqueezy" as LS #FFE9AE
+rectangle "Sitios de ofertas\ny LinkedIn" as W #FFE9AE
+rectangle "Servicio de email" as EM #FFE9AE
+rectangle "Sentry" as SE #FFE9AE
+
+P1 --> ID : F21 Credenciales a verificar\nF23 Orden de eliminar identidad
+P1 <-- ID : F22 Sesión e identidad verificada
+P2 --> IA : F24.2 Instrucciones con texto del CV\nF25.2 Textos a vectorizar
+P2 <-- IA : F26.2 Datos estructurados\nF27.2 Vectores de significado
+P3 --> IA : F24.3 Instrucciones con texto de la oferta\nF25.3 Textos a vectorizar
+P3 <-- IA : F26.3 Datos estructurados\nF27.3 Vectores de significado
+P3 --> W : F31.3 Solicitud de la página
+P3 <-- W : F32.3 Contenido de la página
+P4 --> IA : F24.4 Instrucciones con texto del CV y del puesto\nF25.4 Palabras y términos a vectorizar
+P4 <-- IA : F26.4 Texto generado\nF27.4 Vectores de significado
+P5 --> IA : F24.5 Instrucciones con perfil, puesto y LinkedIn
+P5 <-- IA : F26.5 Texto generado
+P5 --> W : F31.5 Solicitud de perfil de LinkedIn
+P5 <-- W : F32.5 Contenido del perfil de LinkedIn
+P6 --> LS : F28 Solicitud de checkout
+P6 <-- LS : F29 Enlace de pago del checkout\nF30 Eventos de suscripción firmados
+P6 --> EM : F33 Mensaje de aviso de suscripción
+SIS --> SE : F34 Eventos de error
+
+legend right
+  |<#FFE9AE>      | Entidad externa: sistema de terceros |
+  |<#D6E2F3>      | Proceso del nivel 1 |
+  F34 sale del sistema completo: cualquiera de los procesos 1 a 6 puede reportar un error.
+  El proceso 7 no aparece porque no intercambia datos con sistemas externos.
+endlegend
+@enduml

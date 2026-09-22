@@ -76,6 +76,10 @@ consumidor independiente, así que la cola no puede declararse hoy como capacida
 avanzada. La capacidad se confirma cuando se resuelva el modo de USD 7 (worker o Render
 Starter) o se elija otra.
 
+Actualización (2026-09-22, Decisión 17): la capacidad declarada pasa a ser la integración con
+servicios de terceros (pasarela de IA con ruteo por plan, tiempo límite, reintentos y errores
+sanitizados). La cola queda como ampliación posible si se paga un worker.
+
 ## 6. Estrategia de tests
 
 - `tests/unit/`: lógica pura de negocio (motor de match, ATS, reglas de límites, merge de
