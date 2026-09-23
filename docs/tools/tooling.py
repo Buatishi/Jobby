@@ -50,15 +50,39 @@ def mermaid_js_path(lock: dict) -> pathlib.Path:
     return TOOLS_HOME / "mermaid" / lock["mermaid"]["version"] / "mermaid.min.js"
 
 
-def find_edge() -> pathlib.Path | None:
-    explicit = os.environ.get("EDGE_PATH")
-    candidates = [pathlib.Path(explicit)] if explicit else []
+def find_browsers() -> list[pathlib.Path]:
+    """Navegadores Chromium disponibles, en orden de preferencia: Edge y Chrome.
+
+    Se devuelven todos porque, si el navegador ya está abierto, a veces delega el pedido
+    en la instancia en curso, termina sin error y no escribe ningún PDF; en ese caso el
+    generador prueba con el siguiente. Con EDGE_PATH o CHROME_PATH se fuerza uno.
+    """
+    candidates: list[pathlib.Path] = []
+    for variable in ("EDGE_PATH", "CHROME_PATH"):
+        explicit = os.environ.get(variable)
+        if explicit:
+            candidates.append(pathlib.Path(explicit))
     for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles")):
         if base:
             candidates.append(
                 pathlib.Path(base) / "Microsoft/Edge/Application/msedge.exe"
             )
-    on_path = shutil.which("msedge")
-    if on_path:
-        candidates.append(pathlib.Path(on_path))
-    return next((path for path in candidates if path.exists()), None)
+            candidates.append(
+                pathlib.Path(base) / "Google/Chrome/Application/chrome.exe"
+            )
+    for name in ("msedge", "chrome"):
+        on_path = shutil.which(name)
+        if on_path:
+            candidates.append(pathlib.Path(on_path))
+
+    found: list[pathlib.Path] = []
+    for path in candidates:
+        if path.exists() and path not in found:
+            found.append(path)
+    return found
+
+
+def find_edge() -> pathlib.Path | None:
+    """El primer navegador disponible (el nombre se conserva por compatibilidad)."""
+    browsers = find_browsers()
+    return browsers[0] if browsers else None

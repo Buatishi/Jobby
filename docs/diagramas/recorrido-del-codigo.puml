@@ -1,6 +1,6 @@
 @startuml
 ' Recorrido del código hasta producción. Verificado contra .github/workflows/ci.yml y deploy-preview.yml, render.yaml,
-' la protección de main (API de GitHub, 2026-09-21) y el historial de Actions (84 ejecuciones: 83 propias sin ningún paso ejecutado y 1 de Dependabot).
+' la protección de main y el historial de Actions (2026-09-22: el CI corre y la protección exige sus tres trabajos).
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 13
@@ -27,22 +27,25 @@ y ejecuta typecheck, lint, tests y build en su equipo; <<#D5EBE3>>
 :**2 · Pull request hacia main**
 Evento: pull_request; <<#D5EBE3>>
 |GitHub|
-:Se disparan «CI» y «Deploy Preview»
-(instalar, verificar y construir, y vista previa en Vercel); <<#D6E2F3>>
-:Estado real: los trabajos no arrancan.
-GitHub responde «account is locked due to
-a billing issue». Ninguna de las 83 corridas
-propias ejecutó un paso (hay 1 más, de Dependabot); <<#FDECEC>>
+:Se dispara «CI»: instalar, verificar y construir.
+Corre desde el 2026-09-22; antes la cuenta de GitHub
+estaba bloqueada por facturación y ninguna
+ejecución llegaba a correr un paso; <<#D6E2F3>>
 :**3 · Protección de main** (verificada)
 Pull request obligatorio, también para administradores,
-sin force-push ni borrado. No exige checks de CI; <<#D6E2F3>>
+sin force-push ni borrado, y los tres trabajos del CI
+en verde. Con un error deliberado, el merge queda bloqueado; <<#D6E2F3>>
 :**4 · Merge a main**
 Evento: push a main; <<#D6E2F3>>
 fork
   :**5a · Pipeline «CI»** (ci.yml). Evento: push y pull_request
-  Web: typecheck, lint, build · API: mypy y pytest
-  Tipos compartidos: build
-  No mide cobertura ni bloquea despliegues; <<#FDECEC>>
+  Web: typecheck, lint, tests y build
+  API: mypy, ruff, tests y cobertura con corte del 65 %
+  Tipos compartidos: build; <<#D6E2F3>>
+  :**5d · Despliegue** (mismo ci.yml). Evento: push a main
+  Depende (needs) de los tres trabajos: si alguno falla,
+  no corre y producción queda como está.
+  Pendiente: cargar los deploy hooks como secretos; <<#FDECEC>>
 fork again
   |Render y Vercel|
   :**5b · Render**. Evento: push a main (integración Git)
@@ -57,9 +60,10 @@ end fork
 :**6 · Producción**
 Web en Vercel y API en Render, ambas por HTTPS; <<#FFE9AE>>
 |GitHub|
-:Falta el «gate» de despliegue (Decisión 6):
-un paso de despliegue que dependa del CI,
-con cobertura mínima del 65 % (Decisión 3); <<#FDECEC>>
+:Falta cerrar el circuito (Decisión 6):
+cargar RENDER_DEPLOY_HOOK_URL y VERCEL_DEPLOY_HOOK_URL
+y apagar el despliegue automático de las plataformas,
+para que el único camino a producción sea el paso 5d; <<#FDECEC>>
 stop
 
 legend right

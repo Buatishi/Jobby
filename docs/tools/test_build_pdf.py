@@ -3,13 +3,15 @@
     python -m unittest discover -s docs/tools -p "test_*.py" -v
 """
 
+import os
 import pathlib
 import re
 import tempfile
 import unittest
+import unittest.mock
 
-from build_pdf import convert_mermaid_blocks, render_html
-from tooling import load_lock
+from build_pdf import convert_mermaid_blocks, is_browser_error_page, render_html
+from tooling import find_edge, load_lock
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -129,6 +131,25 @@ class SvgInputTest(unittest.TestCase):
             page, _ = render_html(source)
 
         self.assertIn("Modelo entidad relacion</h1>", page)
+
+
+class BrowserTest(unittest.TestCase):
+    def test_the_error_page_of_the_browser_is_detected(self) -> None:
+        """Un PDF cuyo título es la URL del archivo es la pantalla de error, no el documento."""
+        error_page = b"%PDF-1.4\n1 0 obj\n<</Title (file:///C:/Temp/tmp1/documento.html)\n"
+        document = b"%PDF-1.4\n1 0 obj\n<</Title (06-arquitectura-y-despliegue)\n"
+
+        self.assertTrue(is_browser_error_page(error_page))
+        self.assertFalse(is_browser_error_page(document))
+
+    def test_an_explicit_browser_path_wins(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_chrome = pathlib.Path(tmp) / "chrome.exe"
+            fake_chrome.write_text("", encoding="utf-8")
+            with unittest.mock.patch.dict(
+                os.environ, {"EDGE_PATH": "", "CHROME_PATH": str(fake_chrome)}, clear=False
+            ):
+                self.assertEqual(find_edge(), fake_chrome)
 
 
 class LockFileTest(unittest.TestCase):

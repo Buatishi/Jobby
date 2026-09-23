@@ -85,16 +85,20 @@ y llegan al navegador; por eso nunca contienen secretos.
 | Etapa | Evento que la dispara | Qué hace | Estado verificado |
 |---|---|---|---|
 | 1. Cambio en una rama | Trabajo local | Typecheck, lint, tests y build en el equipo. | Funciona |
-| 2. Pull request hacia `main` | `pull_request` | Dispara los workflows «CI» y «Deploy Preview». | No arrancan: GitHub bloqueó la cuenta por un problema de facturación y ninguna de las ejecuciones propias corrió un paso |
-| 3. Protección de `main` | — | Pull request obligatorio también para administradores, sin force-push ni borrado. | Funciona, pero todavía no exige que el CI pase |
+| 2. Pull request hacia `main` | `pull_request` | Dispara el workflow «CI». | Funciona desde el 2026-09-22: hasta ese día la cuenta de GitHub estaba bloqueada por facturación y ninguna ejecución llegaba a correr un paso |
+| 3. Protección de `main` | — | Pull request obligatorio también para administradores, sin force-push ni borrado, y los tres trabajos del CI en verde. | Funciona. Comprobado con un error deliberado: el CI quedó en rojo y GitHub bloqueó el merge |
 | 4. Merge a `main` | `push` a `main` | Dispara el CI y los despliegues. | Funciona |
-| 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint y build. API: mypy y pytest. Tipos compartidos: build. | Definido, sin ejecución; no mide cobertura |
-| 5b. Render | `push` a `main` (integración con Git) | Construye la imagen Docker, despliega y comprueba `/health`. | Funciona, sin esperar al CI |
-| 5c. Vercel | `push` a `main` (integración con Git) | Construye la web. | Funciona; el dominio público se asigna a mano |
+| 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint, tests y build. API: mypy, ruff, tests y cobertura con corte del 65 %. Tipos compartidos: build. | Funciona; cobertura medida: 77,91 % |
+| 5b. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Pendiente de los secretos `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`: mientras faltan, el trabajo lo avisa |
+| 5c. Render y Vercel | `push` a `main` (integración con Git) | Construyen y despliegan por su cuenta. | Funciona, pero todavía no espera al CI: se apaga cuando se carguen los deploy hooks |
 | 6. Producción | — | Web y API por HTTPS. | Funciona |
 
-Pendiente para la semana 5 (Decisiones 3 y 6 de `DECISIONS.md`): que el despliegue dependa del
-CI, con cobertura mínima del 65 %, y una ejecución fallida con su corrección en el historial.
+Lo único que falta para cerrar el circuito (Decisión 6): cargar los dos deploy hooks como
+secretos del repositorio y apagar el despliegue automático de Render y Vercel, para que el
+único camino a producción sea el trabajo que depende del CI. La evidencia de una ejecución
+fallida con su corrección ya está en el historial del pipeline (rama
+`ci/verificacion-del-corte`, 2026-09-22): se bajó a propósito el mínimo de perfil de 60 % a
+50 %, un test lo detectó, el despliegue no corrió y el commit siguiente lo revirtió.
 
 ## 5. Ambiente local frente a producción
 
