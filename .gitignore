@@ -13,6 +13,9 @@ build/
 coverage/
 *.tsbuildinfo
 .pytest_cache/
+.pytest-tmp/
+.coverage
+.coverage.*
 .mypy_cache/
 .ruff_cache/
 test-results/

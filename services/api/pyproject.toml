@@ -27,6 +27,7 @@ sentry-sdk = ">=2.0"
 mypy = ">=1.14"
 pytest = ">=8.3"
 pytest-asyncio = ">=0.25"
+pytest-cov = ">=6.0"
 ruff = ">=0.8"
 coverage = ">=7.6"
 
@@ -55,6 +56,22 @@ module = [
     "sentry_sdk.*",
 ]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["app"]
+# La consigna (3.7.3) permite excluir configuración, migraciones, código generado y el
+# punto de entrada. Se excluye solo eso, y queda declarado acá para poder justificarlo.
+omit = [
+    "app/config.py",            # solo lee variables de entorno
+    "app/tasks/celery_app.py",  # arranque del worker, no se ejecuta en los tests
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
