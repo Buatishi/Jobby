@@ -93,7 +93,7 @@ async def analyze_job(
     await _validate_analysis_request(payload)
     profile = await _fetch_profile(supabase, current_user.id)
     completeness_pct = int(profile.get("completeness_pct") or 0)
-    if completeness_pct < 50:
+    if completeness_pct < 60:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
