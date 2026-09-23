@@ -114,17 +114,21 @@ jobs:
     needs: [frontend, backend, shared-types]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Los secretos no se pueden consultar en el "if" de un paso: se pasan por env.
+    env:
+      RENDER_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      VERCEL_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
     steps:
       - name: Deploy API (Render)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" > /dev/null
+        if: env.RENDER_HOOK != ''
+        run: curl -fsS -X POST "$RENDER_HOOK" > /dev/null
 
       - name: Deploy web (Vercel)
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}" > /dev/null
+        if: env.VERCEL_HOOK != ''
+        run: curl -fsS -X POST "$VERCEL_HOOK" > /dev/null
 
       - name: Aviso si faltan los deploy hooks
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL == '' && secrets.VERCEL_DEPLOY_HOOK_URL == '' }}
+        if: env.RENDER_HOOK == '' && env.VERCEL_HOOK == ''
         run: |
           echo "No hay deploy hooks configurados: el despliegue sigue a cargo de la"
           echo "integración con Git de Render y Vercel, que no espera a este pipeline."
