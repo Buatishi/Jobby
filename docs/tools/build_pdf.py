@@ -1,4 +1,4 @@
-"""Convierte un documento Markdown en PDF (con diagramas Mermaid e imágenes) usando Edge.
+"""Convierte un Markdown en PDF (con diagramas Mermaid e imágenes) usando Edge o Chrome.
 
     python docs/tools/build_pdf.py docs/tools/ejemplo/ejemplo.md [-o salida.pdf] [--landscape]
     python docs/tools/build_pdf.py docs/diagramas/x.svg --paper A3 [--title "Título"]
@@ -26,7 +26,7 @@ import tempfile
 
 import markdown
 
-from tooling import HERE, find_edge, load_lock, mermaid_js_path
+from tooling import HERE, find_browsers, load_lock, mermaid_js_path
 
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", re.DOTALL | re.MULTILINE)
 LINK = re.compile(r'<a href="([^"]*)"[^>]*>(.*?)</a>', re.DOTALL)
@@ -139,6 +139,16 @@ def render_html(
     return page, diagrams
 
 
+def is_browser_error_page(pdf: bytes) -> bool:
+    """Detecta el PDF de la página de error del navegador.
+
+    Si el navegador no llega a abrir el HTML, igual imprime su propia pantalla de error y
+    el archivo queda con una sola página inútil. En ese caso el título del PDF es la URL
+    del archivo en vez del título del documento.
+    """
+    return b"/Title (file:///" in pdf
+
+
 def build(
     source: pathlib.Path,
     output: pathlib.Path,
@@ -146,24 +156,43 @@ def build(
     paper: str = "A4",
     title: str | None = None,
 ) -> None:
-    edge = find_edge()
-    if edge is None:
-        raise SystemExit("No se encontró Microsoft Edge (definir EDGE_PATH).")
+    browsers = find_browsers()
+    if not browsers:
+        raise SystemExit(
+            "No se encontró Edge ni Chrome (definir EDGE_PATH o CHROME_PATH)."
+        )
     page, _ = render_html(source, landscape, paper, title)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory() as tmp:
-        html_path = pathlib.Path(tmp) / "documento.html"
-        html_path.write_text(page, encoding="utf-8")
-        subprocess.run(
-            [str(edge), "--headless=new", "--disable-gpu", "--no-first-run",
-             "--no-pdf-header-footer", "--allow-file-access-from-files",
-             f"--user-data-dir={pathlib.Path(tmp) / 'perfil'}",
-             f"--print-to-pdf={output.resolve()}", "--virtual-time-budget=20000",
-             html_path.as_uri()],
-            check=True, capture_output=True, timeout=180,
-        )
-    if not output.exists() or output.stat().st_size == 0:
-        raise SystemExit("Edge no generó el PDF.")
+
+    problems: list[str] = []
+    for browser in browsers:
+        if output.exists():
+            # Si el navegador falla, el archivo anterior parecería recién generado.
+            output.unlink()
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = pathlib.Path(tmp) / "documento.html"
+            html_path.write_text(page, encoding="utf-8")
+            subprocess.run(
+                [str(browser), "--headless=new", "--disable-gpu", "--no-first-run",
+                 "--no-pdf-header-footer", "--allow-file-access-from-files",
+                 f"--user-data-dir={pathlib.Path(tmp) / 'perfil'}",
+                 f"--print-to-pdf={output.resolve()}", "--virtual-time-budget=20000",
+                 html_path.as_uri()],
+                check=True, capture_output=True, timeout=180,
+            )
+        if not output.exists() or output.stat().st_size == 0:
+            problems.append(f"{browser.name} no escribió el PDF (¿estaba abierto?)")
+            continue
+        if is_browser_error_page(output.read_bytes()):
+            output.unlink()
+            problems.append(f"{browser.name} imprimió su página de error")
+            continue
+        return
+
+    raise SystemExit(
+        "Ningún navegador generó el PDF: " + "; ".join(problems) + ". "
+        "Cerrá el navegador o indicá otro con EDGE_PATH o CHROME_PATH."
+    )
 
 
 def main() -> int:
