@@ -32,7 +32,7 @@ async def _fetch_document(supabase: Any, document_id: str) -> dict[str, Any]:
         supabase.table("uploaded_documents")
         .select("*")
         .eq("id", document_id)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Document {document_id} not found.")

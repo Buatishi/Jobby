@@ -60,7 +60,7 @@ async def _get_cached(
         .select("*")
         .eq("user_id", user_id)
         .eq("linkedin_url", normalized_url)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         return None

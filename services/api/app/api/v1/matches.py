@@ -26,7 +26,7 @@ async def _fetch_match(
         .select("*")
         .eq("id", match_or_job_id)
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if isinstance(data, dict):
         return data
@@ -36,7 +36,7 @@ async def _fetch_match(
         .select("*")
         .eq("job_id", match_or_job_id)
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if isinstance(data, dict):
         return data
@@ -61,7 +61,7 @@ async def _fetch_job(
         .select("*")
         .eq("id", job_id)
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if isinstance(data, dict):
         return JobDescription.model_validate(data)

@@ -38,7 +38,7 @@ async def _fetch_profile_id(supabase: Any, user_id: str) -> str:
         supabase.table("master_profiles")
         .select("id")
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Profile for user {user_id} not found.")
@@ -47,7 +47,7 @@ async def _fetch_profile_id(supabase: Any, user_id: str) -> str:
 
 async def _fetch_user_tier(supabase: Any, user_id: str) -> Literal["free", "premium"]:
     data = await _execute(
-        supabase.table("users").select("tier").eq("id", user_id).single()
+        supabase.table("users").select("tier").eq("id", user_id).maybe_single()
     )
     if isinstance(data, dict) and data.get("tier") == "premium":
         return "premium"
@@ -56,7 +56,7 @@ async def _fetch_user_tier(supabase: Any, user_id: str) -> Literal["free", "prem
 
 async def _fetch_job(supabase: Any, job_id: str) -> dict[str, Any]:
     data = await _execute(
-        supabase.table("job_descriptions").select("*").eq("id", job_id).single()
+        supabase.table("job_descriptions").select("*").eq("id", job_id).maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Job {job_id} not found.")
@@ -65,7 +65,10 @@ async def _fetch_job(supabase: Any, job_id: str) -> dict[str, Any]:
 
 async def _fetch_profile(supabase: Any, profile_id: str) -> dict[str, Any]:
     data = await _execute(
-        supabase.table("master_profiles").select("*").eq("id", profile_id).single()
+        supabase.table("master_profiles")
+        .select("*")
+        .eq("id", profile_id)
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Profile {profile_id} not found.")
@@ -74,7 +77,7 @@ async def _fetch_profile(supabase: Any, profile_id: str) -> dict[str, Any]:
 
 async def _fetch_interview_kit(supabase: Any, kit_id: str) -> dict[str, Any]:
     data = await _execute(
-        supabase.table("interview_kits").select("*").eq("id", kit_id).single()
+        supabase.table("interview_kits").select("*").eq("id", kit_id).maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Interview kit {kit_id} not found.")
@@ -101,7 +104,7 @@ async def _fetch_primary_cv(supabase: Any, user_id: str) -> dict[str, Any] | Non
         .eq("user_id", user_id)
         .eq("type", "cv")
         .eq("is_primary", True)
-        .single()
+        .maybe_single()
     )
     return data if isinstance(data, dict) else None
 

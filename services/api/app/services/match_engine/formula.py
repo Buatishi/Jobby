@@ -41,7 +41,7 @@ async def _fetch_one(db: Any, table_name: str, **filters: Any) -> dict[str, Any]
     query = db.table(table_name).select("*")
     for key, value in filters.items():
         query = query.eq(key, value)
-    data = await _execute(query.single())
+    data = await _execute(query.maybe_single())
     if not isinstance(data, dict):
         raise ValueError(f"{table_name} row not found.")
     return data

@@ -32,7 +32,7 @@ async def _execute(query: Any) -> Any:
 
 async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
     data = await _execute(
-        supabase.table("users").select("tier").eq("id", user_id).single()
+        supabase.table("users").select("tier").eq("id", user_id).maybe_single()
     )
     if isinstance(data, dict) and isinstance(data.get("tier"), str):
         return str(data["tier"])
@@ -44,7 +44,7 @@ async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
         supabase.table("master_profiles")
         .select("*")
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise HTTPException(
@@ -64,7 +64,7 @@ async def _fetch_kit(supabase: Any, kit_id: str, user_id: str) -> dict[str, Any]
         .select("*")
         .eq("id", kit_id)
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise HTTPException(
