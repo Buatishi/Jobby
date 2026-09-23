@@ -73,9 +73,12 @@ El esquema no declara restricciones `CHECK`: los valores permitidos de `tier`, `
 
 ## 5. Diferencias entre las migraciones y la base real
 
-- La función `set_primary_uploaded_document` de la migración 018 no existe en la base de
-  producción, aunque `PATCH /profiles/documents/{id}/set-primary` la invoca. La interfaz no usa
-  ese endpoint; su corrección va en una migración nueva.
+- La función `set_primary_uploaded_document` de la migración 018 no había quedado aplicada en
+  producción, aunque `PATCH /profiles/documents/{id}/set-primary` la invoca. Se restauró el
+  2026-09-22 con la migración 023, probada antes en el proyecto de pruebas: las tres funciones
+  del esquema son `SECURITY DEFINER` y solo las ejecuta la clave de servicio.
+- Desde el 2026-09-22 hay un segundo proyecto de Supabase (plan gratuito) dedicado a las
+  pruebas, con las mismas migraciones y sin datos de personas (Decisión 4).
 - Supabase no registra migraciones aplicadas (se aplicaron desde el editor SQL).
 - La base real corre PostgreSQL 17.6; parte de la documentación y el `docker-compose.yml` local
   mencionan la versión 16.

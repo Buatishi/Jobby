@@ -116,8 +116,14 @@ API (desde `services/api`):
 ```powershell
 poetry run ruff check app tests
 poetry run mypy app/
-poetry run pytest --basetemp=.pytest-tmp
+poetry run pytest --cov=app --cov-fail-under=65 --basetemp=.pytest-tmp
 ```
+
+Ese único comando corre toda la suite y emite el informe de cobertura. El umbral del 65 %
+es el que exige la consigna y el pipeline lo aplica igual: si la cobertura baja, el CI falla
+y no se despliega (Decisiones 3 y 6). Las exclusiones del cálculo están declaradas en
+`[tool.coverage.run]` de `services/api/pyproject.toml`: solo la configuración y el arranque
+del worker.
 
 Tipos compartidos (desde `packages/shared-types`): `pnpm build`.
 

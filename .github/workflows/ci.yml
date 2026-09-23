@@ -34,6 +34,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Test
+        run: pnpm test
+
       - name: Build
         run: pnpm build
         env:
@@ -71,8 +74,12 @@ jobs:
       - name: Typecheck
         run: poetry run mypy app/
 
-      - name: Test
-        run: poetry run pytest
+      - name: Lint
+        run: poetry run ruff check app/ tests/
+
+      - name: Test and coverage
+        # Decisión 3: el 65 % es eliminatorio y aplica solo al backend.
+        run: poetry run pytest --cov=app --cov-fail-under=65
 
   shared-types:
     name: Shared Types
@@ -99,3 +106,31 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  deploy:
+    name: Deploy
+    # Decisión 6: el despliegue depende de que los tres trabajos terminen en verde.
+    # Si alguno falla, este trabajo no corre y producción se queda como está.
+    needs: [frontend, backend, shared-types]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Los secretos no se pueden consultar en el "if" de un paso: se pasan por env.
+    env:
+      RENDER_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      VERCEL_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+    steps:
+      - name: Deploy API (Render)
+        if: env.RENDER_HOOK != ''
+        run: curl -fsS -X POST "$RENDER_HOOK" > /dev/null
+
+      - name: Deploy web (Vercel)
+        if: env.VERCEL_HOOK != ''
+        run: curl -fsS -X POST "$VERCEL_HOOK" > /dev/null
+
+      - name: Aviso si faltan los deploy hooks
+        if: env.RENDER_HOOK == '' && env.VERCEL_HOOK == ''
+        run: |
+          echo "No hay deploy hooks configurados: el despliegue sigue a cargo de la"
+          echo "integración con Git de Render y Vercel, que no espera a este pipeline."
+          echo "Para cerrar el corte: cargar RENDER_DEPLOY_HOOK_URL y VERCEL_DEPLOY_HOOK_URL"
+          echo "como secretos del repositorio y apagar el despliegue automático."
