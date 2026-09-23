@@ -75,6 +75,6 @@ async def validation_error_handler(
     return error_response(
         message="Datos de entrada inválidos",
         code="VALIDATION_ERROR",
-        status_code=422,
+        status_code=400,
         details={"errors": exc.errors()},
     )

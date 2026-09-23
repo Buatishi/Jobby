@@ -54,7 +54,7 @@ async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
 async def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
     if payload.source == "url" and not payload.url:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": "La URL del puesto es requerida",
                 "code": "JOB_URL_REQUIRED",
@@ -75,7 +75,7 @@ async def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
             ) from exc
     if payload.source == "text" and not payload.raw_text:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": "El texto del puesto es requerido",
                 "code": "JOB_TEXT_REQUIRED",
