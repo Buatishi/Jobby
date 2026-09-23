@@ -6,6 +6,7 @@ import sentry_sdk
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from postgrest.exceptions import APIError as PostgrestAPIError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -13,7 +14,11 @@ from starlette.responses import Response
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.core.errors import http_error_handler, validation_error_handler
+from app.core.errors import (
+    http_error_handler,
+    supabase_error_handler,
+    validation_error_handler,
+)
 from app.services.rate_limits import limiter
 
 logger = logging.getLogger("jobmatch.api")
@@ -109,6 +114,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(PostgrestAPIError, supabase_error_handler)
 app.include_router(api_router, prefix="/api/v1")
 
 

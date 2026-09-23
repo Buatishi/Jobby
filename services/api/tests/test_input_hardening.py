@@ -69,8 +69,35 @@ def test_analyze_job_rejects_oversized_text(client: TestClient) -> None:
         json={"source": "text", "raw_text": "a" * 30_001},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 400
     assert response.json()["code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("payload", "code"),
+    [
+        ({}, "VALIDATION_ERROR"),  # falta el campo obligatorio "source"
+        ({"source": "texto-invalido"}, "VALIDATION_ERROR"),
+        ({"source": "url"}, "JOB_URL_REQUIRED"),
+        ({"source": "text"}, "JOB_TEXT_REQUIRED"),
+    ],
+)
+def test_analyze_job_rejects_invalid_data_with_400(
+    client: TestClient,
+    payload: dict[str, str],
+    code: str,
+) -> None:
+    """Decisión 8: los datos inválidos responden 400, no 422 ni 500."""
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["master_profiles"][0]["completeness_pct"] = 80
+    _use(fake_supabase)
+
+    response = client.post("/api/v1/jobs/analyze", json=payload)
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == code
+    assert set(body) == {"error", "code", "details"}
 
 
 # --- kits: las URLs deben ser de LinkedIn y públicas --------------------------

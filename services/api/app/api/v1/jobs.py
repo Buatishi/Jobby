@@ -28,7 +28,7 @@ async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
         supabase.table("master_profiles")
         .select("*")
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise HTTPException(
@@ -44,7 +44,7 @@ async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
 
 async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
     data = await _execute(
-        supabase.table("users").select("tier").eq("id", user_id).single()
+        supabase.table("users").select("tier").eq("id", user_id).maybe_single()
     )
     if isinstance(data, dict) and isinstance(data.get("tier"), str):
         return str(data["tier"])
@@ -54,7 +54,7 @@ async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
 async def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
     if payload.source == "url" and not payload.url:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": "La URL del puesto es requerida",
                 "code": "JOB_URL_REQUIRED",
@@ -75,7 +75,7 @@ async def _validate_analysis_request(payload: JobAnalysisRequest) -> None:
             ) from exc
     if payload.source == "text" and not payload.raw_text:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": "El texto del puesto es requerido",
                 "code": "JOB_TEXT_REQUIRED",
@@ -165,7 +165,7 @@ async def get_job(
         .select("*")
         .eq("id", job_id)
         .eq("user_id", current_user.id)
-        .single()
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise HTTPException(

@@ -91,7 +91,7 @@ async def _fetch_job(supabase: Any, job_id: str | None, user_id: str) -> dict[st
         .select("id,company_name,job_title,created_at")
         .eq("id", job_id)
         .eq("user_id", user_id)
-        .single()
+        .maybe_single()
     )
     return data if isinstance(data, dict) else {}
 
@@ -156,13 +156,13 @@ async def get_dashboard_summary(
             supabase.table("users")
             .select("email,full_name")
             .eq("id", current_user.id)
-            .single()
+            .maybe_single()
         ),
         _execute(
             supabase.table("master_profiles")
             .select("*")
             .eq("user_id", current_user.id)
-            .single()
+            .maybe_single()
         ),
     )
     profile_data = profile if isinstance(profile, dict) else None

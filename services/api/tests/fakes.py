@@ -2,10 +2,24 @@ from __future__ import annotations
 
 from typing import Any
 
+from postgrest.exceptions import APIError
+
 
 class FakeResponse:
     def __init__(self, data: Any) -> None:
         self.data = data
+
+
+def _no_single_row(rows: int) -> APIError:
+    """Error de PostgREST cuando single() no encuentra exactamente una fila."""
+    return APIError(
+        {
+            "message": "JSON object requested, multiple (or no) rows returned",
+            "code": "PGRST116",
+            "hint": None,
+            "details": f"The result contains {rows} rows",
+        }
+    )
 
 
 class FakeTableQuery:
@@ -18,6 +32,7 @@ class FakeTableQuery:
         self.upsert_payload: dict[str, Any] | list[dict[str, Any]] | None = None
         self.should_delete = False
         self.single_row = False
+        self.allow_empty_single = False
         self.limit_count: int | None = None
         self.order_column: str | None = None
         self.order_desc = False
@@ -30,7 +45,15 @@ class FakeTableQuery:
         return self
 
     def single(self) -> FakeTableQuery:
+        """Como el cliente real: si no hay exactamente una fila, falla."""
         self.single_row = True
+        self.allow_empty_single = False
+        return self
+
+    def maybe_single(self) -> FakeTableQuery:
+        """Como el cliente real: sin filas devuelve None en lugar de fallar."""
+        self.single_row = True
+        self.allow_empty_single = True
         return self
 
     def order(self, column: str, desc: bool = False) -> FakeTableQuery:
@@ -58,7 +81,7 @@ class FakeTableQuery:
         self.should_delete = True
         return self
 
-    async def execute(self) -> FakeResponse:
+    async def execute(self) -> FakeResponse | None:
         rows = self.supabase.tables[self.table_name]
 
         if self.insert_payload is not None:
@@ -119,7 +142,11 @@ class FakeTableQuery:
             matching_rows = matching_rows[: self.limit_count]
 
         if self.single_row:
-            return FakeResponse(matching_rows[0] if matching_rows else None)
+            if len(matching_rows) != 1:
+                if not matching_rows and self.allow_empty_single:
+                    return None
+                raise _no_single_row(len(matching_rows))
+            return FakeResponse(matching_rows[0])
 
         return FakeResponse(matching_rows)
 

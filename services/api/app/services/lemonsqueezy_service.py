@@ -76,7 +76,7 @@ def _failed_attempt_number(attributes: dict[str, Any]) -> int:
 async def _fetch_user(user_id: str, db: Any | None = None) -> dict[str, Any] | None:
     supabase = db or await get_supabase_client()
     data = await _execute(
-        supabase.table("users").select("*").eq("id", user_id).single()
+        supabase.table("users").select("*").eq("id", user_id).maybe_single()
     )
     return data if isinstance(data, dict) else None
 

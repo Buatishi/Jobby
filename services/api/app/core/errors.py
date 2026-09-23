@@ -1,9 +1,13 @@
+import logging
 from typing import Any
 
+import sentry_sdk
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logger = logging.getLogger(__name__)
 
 
 def error_response(
@@ -39,6 +43,24 @@ async def http_error_handler(
     )
 
 
+async def supabase_error_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """Último recurso para un error del cliente de Supabase que nadie manejó.
+
+    Sin esto FastAPI responde 500 en texto plano y se rompe el formato único de error.
+    El detalle interno queda en el registro, no en la respuesta.
+    """
+    logger.exception("Error de Supabase sin manejar en %s", request.url.path)
+    sentry_sdk.capture_exception(exc)
+    return error_response(
+        message="Error inesperado",
+        code="INTERNAL_ERROR",
+        status_code=500,
+    )
+
+
 async def validation_error_handler(
     _request: Request,
     exc: Exception,
@@ -53,6 +75,6 @@ async def validation_error_handler(
     return error_response(
         message="Datos de entrada inválidos",
         code="VALIDATION_ERROR",
-        status_code=422,
+        status_code=400,
         details={"errors": exc.errors()},
     )
