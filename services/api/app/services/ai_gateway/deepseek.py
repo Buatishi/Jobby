@@ -23,6 +23,10 @@ class DeepSeekProvider:
         system: str | None = None,
         json_mode: bool = False,
     ) -> str:
+        # Sin clave ningún intento puede andar: se falla antes de los reintentos.
+        if not self.api_key:
+            raise ProviderUnavailableError(self.name, "Missing DEEPSEEK_API_KEY.")
+
         async def operation() -> str:
             return await self._generate_once(prompt, system, json_mode)
 
@@ -34,9 +38,6 @@ class DeepSeekProvider:
         system: str | None,
         json_mode: bool,
     ) -> str:
-        if not self.api_key:
-            raise ProviderUnavailableError(self.name, "Missing DEEPSEEK_API_KEY.")
-
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})

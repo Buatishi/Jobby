@@ -22,6 +22,10 @@ class ClaudeProvider:
         system: str | None = None,
         json_mode: bool = False,
     ) -> str:
+        # Sin clave ningún intento puede andar: se falla antes de los reintentos.
+        if not self.api_key:
+            raise ProviderUnavailableError(self.name, "Missing ANTHROPIC_API_KEY.")
+
         async def operation() -> str:
             return await self._generate_once(prompt, system, json_mode)
 
@@ -33,9 +37,6 @@ class ClaudeProvider:
         system: str | None,
         json_mode: bool,
     ) -> str:
-        if not self.api_key:
-            raise ProviderUnavailableError(self.name, "Missing ANTHROPIC_API_KEY.")
-
         user_prompt = prompt
         if json_mode:
             user_prompt = (

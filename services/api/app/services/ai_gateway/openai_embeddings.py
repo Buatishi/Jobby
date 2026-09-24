@@ -18,7 +18,14 @@ class OpenAIEmbeddingsProvider:
         raw_api_key = api_key if api_key is not None else settings.openai_api_key
         self.api_key = raw_api_key.strip().strip('"').strip("'")
 
+    def _require_api_key(self) -> None:
+        # Sin clave ningún intento puede andar: se falla antes de los reintentos.
+        if not self.api_key:
+            raise ProviderUnavailableError(self.name, "Missing OPENAI_API_KEY.")
+
     async def embed(self, text: str) -> list[float]:
+        self._require_api_key()
+
         async def operation() -> list[float]:
             embeddings = await self._embed_many_once([text])
             return embeddings[0]
@@ -28,6 +35,7 @@ class OpenAIEmbeddingsProvider:
     async def embed_many(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+        self._require_api_key()
 
         async def operation() -> list[list[float]]:
             return await self._embed_many_once(texts)
@@ -35,9 +43,6 @@ class OpenAIEmbeddingsProvider:
         return await retry_with_backoff(operation, delays=(30.0, 30.0))
 
     async def _embed_many_once(self, texts: list[str]) -> list[list[float]]:
-        if not self.api_key:
-            raise ProviderUnavailableError(self.name, "Missing OPENAI_API_KEY.")
-
         payload = {
             "model": self.model,
             "input": texts,
