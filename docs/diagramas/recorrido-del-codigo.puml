@@ -1,6 +1,6 @@
 @startuml
-' Recorrido del código hasta producción. Verificado contra .github/workflows/ci.yml y deploy-preview.yml, render.yaml,
-' la protección de main y el historial de Actions (2026-09-22: el CI corre y la protección exige sus tres trabajos).
+' Recorrido del código hasta producción. Verificado contra .github/workflows/ci.yml, render.yaml, apps/web/vercel.json,
+' la protección de main, el historial de Actions y los despliegues de Render y Vercel (2026-09-23).
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 13
@@ -53,16 +53,18 @@ fork again
   y despliega jobmatch-api (y el servicio heredado Jobby),
   comprueba /health. No espera al CI; <<#FFE9AE>>
   :**5c · Vercel**. Evento: push a main (integración Git)
-  Construye main como vista previa.
-  El dominio público se promueve a mano
-  (alias jobbyweb.vercel.app, 2026-09-21); <<#FFE9AE>>
+  Desde el 2026-09-23 no construye main
+  (apps/web/vercel.json). Su rama de producción es
+  todavía feat/jobmatch-phase-1-2: producción
+  se actualiza a mano desde main; <<#FFE9AE>>
 end fork
 :**6 · Producción**
 Web en Vercel y API en Render, ambas por HTTPS; <<#FFE9AE>>
 |GitHub|
 :Falta cerrar el circuito (Decisión 6):
+que Vercel tome main como rama de producción,
 cargar RENDER_DEPLOY_HOOK_URL y VERCEL_DEPLOY_HOOK_URL
-y apagar el despliegue automático de las plataformas,
+y apagar el despliegue automático de Render,
 para que el único camino a producción sea el paso 5d; <<#FDECEC>>
 stop
 
