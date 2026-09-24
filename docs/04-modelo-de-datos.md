@@ -63,10 +63,14 @@ en cascada: por eso el borrado de cuenta elimina primero la fila de `users` y de
 
 - **Unicidad:** `users.supabase_uid`, un perfil por persona, un solo CV principal por persona
   (índice parcial), una ranura por CV y una lectura de LinkedIn por persona y enlace.
-- **Acceso por dueño (RLS):** las 13 tablas tienen seguridad por fila; cada política deja ver y
-  modificar solo las filas propias (`auth.uid()`). La API usa la clave de servicio, que no pasa
-  por RLS, así que en sus consultas el aislamiento entre personas depende de filtrar por el
-  usuario que sale del token.
+- **Sin acceso con la clave pública:** desde la migración 025 (2026-09-23), los roles `anon` y
+  `authenticated` no tienen ningún privilegio sobre las tablas, tampoco sobre las que se creen
+  después: la web no las lee ni las escribe y todo pasa por la API. Antes, con su propio token,
+  una persona podía cambiarse el plan a premium escribiendo su fila por la API REST de
+  Supabase (se reprodujo en el proyecto de pruebas; `services/api/tests/sql/`).
+- **Acceso por dueño (RLS):** las 13 tablas mantienen seguridad por fila como segunda barrera.
+  La API usa la clave de servicio, que no pasa por RLS, así que en sus consultas el
+  aislamiento entre personas depende de filtrar por el usuario que sale del token.
 - **Vectores:** las columnas `embedding` usan pgvector (`vector(1536)`) con índices HNSW de
   coseno en `skills`, `educations` y `job_descriptions`.
 - **Claves foráneas indexadas:** desde la migración 024 (2026-09-23) cada una tiene su índice.
@@ -85,5 +89,5 @@ El esquema no declara restricciones `CHECK`: los valores permitidos de `tier`, `
 - Desde el 2026-09-22 hay un segundo proyecto de Supabase (plan gratuito) dedicado a las
   pruebas, con las mismas migraciones y sin datos de personas (Decisión 4).
 - Hasta la 022, las migraciones se aplicaron desde el editor SQL y Supabase no las registró;
-  la 023 y la 024 se aplicaron primero en el proyecto de pruebas y quedaron registradas.
+  de la 023 en adelante se aplicaron primero en el proyecto de pruebas y quedaron registradas.
 - La base real corre PostgreSQL 17.6.

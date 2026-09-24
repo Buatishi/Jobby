@@ -58,7 +58,7 @@ TLS y se protege con tokens de sesión y con secretos guardados en cada platafor
 
 | Dónde se cargan | Variables (solo nombres) | Quién las usa |
 |---|---|---|
-| Panel de Vercel | `NEXT_PUBLIC_API_URL`, URL y clave anon de Supabase, precios mensual y anual | La web. Las `NEXT_PUBLIC_*` se incrustan en el JavaScript del navegador: son públicas por diseño. La clave anon no es secreta; la protegen las políticas RLS. `NEXT_PUBLIC_SENTRY_DSN` no está cargada: Sentry queda sin activar en la web. |
+| Panel de Vercel | `NEXT_PUBLIC_API_URL`, URL y clave anon de Supabase, precios mensual y anual | La web. Las `NEXT_PUBLIC_*` se incrustan en el JavaScript del navegador: son públicas por diseño. La clave anon no es secreta: con ella no se puede leer ni escribir ninguna tabla (migración 025) y las políticas RLS son una segunda barrera. `NEXT_PUBLIC_SENTRY_DSN` no está cargada: Sentry queda sin activar en la web. |
 | Panel de Render (declaradas en `render.yaml` con `sync: false`, sin valor) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `REDIS_URL`, `RESEND_API_KEY`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_PREMIUM_VARIANT_ID` | Solo la API. La clave de servicio de Supabase no pasa por RLS: es la más sensible y nunca llega al navegador. |
 | Panel de Render (configuración no secreta) | `ENVIRONMENT=production`, `PORT`, `FRONTEND_URL`, `TASK_EXECUTION_MODE=local` | `ENVIRONMENT=production` cierra `/docs` y agrega HSTS y CSP; `FRONTEND_URL` alimenta CORS. |
 | Secretos de GitHub Actions | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_PROJECT_REF` | Ningún workflow los usa hoy. |

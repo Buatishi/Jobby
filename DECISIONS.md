@@ -562,3 +562,27 @@ falla con el código anterior.
 
 **Prestación resignada:** dos reportes seguidos del mismo puesto vuelven a pedir los vectores
 (dos llamadas por reporte).
+
+## Decisión 20 — La clave pública no accede a las tablas
+
+**Estado:** Aprobada (2026-09-23). Migración 025, aplicada en el proyecto de pruebas y en
+producción.
+
+**Elegida:** los roles `anon` y `authenticated` de Supabase no tienen ningún privilegio sobre las
+tablas de `public`, ni sobre las que se creen después. La web usa Supabase solo para Auth y para
+subir el PDF al Storage; todos los datos pasan por la API, que usa la clave de servicio.
+
+**Alternativas evaluadas:** (a) quitar el permiso de escritura solo en las columnas de cobro de
+`users` — descartada: el mismo problema existía en las otras tablas (por ejemplo, registrar en
+`uploaded_documents` la ruta del CV de otra persona y pedir que se procese); (b) un trigger que
+rechace cambios de `tier` — descartada: cubre una columna y deja el resto abierto; (c) dejarlo
+como estaba, confiando en las políticas RLS — descartada: esas políticas solo exigían que la fila
+fuera propia, no qué columnas se podían cambiar.
+
+**Fundamento:** con la clave pública y su propio token, una persona podía cambiarse el plan a
+premium por la API REST de Supabase sin pasar por la API ni por el pago. Se reprodujo en el
+proyecto de pruebas antes del cambio y quedó bloqueado después (`services/api/tests/sql/`). En
+producción no había cuentas premium, así que nadie lo aprovechó.
+
+**Prestación resignada:** una función futura que quiera leer datos desde el navegador tiene que
+pasar por la API o pedir un permiso explícito en su migración.
