@@ -1,0 +1,14 @@
+# Fuera de la imagen: secretos locales, cachés y artefactos de pruebas. En Render el contexto
+# sale de Git y nada de esto existe, pero una build local los copiaría con `COPY . .`.
+.env
+.env.*
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytest-tmp/
+.coverage
+.coverage.*
+htmlcov/

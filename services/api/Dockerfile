@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar Poetry
-RUN pip install poetry==1.8.3
+RUN pip install poetry==2.4.1
 
 # Copiar archivos de dependencias primero (para cache de Docker)
 COPY pyproject.toml poetry.lock* ./
