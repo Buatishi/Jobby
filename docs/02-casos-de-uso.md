@@ -67,6 +67,7 @@ la persona o por un evento de LemonSqueezy.
 | CU21 | Enviar aviso de suscripción | Sistema | Servicio de email |
 | CU22 | Eliminar cuenta | Persona usuaria | `DELETE /users/me` |
 | CU23 | Consultar métricas agregadas | Administrador | `/admin` (`GET /admin/metrics`) |
+| CU24 | Cerrar sesión | Persona usuaria | Botón «Cerrar sesión» de la barra lateral (Supabase Auth) |
 
 ## 3. Narrativas de los tres casos de uso principales
 

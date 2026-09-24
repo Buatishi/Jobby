@@ -11,6 +11,7 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 | F1 | Arranque en frío de la API: pre-calentamiento al abrir la web, reintento de GET y aviso de demora | Decisión 14, `docs/operacion/arranque-en-frio.md` |
 | M1 | Tareas en segundo plano en modo local (análisis, match y kits) | Decisión 15, `docs/operacion/modo-local-de-tareas.md` |
 | F9 | `/og-image.png` salía con 200 y 0 bytes: Satori exige `display: flex` en todo `<div>` cuyo contenido no sea solo texto, y la pista de cada barra no lo tenía. Corregido el 2026-09-23, con un test que genera la imagen y valida el PNG | `apps/web/src/app/og-image.png/route.test.ts` |
+| P3 | Cierre de sesión: botón en la barra lateral; Supabase Auth borra la sesión y la API rechaza al instante su token (Decisión 22). Hecho el 2026-09-24 | `lib/auth/sign-out.ts`, `app/dependencies.py` |
 | P1 | `next.config.ts` ya no cae a la API heredada (`jobby-fp0r.onrender.com`) si faltan las variables: usa la API local de desarrollo. Corregido el 2026-09-23 | `apps/web/next.config.ts` |
 
 ## 2. Frontend
@@ -24,7 +25,6 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 | F6 | Media | 15 atributos `aria` y 1 `sr-only`; el titular de la landing tardaba más de 3 s en tomar su color final (observación puntual) | Accesibilidad. Validar con Lighthouse o axe | Bajo, S–M | Componentes compartidos y landing |
 | F7 | Baja | Modo oscuro forzado a claro en `globals.css` (`color-scheme: light` y un bloque `prefers-color-scheme: dark` que repite los valores claros); depende de F3 | Comodidad; no es requisito de la consigna | Medio, M–L | `globals.css`, `layout.tsx`, `lib/utils/score-colors.ts` |
 | P2 | Alta | La interfaz fija el plan en `free` (`(app)/layout.tsx`), así que un usuario premium vería funciones bloqueadas | Plan real en la UI. Validar con un usuario premium de prueba | Medio, M | `apps/web/src/app/(app)/layout.tsx`, `components/app-shell.tsx` |
-| P3 | Media | No hay ningún control de cierre de sesión en la interfaz | Cierre de sesión explícito. Validar iniciando y cerrando sesión | Bajo, S | `components/app-sidebar.tsx` |
 
 ## 3. Backend y producto
 

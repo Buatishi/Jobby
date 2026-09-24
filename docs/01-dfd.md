@@ -81,6 +81,8 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-0.pdf](pdf/laminas/dfd-nivel
 | F32 | Contenido de la página web | Sitios de ofertas | Sistema |
 | F33 | Mensaje de aviso de suscripción | Sistema | Servicio de email |
 | F34 | Eventos de error | Sistema | Sentry |
+| F35 | Solicitud de cierre de sesión | Persona usuaria | Sistema |
+| F36 | Orden de cerrar la sesión | Sistema | Proveedor de identidad |
 
 `F10` no se usa: la numeración se conserva para que los identificadores no cambien entre
 niveles.
@@ -117,7 +119,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-1-vista-c.pdf](pdf/laminas/d
 
 | N.º | Proceso | Qué hace | Se apoya en |
 |---|---|---|---|
-| 1 | Gestionar cuenta y acceso | Registro e inicio de sesión (con Supabase Auth) y baja de cuenta: borra archivos, caché, claves, el usuario (los datos personales se eliminan en cascada) y la identidad | `DELETE /users/me` |
+| 1 | Gestionar cuenta y acceso | Registro, inicio y cierre de sesión (con Supabase Auth; cada pedido verifica que la sesión siga abierta) y baja de cuenta: borra archivos, caché, claves, el usuario (los datos personales se eliminan en cascada) y la identidad | `DELETE /users/me` |
 | 2 | Procesar CV y perfil | Recibe el PDF, extrae su texto, lo estructura con IA, genera vectores y arma el perfil maestro; permite confirmar o rechazar habilidades y completar experiencia, educación e idiomas | `POST /profiles/documents`, `/profiles/*` |
 | 3 | Analizar puesto | Valida la URL o el texto, obtiene el contenido de la página, lo estructura con IA, genera vectores y guarda el puesto | `POST /jobs/analyze` |
 | 4 | Evaluar compatibilidad | Calcula el Match Score, el reporte ATS y el Reality Gap, arma el resumen del panel y, en el plan premium, optimiza el CV con IA | `/matches`, `/ats`, `/dashboard`, `/profiles/reality-gap` |
@@ -147,8 +149,8 @@ el proceso 3 con el 4.
 
 | Flujo del nivel 0 | Nivel 1 | Proceso |
 |---|---|---|
-| F1, F7, F18 | F1, F7, F18 | 1 |
-| F21, F22, F23 | F21, F22, F23 | 1 |
+| F1, F7, F18, F35 | F1, F7, F18, F35 | 1 |
+| F21, F22, F23, F36 | F21, F22, F23, F36 | 1 |
 | F2, F3, F11 | F2, F3, F11 | 2 |
 | F4 | F4 | 3 |
 | F5 | F5.1 (match) y F5.2 (kit) | 4 y 5 |
@@ -165,5 +167,5 @@ el proceso 3 con el 4.
 | F32 | F32.3 y F32.5 | 3 y 5 |
 | F34 | F34 (desde el conjunto de procesos) | 1 a 6 |
 
-Comprobación de equilibrio: de los 33 flujos del nivel 0 (F1 a F34 sin F10), los 33 tienen su
+Comprobación de equilibrio: de los 35 flujos del nivel 0 (F1 a F36 sin F10), los 35 tienen su
 correspondiente en el nivel 1, con el mismo origen y destino externos.

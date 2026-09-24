@@ -4,7 +4,8 @@ Estado: Etapa 1. Verificado el 2026-09-21 contra las 22 migraciones de
 `services/api/migrations` y contra los catálogos de la base real de Supabase (solo metadatos:
 tablas, columnas, tipos, claves, índices y políticas; no se leyó ningún dato de personas). Las
 columnas del diagrama se compararon una a una con `information_schema` y coinciden. Actualizado
-el 2026-09-23 con las migraciones 023 a 026: una función, índices, el cierre de privilegios de la
+el 2026-09-24 con las migraciones 023 a 027: dos funciones (una restaura la del CV principal y
+otra verifica que la sesión de un token siga abierta), índices, el cierre de privilegios de la
 clave pública y los roles con sus permisos (dos tablas nuevas y la columna `users.role`).
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)

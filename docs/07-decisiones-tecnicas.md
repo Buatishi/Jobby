@@ -93,5 +93,5 @@ diseño, la arquitectura y el alcance son propias; el resultado de las herramien
 antes de incorporarse. Se comprende la totalidad del código entregado y no se usarán
 asistentes durante la defensa individual.
 
-*El registro completo de decisiones operativas (Decisiones 1 a 21) está en `DECISIONS.md`; este
+*El registro completo de decisiones operativas (Decisiones 1 a 22) está en `DECISIONS.md`; este
 documento resume las cinco decisiones estructurales que pide la consigna.*

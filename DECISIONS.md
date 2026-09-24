@@ -614,3 +614,28 @@ puede cambiarse el rol desde el navegador: la clave pública no tiene privilegio
 
 **Prestación resignada:** los endpoints con permiso hacen una consulta más por pedido (los
 permisos no se guardan en memoria), y el rol admin se asigna con SQL en Supabase, sin pantalla.
+
+## Decisión 22 — Cerrar sesión invalida el token al instante
+
+**Estado:** Aprobada (2026-09-24). Migración 027, aplicada primero en el proyecto de pruebas.
+
+**Elegida:** el botón «Cerrar sesión» pide a Supabase Auth que cierre la sesión de este
+dispositivo, que la borra de `auth.sessions`, y vuelve al login con una navegación completa. La
+API, además de validar la firma y el vencimiento del token, comprueba en cada pedido que la
+sesión del token (`session_id`) siga abierta, con la función `session_is_active` (solo la
+ejecuta la clave de servicio y devuelve un booleano). La comprobación corre en paralelo con la
+lectura del usuario, así que no suma otra ida y vuelta. Si el cierre falla por conexión, la web
+avisa y no sale, porque la sesión sigue abierta.
+
+**Alternativas evaluadas:** (a) solo borrar la sesión del navegador — descartada: el token
+seguiría sirviendo hasta vencer (una hora), y la consigna pide que cerrar sesión invalide el
+acceso; (b) validar cada token llamando a Supabase Auth por HTTP — descartada: suma una ida y
+vuelta de Oregón a São Paulo en cada pedido; (c) tokens de vida más corta — descartada: acorta
+la ventana pero no la cierra y obliga a renovar más seguido.
+
+**Fundamento:** se comprueba enviando el token de una sesión cerrada directo a la API: responde
+401. Hay tests para la sesión cerrada, el token sin `session_id` y el camino validado por
+Supabase Auth, y fallan si se quita la comprobación.
+
+**Prestación resignada:** cerrar sesión cierra solo la del dispositivo actual; las abiertas en
+otros dispositivos siguen hasta que se cierren o venzan.
