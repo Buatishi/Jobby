@@ -14,7 +14,7 @@ from app.dependencies import get_current_user
 from app.models.auth import CurrentUser
 from app.models.tasks import TaskResponse, TaskStatus
 from app.tasks import celery_app
-from app.tasks.local_fallback import get_local_task
+from app.tasks.local_fallback import get_local_task, is_local_mode
 
 logger = logging.getLogger("jobmatch.tasks")
 
@@ -22,6 +22,11 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 # Una tarea que nunca termina (por ejemplo sin worker) no debe dejar el stream abierto.
 STREAM_MAX_SECONDS = 15 * 60
+
+TASK_UNAVAILABLE_MESSAGE = (
+    "La tarea ya no está disponible: el servidor se reinició o pasó demasiado tiempo. "
+    "Probá de nuevo."
+)
 
 
 def _normalize_task_status(state: str) -> TaskStatus:
@@ -56,6 +61,16 @@ def get_task_response(task_id: str) -> TaskResponse:
             status=status_value,
             result=local_payload,
             error=local_error,
+        )
+
+    if is_local_mode():
+        # Sin worker, una tarea que no está en memoria se perdió con un reinicio o
+        # ya venció. Celery devolvería "pending" y el cliente esperaría hasta el
+        # tiempo límite del stream.
+        return TaskResponse(
+            task_id=task_id,
+            status="failed",
+            error=TASK_UNAVAILABLE_MESSAGE,
         )
 
     result = AsyncResult(task_id, app=celery_app)

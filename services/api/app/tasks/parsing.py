@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from app.config import settings
 from app.core.public_errors import public_error_message
 from app.core.task_ids import new_task_id
 from app.database import get_supabase_client
@@ -15,7 +14,7 @@ from app.services.cv_parser import (
     structure_cv_text,
 )
 from app.tasks import celery_app
-from app.tasks.local_fallback import enqueue_local_task
+from app.tasks.local_fallback import enqueue_local_task, is_local_mode
 
 DOCUMENTS_BUCKET = "cv-documents"
 
@@ -174,7 +173,7 @@ def parse_cv_task(document_id: str) -> dict[str, Any]:
 
 
 def enqueue_parse_cv(document_id: str, owner_id: str) -> str:
-    if settings.task_execution_mode.lower() == "local":
+    if is_local_mode():
         return enqueue_local_task(
             lambda: run_parse_cv(document_id),
             prefix="local-parse-cv",

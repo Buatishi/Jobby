@@ -42,7 +42,11 @@ El `.env.example` de la raíz ya usa `TASK_EXECUTION_MODE=local` para desarrollo
 ## 4. Límites
 
 - El estado vive en la memoria del proceso: si el servicio se reinicia o se duerme mientras
-  corre una tarea, esa tarea se pierde y hay que repetirla.
+  corre una tarea, esa tarea se pierde y hay que repetirla. Desde el 2026-09-23, consultar
+  una tarea que ya no está en memoria responde enseguida `failed` con un mensaje que pide
+  repetirla; antes el cliente esperaba los 15 minutos del tiempo límite del stream.
+- Una tarea terminada se conserva una hora para que el cliente lea el resultado y después
+  se descarta (`FINISHED_TASK_RETENTION_SECONDS`): así la memoria no crece con cada tarea.
 - Es una sola instancia (Render Free no permite más) y comparte los 512 MB con la API.
 - El análisis por URL usa Playwright, y la imagen de la API no instala Chromium
   (`services/api/Dockerfile`): es un pendiente aparte, ver `docs/05-pendientes-producto.md`.
