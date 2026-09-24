@@ -55,7 +55,8 @@ y emisión del JWT) está delegada en Supabase Auth.
 3. `PATCH` y `DELETE` de `jobs`, con 409 `JOB_HAS_DEPENDENT_RESULTS` (hecho el 2026-09-24,
    Decisión 1).
 4. `users.role`, `GET /admin/metrics` y `GET /users/me` (hecho el 2026-09-24, Decisión 21).
-5. Datos inválidos responden 400 `VALIDATION_ERROR`, con límites de entrada.
+5. Datos inválidos responden 400 `VALIDATION_ERROR`, con límites de entrada; también un id
+   mal formado que rechaza la base (hecho el 2026-09-24, Decisión 8).
 6. Tests unitarios separados de los de integración; estos contra un Supabase de prueba.
 7. Pipeline con gate de deploy y `main` como única rama de producción (hecho el 2026-09-24).
 8. Frontend: logout, manejo de 403, plan real en la interfaz y sin fallback a la URL de

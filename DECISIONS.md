@@ -666,3 +666,14 @@ la implementación:
   simulador acepta cualquier texto. En los otros routers sigue pendiente.
 - **Web:** la pantalla Jobs suma «Editar» (un formulario en la misma tarjeta que envía solo lo
   cambiado) y «Eliminar» (con confirmación, y el motivo del 409 cuando corresponde).
+
+## Actualización — Decisión 8 (2026-09-24)
+
+**Estado:** Ampliada.
+
+Un dato con formato inválido que no valida FastAPI también responde 400 `VALIDATION_ERROR`:
+cuando PostgreSQL rechaza un valor por su formato (código `22P02`, por ejemplo un id que no es
+uuid en `/matches/{id}` o en el cuerpo de un pedido), el manejador global de errores de Supabase
+lo traduce a 400 en lugar de 500. Cubre todas las rutas de una vez, incluidas las que se agreguen.
+Los puestos, además, validan su id como uuid antes de consultar la base (Decisión 1). Cualquier
+otro error de la base sigue respondiendo 500 y queda registrado.

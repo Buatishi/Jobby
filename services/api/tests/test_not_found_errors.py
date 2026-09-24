@@ -20,7 +20,7 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
-from tests.fakes import FakeSupabase
+from tests.fakes import FakeResponse, FakeSupabase, FakeTableQuery
 
 
 async def _fake_current_user() -> CurrentUser:
@@ -132,6 +132,73 @@ async def test_supabase_error_handler_keeps_the_error_format() -> None:
     )
 
     assert response.status_code == 500
+    assert response.media_type == "application/json"
+
+
+def _malformed_uuid_error(value: object) -> APIError:
+    return APIError(
+        {
+            "message": f'invalid input syntax for type uuid: "{value}"',
+            "code": "22P02",
+            "hint": None,
+            "details": None,
+        }
+    )
+
+
+class _RejectsMalformedIds(FakeSupabase):
+    """Como PostgreSQL: un id que no es uuid hace fallar la consulta con 22P02."""
+
+    def table(self, table_name: str) -> FakeTableQuery:
+        query = super().table(table_name)
+
+        async def execute() -> FakeResponse | None:
+            raise _malformed_uuid_error(query.filters.get("id"))
+
+        query.execute = execute  # type: ignore[method-assign]
+        return query
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/api/v1/matches/no-es-un-uuid"),
+        ("get", "/api/v1/ats/no-es-un-uuid"),
+        ("get", "/api/v1/interview-kits/no-es-un-uuid"),
+        ("delete", "/api/v1/profiles/documents/no-es-un-uuid"),
+    ],
+)
+def test_a_malformed_id_rejected_by_the_database_is_a_400(
+    client: TestClient, method: str, path: str
+) -> None:
+    """Con la base real, un id mal formado hacía fallar la consulta: la API daba 500."""
+    supabase = _RejectsMalformedIds()
+
+    async def fake_client() -> FakeSupabase:
+        return supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = getattr(client, method)(path)
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == "VALIDATION_ERROR"
+    assert set(body) == {"error", "code", "details"}
+    assert "invalid input syntax" not in body["error"]
+
+
+async def test_supabase_error_handler_answers_400_for_a_malformed_value() -> None:
+    class _Request:
+        url = type("Url", (), {"path": "/api/v1/matches/x"})()
+
+    response = await supabase_error_handler(
+        _Request(),  # type: ignore[arg-type]
+        _malformed_uuid_error("x"),
+    )
+
+    assert response.status_code == 400
     assert response.media_type == "application/json"
 
 

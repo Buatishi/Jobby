@@ -43,6 +43,11 @@ async def http_error_handler(
     )
 
 
+# PostgreSQL responde con este código cuando un valor no tiene el formato de su columna,
+# por ejemplo un id que no es uuid: es un dato mal formado del cliente, no una falla.
+INVALID_TEXT_REPRESENTATION = "22P02"
+
+
 async def supabase_error_handler(
     request: Request,
     exc: Exception,
@@ -52,6 +57,14 @@ async def supabase_error_handler(
     Sin esto FastAPI responde 500 en texto plano y se rompe el formato único de error.
     El detalle interno queda en el registro, no en la respuesta.
     """
+    if getattr(exc, "code", None) == INVALID_TEXT_REPRESENTATION:
+        logger.info("Dato con formato inválido en %s", request.url.path)
+        return error_response(
+            message="Algún identificador o dato tiene un formato inválido",
+            code="VALIDATION_ERROR",
+            status_code=400,
+        )
+
     logger.exception("Error de Supabase sin manejar en %s", request.url.path)
     sentry_sdk.capture_exception(exc)
     return error_response(
