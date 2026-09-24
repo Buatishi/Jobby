@@ -54,7 +54,7 @@ def test_create_document_enqueues_parse_task(
             "type": "cv",
             "cv_slot": 1,
             "is_primary": True,
-            "storage_path": "user-1/cv.pdf",
+            "storage_path": "auth-user-1/cv.pdf",
             "original_filename": "cv.pdf",
             "mime_type": "application/pdf",
             "file_size": 1000,
@@ -66,6 +66,87 @@ def test_create_document_enqueues_parse_task(
     assert enqueued == ["uploaded_documents-1"]
     assert fake_supabase.tables["uploaded_documents"][0]["status"] == "pending"
 
+
+
+def _document_payload(**overrides: Any) -> dict[str, Any]:
+    return {
+        "profile_id": "profile-1",
+        "type": "cv",
+        "cv_slot": 1,
+        "is_primary": True,
+        "storage_path": "auth-user-1/cv.pdf",
+        "original_filename": "cv.pdf",
+        "mime_type": "application/pdf",
+        "file_size": 1000,
+        **overrides,
+    }
+
+
+def _no_enqueue(document_id: str, owner_id: str) -> str:
+    raise AssertionError("No se debe procesar un documento rechazado.")
+
+
+@pytest.mark.parametrize(
+    "storage_path",
+    [
+        "auth-user-2/cv.pdf",
+        "auth-user-1/../auth-user-2/cv.pdf",
+        "auth-user-1/./cv.pdf",
+        "/auth-user-1/cv.pdf",
+        "auth-user-1",
+        "cv.pdf",
+    ],
+)
+def test_document_outside_the_own_folder_is_rejected(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    storage_path: str,
+) -> None:
+    """La API baja el archivo con la clave de servicio: una ruta ajena da otro CV."""
+    fake_supabase = FakeSupabase()
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+    monkeypatch.setattr(parsing, "enqueue_parse_cv", _no_enqueue)
+
+    response = client.post(
+        "/api/v1/profiles/documents",
+        json=_document_payload(storage_path=storage_path),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "INVALID_STORAGE_PATH"
+    assert fake_supabase.tables["uploaded_documents"] == []
+
+
+def test_document_for_another_persons_profile_is_not_found(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = FakeSupabase()
+    # FakeSupabase ya trae profile-1 de user-1; profile-2 es de otra persona.
+    fake_supabase.tables["master_profiles"].append(
+        {"id": "profile-2", "user_id": "user-2"}
+    )
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+    monkeypatch.setattr(parsing, "enqueue_parse_cv", _no_enqueue)
+
+    response = client.post(
+        "/api/v1/profiles/documents",
+        json=_document_payload(profile_id="profile-2"),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "PROFILE_NOT_FOUND"
+    assert fake_supabase.tables["uploaded_documents"] == []
 
 def test_create_document_replaces_existing_cv_slot_before_enqueue(
     client: TestClient,
@@ -104,7 +185,7 @@ def test_create_document_replaces_existing_cv_slot_before_enqueue(
             "type": "cv",
             "cv_slot": 1,
             "is_primary": True,
-            "storage_path": "user-1/new.pdf",
+            "storage_path": "auth-user-1/new.pdf",
             "original_filename": "new.pdf",
             "mime_type": "application/pdf",
             "file_size": 1000,
@@ -115,7 +196,7 @@ def test_create_document_replaces_existing_cv_slot_before_enqueue(
     assert response.json()["task_id"] == "task-retry"
     assert len(fake_supabase.tables["uploaded_documents"]) == 1
     document = fake_supabase.tables["uploaded_documents"][0]
-    assert document["storage_path"] == "user-1/new.pdf"
+    assert document["storage_path"] == "auth-user-1/new.pdf"
     assert enqueued == ["uploaded_documents-1"]
 
 

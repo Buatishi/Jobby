@@ -34,6 +34,29 @@ def _not_found() -> HTTPException:
     )
 
 
+def _ensure_own_storage_path(storage_path: str, supabase_uid: str) -> None:
+    """El archivo tiene que estar dentro de la carpeta de la persona en el bucket.
+
+    La API lo descarga con la clave de servicio, que no pasa por las políticas del
+    bucket: sin esta verificación, registrar la ruta del CV de otra persona haría que se
+    procese y se muestre como propio. El navegador sube a `<uid>/<uuid>-<nombre>`.
+    """
+    segments = storage_path.split("/")
+    if (
+        len(segments) < 2
+        or segments[0] != supabase_uid
+        or any(segment in {"", ".", ".."} for segment in segments)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "La ruta del archivo no es válida",
+                "code": "INVALID_STORAGE_PATH",
+                "details": {},
+            },
+        )
+
+
 async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
     response = (
         await supabase.table("master_profiles")
@@ -195,6 +218,13 @@ async def create_profile_document(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> UploadedDocument:
+    # El perfil y el archivo tienen que ser de quien llama: mismo 404 si el perfil no
+    # existe o es ajeno, para no revelar ids de otras personas.
+    profile = await _fetch_profile(supabase, current_user.id)
+    if str(profile.get("id")) != payload.profile_id:
+        raise _not_found()
+    _ensure_own_storage_path(payload.storage_path, current_user.supabase_uid)
+
     await _prepare_cv_slot_for_insert(supabase, current_user.id, payload)
 
     document_payload = {
