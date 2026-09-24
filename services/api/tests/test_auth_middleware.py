@@ -1,16 +1,23 @@
 import jwt
+import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.database import get_supabase_client
-from app.dependencies import validate_jwt
+from app.dependencies import SESSION_VERIFIED_BY_AUTH, validate_jwt
 from app.main import app
 from tests.fakes import FakeSupabase
 
+SESSION_ID = "0f6b7c2e-3d1a-4b8e-9c5f-1a2b3c4d5e6f"
+
 
 async def _valid_claims() -> dict[str, str]:
-    return {"sub": "auth-user-1", "email": "person@example.com"}
+    return {
+        "sub": "auth-user-1",
+        "email": "person@example.com",
+        "session_id": SESSION_ID,
+    }
 
 
 async def _fake_supabase() -> FakeSupabase:
@@ -40,6 +47,7 @@ def test_valid_token_provisions_missing_public_user(client: TestClient) -> None:
             "sub": "auth-user-2",
             "email": "new@example.com",
             "user_metadata": {"full_name": "New User"},
+            "session_id": SESSION_ID,
         }
 
     async def fake_client() -> FakeSupabase:
@@ -135,3 +143,87 @@ async def test_token_falls_back_to_supabase_auth_user(
 
     assert claims["sub"] == "auth-user-1"
     assert claims["email"] == "person@example.com"
+
+
+# --- cierre de sesión: el token de una sesión cerrada deja de servir ------------------
+
+
+def _signed_in_with(fake: FakeSupabase) -> None:
+    async def fake_client() -> FakeSupabase:
+        return fake
+
+    app.dependency_overrides[validate_jwt] = _valid_claims
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+
+def test_the_session_is_checked_with_the_user_of_the_token(client: TestClient) -> None:
+    fake = FakeSupabase()
+    _signed_in_with(fake)
+
+    response = client.get("/api/v1/profiles/me", headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 200
+    assert fake.rpc_params["session_is_active"] == {
+        "p_session_id": SESSION_ID,
+        "p_supabase_uid": "auth-user-1",
+    }
+
+
+def test_a_token_of_a_closed_session_is_rejected(client: TestClient) -> None:
+    """Cerrar sesión borra la sesión: el token, aunque no venció, ya no sirve."""
+    fake = FakeSupabase()
+    fake.closed_sessions.add(SESSION_ID)
+    _signed_in_with(fake)
+
+    response = client.get("/api/v1/profiles/me", headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "UNAUTHORIZED"
+    assert "sesión se cerró" in response.json()["error"]
+
+
+@pytest.mark.parametrize("session_id", [None, "", "no-es-un-uuid"])
+def test_a_token_without_a_valid_session_is_rejected(
+    client: TestClient, session_id: str | None
+) -> None:
+    async def claims() -> dict[str, object]:
+        return {
+            "sub": "auth-user-1",
+            "email": "person@example.com",
+            "session_id": session_id,
+        }
+
+    async def fake_client() -> FakeSupabase:
+        return FakeSupabase()
+
+    app.dependency_overrides[validate_jwt] = claims
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.get("/api/v1/profiles/me", headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 401
+
+
+def test_tokens_checked_by_supabase_auth_skip_the_session_query(
+    client: TestClient,
+) -> None:
+    """Validado por Supabase Auth por HTTP: ese servicio ya rechazó los cerrados."""
+    fake = FakeSupabase()
+
+    async def claims() -> dict[str, object]:
+        return {
+            "sub": "auth-user-1",
+            "email": "person@example.com",
+            SESSION_VERIFIED_BY_AUTH: True,
+        }
+
+    async def fake_client() -> FakeSupabase:
+        return fake
+
+    app.dependency_overrides[validate_jwt] = claims
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.get("/api/v1/profiles/me", headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 200
+    assert "session_is_active" not in fake.rpc_calls

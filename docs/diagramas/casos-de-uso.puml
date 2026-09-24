@@ -27,6 +27,7 @@ rectangle "Jobby" {
     usecase "Recuperar contraseña" as CU03
     usecase "Autenticar con Google" as CU04
     usecase "Eliminar cuenta" as CU22
+    usecase "Cerrar sesión" as CU24
   }
   rectangle "CV y perfil" {
     usecase "Cargar CV" as CU05
@@ -80,6 +81,7 @@ U --> CU17
 U --> CU18
 U --> CU19
 U --> CU22
+U --> CU24
 P --> CU14
 P --> CU15
 
@@ -95,6 +97,7 @@ CU21 .> CU20 : <<extend>>
 A --> CU23
 
 CU02 -- ID
+CU24 -- ID
 CU04 -- ID
 CU06 -- IA
 CU10 -- IA

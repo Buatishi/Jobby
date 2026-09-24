@@ -96,8 +96,13 @@ Configuración necesaria en Supabase:
 
 - Activar las extensiones `pgcrypto` y `vector`.
 - Crear el bucket privado `cv-documents` en Storage.
-- Configurar los proveedores de Auth y permitir la URL de redirección
-  `<dominio de la web>/api/auth/callback`.
+- En Authentication → URL Configuration: **Site URL** con el dominio de producción
+  (`https://jobbyweb.vercel.app`) y, en **Redirect URLs**, `https://jobbyweb.vercel.app/**` y
+  `http://localhost:3000/**`. El comodín hace falta porque la vuelta de Google lleva
+  `?next=` y la recuperación de contraseña vuelve a `/reset-password`; si la URL no está
+  permitida, Supabase manda a la Site URL (con `localhost:3000`, el login con Google termina
+  en una página que no carga).
+- Configurar los proveedores de Auth (Google).
 - Aplicar las políticas RLS de las migraciones antes de probar flujos con sesión iniciada.
 
 ### Rol de administración

@@ -34,7 +34,7 @@ rectangle "Sitios de ofertas\ny LinkedIn" as W #FFE9AE
 rectangle "Servicio de email" as EM #FFE9AE
 rectangle "Sentry" as SE #FFE9AE
 
-P1 --> ID : F21 Credenciales a verificar\nF23 Orden de eliminar identidad
+P1 --> ID : F21 Credenciales a verificar\nF23 Orden de eliminar identidad\nF36 Orden de cerrar la sesión
 P1 <-- ID : F22 Sesión e identidad verificada
 P2 --> IA : F24.2 Instrucciones con texto del CV\nF25.2 Textos a vectorizar
 P2 <-- IA : F26.2 Datos estructurados\nF27.2 Vectores de significado

@@ -36,10 +36,10 @@ Numeradas como en el diagrama.
 | N.º | De → a | Protocolo y puerto | ¿Cruza Internet? | Qué viaja |
 |---|---|---|---|---|
 | 1 | Navegador → web | HTTPS 443 | Sí | Páginas y llamadas de la interfaz a `/api/backend/*` (mismo origen: sin CORS en el navegador). |
-| 2 | Navegador → Supabase | HTTPS 443 | Sí | Registro, login, Google, renovación del token y subida del PDF con la sesión de la persona. |
+| 2 | Navegador → Supabase | HTTPS 443 | Sí | Registro, login, Google, renovación del token, cierre de sesión y subida del PDF con la sesión de la persona. |
 | 3 | Web (Vercel) → API | HTTPS 443 | Sí | JSON con el token `Bearer`; Vercel reescribe `/api/backend/*` a `/api/v1/*`. |
 | — | Balanceador de Render → contenedor | HTTP 8000 | No, red interna de Render | Render termina el TLS y reenvía al puerto 8000 del contenedor. |
-| 4 | API → Supabase | HTTPS 443 | Sí | Consultas por PostgREST con la clave de servicio, claves públicas para validar el token y archivos. |
+| 4 | API → Supabase | HTTPS 443 | Sí | Consultas por PostgREST con la clave de servicio, claves públicas para validar el token, la comprobación de que la sesión siga abierta y archivos. |
 | 5 | API → tareas | Llamada dentro del mismo proceso | No | La orden de procesar un CV, un puesto o un match. |
 | 6 | Tareas → Supabase | HTTPS 443 | Sí | Estado, resultados, vectores y descarga del PDF. |
 | 7 | API → Redis | `rediss` (TLS) 6379 | Sí | Contadores de límites por plan y claves de idempotencia del webhook. |

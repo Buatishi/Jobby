@@ -1,3 +1,5 @@
+import asyncio
+import uuid
 from typing import Annotated, Any, cast
 
 import httpx
@@ -10,6 +12,9 @@ from app.database import get_supabase_client
 from app.models.auth import CurrentUser
 
 bearer_scheme = HTTPBearer(auto_error=False)
+# Marca de las claims que validó Supabase Auth por HTTP: ese camino ya rechaza los
+# tokens de sesiones cerradas, así que no hace falta volver a consultar la sesión.
+SESSION_VERIFIED_BY_AUTH = "x-jobby-session-verified"
 _jwks_cache: dict[str, Any] | None = None
 
 
@@ -63,6 +68,7 @@ async def _validate_with_supabase_auth(
         "sub": supabase_uid,
         "email": user_payload.get("email"),
         "aud": "authenticated",
+        SESSION_VERIFIED_BY_AUTH: True,
     }
 
 
@@ -167,6 +173,26 @@ async def validate_jwt(
         return await _validate_with_supabase_auth(token, settings)
 
 
+async def _session_is_active(
+    supabase: Any, session_id: Any, supabase_uid: str
+) -> bool:
+    """Si la sesión del token sigue abierta en Supabase Auth (migración 027).
+
+    La firma y el vencimiento se validan localmente; esto agrega lo que la firma no
+    puede saber: que la persona cerró sesión. Cerrarla borra la sesión y el token deja
+    de servir.
+    """
+    try:
+        session_uuid = uuid.UUID(str(session_id))
+    except ValueError:
+        return False
+    response = await supabase.rpc(
+        "session_is_active",
+        {"p_session_id": str(session_uuid), "p_supabase_uid": supabase_uid},
+    ).execute()
+    return getattr(response, "data", None) is True
+
+
 async def get_current_user(
     claims: Annotated[dict[str, Any], Depends(validate_jwt)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
@@ -175,14 +201,27 @@ async def get_current_user(
     if not isinstance(supabase_uid, str) or not supabase_uid:
         raise _unauthorized()
 
-    response = (
-        await supabase.table("users")
-        .select("id,supabase_uid,email,role,tier")
-        .eq("supabase_uid", supabase_uid)
-        .maybe_single()
-        .execute()
-    )
-    user_data = getattr(response, "data", None)
+    async def fetch_user() -> Any:
+        response = (
+            await supabase.table("users")
+            .select("id,supabase_uid,email,role,tier")
+            .eq("supabase_uid", supabase_uid)
+            .maybe_single()
+            .execute()
+        )
+        return getattr(response, "data", None)
+
+    if claims.get(SESSION_VERIFIED_BY_AUTH):
+        user_data = await fetch_user()
+    else:
+        # En paralelo con la lectura del usuario: no suma otra ida y vuelta.
+        session_active, user_data = await asyncio.gather(
+            _session_is_active(supabase, claims.get("session_id"), supabase_uid),
+            fetch_user(),
+        )
+        if not session_active:
+            raise _unauthorized("La sesión se cerró. Volvé a iniciar sesión.")
+
     if not isinstance(user_data, dict):
         email = _claim_email(claims)
         if email is None:

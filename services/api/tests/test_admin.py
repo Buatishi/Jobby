@@ -36,7 +36,11 @@ METRICS: dict[str, Any] = {
 
 
 async def _claims() -> dict[str, str]:
-    return {"sub": "auth-user-1", "email": "person@example.com"}
+    return {
+        "sub": "auth-user-1",
+        "email": "person@example.com",
+        "session_id": "0f6b7c2e-3d1a-4b8e-9c5f-1a2b3c4d5e6f",
+    }
 
 
 @pytest.fixture
@@ -87,7 +91,7 @@ def test_an_admin_gets_the_aggregated_metrics(
     assert body["daily_activity"] == [
         {"day": "2026-09-24", "cvs": 1, "jobs": 2, "matches": 2}
     ]
-    assert signed_in.rpc_calls == ["admin_metrics"]
+    assert signed_in.rpc_calls.count("admin_metrics") == 1
 
 
 def test_fields_outside_the_model_never_reach_the_client(
