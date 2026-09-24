@@ -207,6 +207,9 @@ class FakeSupabase:
         self.completeness = 21
         self.admin_metrics: dict[str, Any] | None = None
         self.rpc_calls: list[str] = []
+        self.rpc_params: dict[str, dict[str, Any]] = {}
+        # Sesiones que la persona cerró: su token ya no debe servir.
+        self.closed_sessions: set[str] = set()
         self.storage = FakeStorage()
         self.auth = FakeAuth()
 
@@ -215,6 +218,9 @@ class FakeSupabase:
 
     def rpc(self, function_name: str, _params: dict[str, Any]) -> FakeRpcQuery:
         self.rpc_calls.append(function_name)
+        self.rpc_params[function_name] = dict(_params)
+        if function_name == "session_is_active":
+            return FakeRpcQuery(_params["p_session_id"] not in self.closed_sessions)
         if function_name == "admin_metrics":
             return FakeRpcQuery(self.admin_metrics)
 
