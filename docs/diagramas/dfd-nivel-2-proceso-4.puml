@@ -21,7 +21,7 @@ title DFD nivel 2 — Proceso 4: Evaluar compatibilidad
 
 rectangle "Persona\nusuaria" as U #D5EBE3
 rectangle "Proveedores de IA\nDeepSeek y Claude (texto)\nOpenAI (vectores)" as IA #FFE9AE
-usecase "3\nAnalizar puesto\n(proceso vecino)" as P3 #F1F1F1
+usecase "3\nAnalizar y gestionar\npuestos (proceso vecino)" as P3 #F1F1F1
 
 usecase "4.1\nCalcular los puntajes\nde compatibilidad" as P41 #D6E2F3
 usecase "4.2\nExplicar el resultado\ncon IA y guardarlo" as P42 #D6E2F3

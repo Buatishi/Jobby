@@ -36,6 +36,8 @@ rectangle "Jobby" {
   }
   rectangle "Puestos y compatibilidad" {
     usecase "Analizar puesto" as CU08
+    usecase "Editar puesto" as CU25
+    usecase "Eliminar puesto" as CU26
     usecase "Leer página del puesto" as CU09
     usecase "Estructurar puesto con IA" as CU10
     usecase "Calcular Match Score" as CU11
@@ -57,6 +59,8 @@ rectangle "Jobby" {
   }
 }
 
+' Las asociaciones con «---» son más largas a propósito: dejan a los actores de sistema a la
+' derecha del rectángulo y no debajo, que alargaba la lámina A3 y achicaba la letra.
 actor "Supabase Auth\ncon Google" as ID <<sistema>>
 actor "Proveedores de IA" as IA <<sistema>>
 actor "Sitios de ofertas\ny LinkedIn" as W <<sistema>>
@@ -75,6 +79,8 @@ CU04 .> CU02 : <<extend>>
 U --> CU05
 U --> CU07
 U --> CU08
+U --> CU25
+U --> CU26
 U --> CU12
 U --> CU13
 U --> CU17
@@ -96,14 +102,14 @@ CU21 .> CU20 : <<extend>>
 
 A --> CU23
 
-CU02 -- ID
-CU24 -- ID
-CU04 -- ID
+CU02 --- ID
+CU24 --- ID
+CU04 --- ID
 CU06 -- IA
 CU10 -- IA
 CU14 -- IA
 CU15 -- IA
-CU09 -- W
-CU20 -- LS
-CU21 -- EM
+CU09 --- W
+CU20 --- LS
+CU21 --- EM
 @enduml

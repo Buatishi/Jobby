@@ -24,7 +24,7 @@ rectangle "Administrador" as A #D5EBE3
 rectangle "Sistema Jobby" as SIS #FFFFFF {
   usecase "1\nGestionar cuenta\ny acceso" as P1 #D6E2F3
   usecase "2\nProcesar CV\ny perfil" as P2 #D6E2F3
-  usecase "3\nAnalizar\npuesto" as P3 #D6E2F3
+  usecase "3\nAnalizar y\ngestionar puestos" as P3 #D6E2F3
   usecase "4\nEvaluar\ncompatibilidad" as P4 #D6E2F3
   usecase "5\nGenerar kit\nde entrevista" as P5 #D6E2F3
   usecase "6\nGestionar\nsuscripción" as P6 #D6E2F3
@@ -35,8 +35,8 @@ U --> P1 : F1 Credenciales y datos de registro\nF7 Solicitud de baja de cuenta\n
 U <-- P1 : F18 Confirmación de baja
 U --> P2 : F2 CV en PDF\nF3 Datos del perfil
 U <-- P2 : F11 Perfil estructurado del CV\nF15.2 Estado de la tarea
-U --> P3 : F4 Oferta laboral
-U <-- P3 : F15.3 Estado de la tarea
+U --> P3 : F4 Oferta laboral\nF37 Cambios en los datos de un puesto\nF38 Solicitud de baja de un puesto
+U <-- P3 : F15.3 Estado de la tarea\nF39 Puestos guardados\nF40 Resultado de la baja del puesto
 P3 --> P4 : Identificadores de puesto y perfil
 U --> P4 : F5.1 Valoración del match\nF8 Solicitud de CV optimizado
 U <-- P4 : F12 Resultados de compatibilidad\nF13 CV optimizado\nF17 Resumen del panel\nF15.4 Estado de la tarea

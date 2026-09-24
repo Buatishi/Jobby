@@ -11,6 +11,10 @@ usan el Match Score, el reporte ATS, el Reality Gap y el optimizador de CV) y lo
 ATS (`F25.4` y `F27.4`). Se agregaron en las vistas 1B y 1C y en la tabla de correspondencia; el
 nivel 0 no cambia porque `F25` y `F27` ya estaban.
 
+**Actualización del 2026-09-24.** Editar y eliminar puestos (Decisión 1) suma `F37` a `F40` y el
+proceso 3 pasa a llamarse «Analizar y gestionar puestos». `F39` también cubre la lista de puestos
+guardados (`GET /jobs`), que la pantalla Jobs ya mostraba y este diagrama no dibujaba.
+
 ## Convenciones
 
 | Símbolo | Significa |
@@ -83,6 +87,10 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-0.pdf](pdf/laminas/dfd-nivel
 | F34 | Eventos de error | Sistema | Sentry |
 | F35 | Solicitud de cierre de sesión | Persona usuaria | Sistema |
 | F36 | Orden de cerrar la sesión | Sistema | Proveedor de identidad |
+| F37 | Cambios en los datos de un puesto (título, empresa, seniority, modalidad y salario) | Persona usuaria | Sistema |
+| F38 | Solicitud de baja de un puesto | Persona usuaria | Sistema |
+| F39 | Puestos guardados (la lista y los datos actualizados) | Sistema | Persona usuaria |
+| F40 | Resultado de la baja del puesto (confirmación o motivo del rechazo) | Sistema | Persona usuaria |
 
 `F10` no se usa: la numeración se conserva para que los identificadores no cambien entre
 niveles.
@@ -121,7 +129,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-1-vista-c.pdf](pdf/laminas/d
 |---|---|---|---|
 | 1 | Gestionar cuenta y acceso | Registro, inicio y cierre de sesión (con Supabase Auth; cada pedido verifica que la sesión siga abierta) y baja de cuenta: borra archivos, caché, claves, el usuario (los datos personales se eliminan en cascada) y la identidad | `DELETE /users/me` |
 | 2 | Procesar CV y perfil | Recibe el PDF, extrae su texto, lo estructura con IA, genera vectores y arma el perfil maestro; permite confirmar o rechazar habilidades y completar experiencia, educación e idiomas | `POST /profiles/documents`, `/profiles/*` |
-| 3 | Analizar puesto | Valida la URL o el texto, obtiene el contenido de la página, lo estructura con IA, genera vectores y guarda el puesto | `POST /jobs/analyze` |
+| 3 | Analizar y gestionar puestos | Valida la URL o el texto, obtiene el contenido de la página, lo estructura con IA, genera vectores y guarda el puesto. Lista los puestos guardados, corrige sus datos (sin volver a analizarlos) y elimina los que no tienen comparaciones ni kits | `POST /jobs/analyze`, `GET /jobs`, `PATCH` y `DELETE /jobs/{id}` |
 | 4 | Evaluar compatibilidad | Calcula el Match Score, el reporte ATS y el Reality Gap, arma el resumen del panel y, en el plan premium, optimiza el CV con IA | `/matches`, `/ats`, `/dashboard`, `/profiles/reality-gap` |
 | 5 | Generar kit de entrevista | Solo plan premium: arma el kit con IA a partir del perfil, el puesto y, si se indican, perfiles de LinkedIn | `/interview-kits` |
 | 6 | Gestionar suscripción | Crea el checkout, recibe los eventos firmados de LemonSqueezy, actualiza el plan y avisa por email | `POST /billing/checkout`, `POST /webhooks/lemonsqueezy` |
@@ -152,7 +160,7 @@ el proceso 3 con el 4.
 | F1, F7, F18, F35 | F1, F7, F18, F35 | 1 |
 | F21, F22, F23, F36 | F21, F22, F23, F36 | 1 |
 | F2, F3, F11 | F2, F3, F11 | 2 |
-| F4 | F4 | 3 |
+| F4, F37, F38, F39, F40 | F4, F37, F38, F39, F40 | 3 |
 | F5 | F5.1 (match) y F5.2 (kit) | 4 y 5 |
 | F8, F12, F13, F17 | F8, F12, F13, F17 | 4 |
 | F9, F14 | F9, F14 | 5 |
@@ -167,5 +175,5 @@ el proceso 3 con el 4.
 | F32 | F32.3 y F32.5 | 3 y 5 |
 | F34 | F34 (desde el conjunto de procesos) | 1 a 6 |
 
-Comprobación de equilibrio: de los 35 flujos del nivel 0 (F1 a F36 sin F10), los 35 tienen su
+Comprobación de equilibrio: de los 39 flujos del nivel 0 (F1 a F40 sin F10), los 39 tienen su
 correspondiente en el nivel 1, con el mismo origen y destino externos.

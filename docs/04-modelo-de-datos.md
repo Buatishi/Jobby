@@ -65,6 +65,10 @@ De las 20 claves foráneas entre tablas de la aplicación, 18 borran en cascada,
 que alguien tiene asignado. La clave hacia `auth.users` no borra
 en cascada: por eso el borrado de cuenta elimina primero la fila de `users` y después la identidad.
 
+Borrar un puesto no llega a usar su cascada: `DELETE /jobs/{id}` responde 409 si el puesto tiene
+comparaciones (`job_matches`) o kits (`interview_kits`), para que nadie pierda resultados sin querer
+(Decisión 1). La cascada sí actúa al borrar la cuenta.
+
 ## 4. Reglas que impone la base
 
 - **Unicidad:** `users.supabase_uid`, un perfil por persona, un solo CV principal por persona
