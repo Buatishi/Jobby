@@ -329,7 +329,8 @@ repo, en `C:\Users\juany\tools`.
 
 **Elegida:** `main` es el tronco y la rama de producción; el trabajo va en ramas
 temáticas con prefijo (`feat/`, `fix/`, `docs/`, `test/`, `ci/`, `chore/`) integradas por
-PR. `feat/jobmatch-phase-1-2` queda congelada como historial. Los hitos se etiquetan con
+PR. `feat/jobmatch-phase-1-2` quedó congelada como historial hasta el 2026-09-24, cuando se
+borró junto con las ramas ya integradas (sus commits están en `main`). Los hitos se etiquetan con
 tags `milestone/NN-...` y el estado previo con `backup/pre-reorg-2026-09-20`. No se
 reescribe historial. Detalle en `docs/00-flujo-de-ramas.md`.
 
