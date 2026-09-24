@@ -48,7 +48,8 @@ def fake_supabase() -> Iterator[FakeSupabase]:
     ("method", "path", "code"),
     [
         ("get", "/api/v1/matches/no-existe", "MATCH_NOT_FOUND"),
-        ("get", "/api/v1/jobs/no-existe", "JOB_NOT_FOUND"),
+        # El id del puesto se valida como uuid: uno mal formado ya es un 400.
+        ("get", "/api/v1/jobs/00000000-0000-4000-8000-000000000000", "JOB_NOT_FOUND"),
         ("get", "/api/v1/ats/no-existe", "JOB_NOT_FOUND"),
         ("get", "/api/v1/interview-kits/no-existe", "INTERVIEW_KIT_NOT_FOUND"),
         ("delete", "/api/v1/profiles/documents/no-existe", "DOCUMENT_NOT_FOUND"),
