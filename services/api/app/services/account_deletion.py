@@ -69,7 +69,7 @@ async def invalidate_user_redis(
     client = redis_client or Redis.from_url(settings.redis_url, decode_responses=True)
     try:
         keys: list[str] = []
-        for pattern in ("ai_cache:*", f"rate:*:{user_id}:*"):
+        for pattern in (f"rate:*:{user_id}:*",):
             cursor = 0
             while True:
                 cursor, batch = await client.scan(

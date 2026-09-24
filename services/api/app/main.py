@@ -19,7 +19,6 @@ from app.core.errors import (
     supabase_error_handler,
     validation_error_handler,
 )
-from app.services.rate_limits import limiter
 
 logger = logging.getLogger("jobmatch.api")
 
@@ -37,7 +36,6 @@ app = FastAPI(
     redoc_url=None if settings.is_production else "/redoc",
     openapi_url=None if settings.is_production else "/openapi.json",
 )
-app.state.limiter = limiter
 
 allowed_origins = ["http://localhost:3000"]
 if settings.frontend_url and settings.frontend_url not in allowed_origins:

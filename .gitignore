@@ -36,7 +36,7 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Third-party binaries and local scan outputs (never commit)
-output/tools/
+# Third-party binaries, local scan outputs and hand-made reports (never commit)
+output/
 graphify-out/
 nuclei-full-render.txt

@@ -26,11 +26,14 @@ const sensitiveHeaders = [
   }
 ];
 
+// Sin variables se usa la API local de desarrollo: nunca un servicio de producción por
+// defecto. Todo /api/backend/* pasa por esta reescritura (beforeFiles, antes que cualquier
+// ruta propia), así que no hace falta otro proxy.
 function getBackendBaseUrl() {
   return (
     process.env.API_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
-    "https://jobby-fp0r.onrender.com"
+    "http://localhost:8000"
   )
     .replace(/\/$/, "")
     .replace(/\/api\/v1$/, "");

@@ -42,10 +42,6 @@ class Settings(BaseSettings):
     frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
     frontend_origin_regex: str = Field(default="", alias="FRONTEND_ORIGIN_REGEX")
     environment: str = Field(default="development", alias="ENVIRONMENT")
-    public_app_url: str = Field(
-        default="http://localhost:3000",
-        alias="NEXT_PUBLIC_APP_URL",
-    )
 
     @property
     def is_production(self) -> bool:

@@ -53,7 +53,7 @@ en [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) y [docs/00-vision.md](
 
 ## Puesta en marcha local
 
-Requisitos: Node.js 22+, pnpm 9+, Python 3.13+, Poetry 1.8+ y Docker Desktop.
+Requisitos: Node.js 22+, pnpm 9+, Python 3.13+, Poetry 2.4+ y Docker Desktop.
 
 1. Levantar la infraestructura local (Redis):
 
@@ -192,9 +192,8 @@ Web:
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Conexión pública a Supabase |
 | `NEXT_PUBLIC_API_URL` | Dirección de la API |
-| `NEXT_PUBLIC_APP_URL` | Dirección de la web |
 | `NEXT_PUBLIC_PRICE_MONTHLY`, `NEXT_PUBLIC_PRICE_YEARLY` | Precios que se muestran |
-| `NEXT_PUBLIC_SENTRY_DSN` | Reporte de errores del navegador |
+| `NEXT_PUBLIC_SENTRY_DSN` | Reporte de errores del servidor de la web (opcional: sin valor, Sentry no se activa) |
 
-Secretos de GitHub para los despliegues de vista previa: `VERCEL_TOKEN`, `VERCEL_ORG_ID` y
-`VERCEL_PROJECT_ID`.
+Secretos de GitHub para el despliegue que corre después del CI: `RENDER_DEPLOY_HOOK_URL` y
+`VERCEL_DEPLOY_HOOK_URL` (ver `docs/06-arquitectura-y-despliegue.md`, sección 4).
