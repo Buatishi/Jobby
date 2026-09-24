@@ -56,3 +56,20 @@ describe("apiClient with a 403", () => {
     await expect(request).rejects.toThrow("Puesto no encontrado");
   });
 });
+
+describe("apiClient with an empty success", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("resolves a 204 without reading a body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 204 }))
+    );
+
+    await expect(
+      apiClient<void>("/api/v1/jobs/job-1", { method: "DELETE" })
+    ).resolves.toBeUndefined();
+  });
+});
