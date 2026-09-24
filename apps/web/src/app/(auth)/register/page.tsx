@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
+import { PasswordInput } from "@/src/components/auth/PasswordInput";
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
@@ -159,7 +160,7 @@ export default function RegisterPage() {
           <label className="text-sm font-semibold" htmlFor="password">
             {t("auth.password")}
           </label>
-          <input
+          <PasswordInput
             autoComplete="new-password"
             className={inputClassName}
             id="password"
@@ -167,7 +168,6 @@ export default function RegisterPage() {
             onChange={(event) => setPassword(event.target.value)}
             placeholder={t("auth.minPassword")}
             required
-            type="password"
             value={password}
           />
         </div>

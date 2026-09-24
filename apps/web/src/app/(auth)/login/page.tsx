@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
+import { PasswordInput } from "@/src/components/auth/PasswordInput";
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
@@ -146,14 +147,13 @@ export default function LoginPage() {
               {t("auth.forgotPassword")}
             </Link>
           </div>
-          <input
+          <PasswordInput
             autoComplete="current-password"
             className={inputClassName}
             id="password"
             minLength={6}
             onChange={(event) => setPassword(event.target.value)}
             required
-            type="password"
             value={password}
           />
         </div>
