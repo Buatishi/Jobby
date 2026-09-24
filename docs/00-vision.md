@@ -21,7 +21,7 @@ agregadas, nunca datos personales ni CVs.
 | Frontend Next.js 15 | Vercel (`jobbyweb.vercel.app`) | API, mediante el rewrite `/api/backend/*` | HTTPS 443 | Sí |
 | API FastAPI | Render, Docker (servicio `jobmatch-api`) | Supabase (PostgREST), Redis, proveedores de IA, Resend | HTTPS 443; rediss 6379 | Sí |
 | Workers Celery | Render (a confirmar, ver sección 10) | Redis, Supabase, proveedores de IA | rediss 6379; HTTPS 443 | Sí |
-| Datos | Supabase: Postgres 16 + pgvector, Auth y Storage (`cv-documents`) | — | 443 | Sí |
+| Datos | Supabase: Postgres 17 + pgvector, Auth y Storage (`cv-documents`) | — | 443 | Sí |
 | Cola y límites de uso | Upstash Redis | — | 6379 (TLS) | Sí |
 | Pagos | LemonSqueezy, webhook firmado con HMAC hacia la API | API | HTTPS 443 | Sí |
 | IA | DeepSeek (principal), OpenAI (solo embeddings), Anthropic (premium) | — | HTTPS 443 | Sí |

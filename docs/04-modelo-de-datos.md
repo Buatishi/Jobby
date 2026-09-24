@@ -3,7 +3,9 @@
 Estado: Etapa 1. Verificado el 2026-09-21 contra las 22 migraciones de
 `services/api/migrations` y contra los catálogos de la base real de Supabase (solo metadatos:
 tablas, columnas, tipos, claves, índices y políticas; no se leyó ningún dato de personas). Las
-columnas del diagrama se compararon una a una con `information_schema` y coinciden.
+columnas del diagrama se compararon una a una con `information_schema` y coinciden. Actualizado
+el 2026-09-23 con las migraciones 023 y 024, que agregan una función e índices sin cambiar
+tablas ni columnas.
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)
 
@@ -67,6 +69,9 @@ en cascada: por eso el borrado de cuenta elimina primero la fila de `users` y de
   usuario que sale del token.
 - **Vectores:** las columnas `embedding` usan pgvector (`vector(1536)`) con índices HNSW de
   coseno en `skills`, `educations` y `job_descriptions`.
+- **Claves foráneas indexadas:** desde la migración 024 (2026-09-23) cada una tiene su índice.
+  La API filtra por esas columnas en casi todas las consultas y los borrados en cascada las
+  recorren; antes, 15 no tenían índice y cada una de esas operaciones leía la tabla entera.
 
 El esquema no declara restricciones `CHECK`: los valores permitidos de `tier`, `status`, `type`,
 `cv_slot`, `user_rating` y similares los valida la API con modelos Pydantic.
@@ -79,6 +84,6 @@ El esquema no declara restricciones `CHECK`: los valores permitidos de `tier`, `
   del esquema son `SECURITY DEFINER` y solo las ejecuta la clave de servicio.
 - Desde el 2026-09-22 hay un segundo proyecto de Supabase (plan gratuito) dedicado a las
   pruebas, con las mismas migraciones y sin datos de personas (Decisión 4).
-- Supabase no registra migraciones aplicadas (se aplicaron desde el editor SQL).
-- La base real corre PostgreSQL 17.6; parte de la documentación y el `docker-compose.yml` local
-  mencionan la versión 16.
+- Hasta la 022, las migraciones se aplicaron desde el editor SQL y Supabase no las registró;
+  la 023 y la 024 se aplicaron primero en el proyecto de pruebas y quedaron registradas.
+- La base real corre PostgreSQL 17.6.
