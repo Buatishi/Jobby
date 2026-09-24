@@ -2,9 +2,10 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
 
+from app.core.permissions import fetch_permissions
 from app.database import get_supabase_client
 from app.dependencies import get_current_user
-from app.models.auth import CurrentUser
+from app.models.auth import CurrentUser, CurrentUserProfile
 from app.services.account_deletion import (
     capture_exception,
     delete_storage_prefix,
@@ -12,6 +13,22 @@ from app.services.account_deletion import (
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/me", response_model=CurrentUserProfile)
+async def get_current_user_profile(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> CurrentUserProfile:
+    """Rol, plan y permisos de quien llama: la web muestra solo lo que puede usar."""
+    permissions = await fetch_permissions(supabase, current_user.role)
+    return CurrentUserProfile(
+        id=current_user.id,
+        email=current_user.email,
+        role=current_user.role,
+        tier=current_user.tier,
+        permissions=sorted(permissions),
+    )
 
 
 async def _execute(query: Any) -> Any:

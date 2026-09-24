@@ -169,6 +169,7 @@ class FakeSupabase:
                     "supabase_uid": "auth-user-1",
                     "email": "person@example.com",
                     "tier": "free",
+                    "role": "user",
                 }
             ],
             "master_profiles": [
@@ -200,8 +201,12 @@ class FakeSupabase:
             "job_matches": [],
             "linkedin_scrape_cache": [],
             "interview_kits": [],
+            # Mismos permisos que siembra la migración 026.
+            "role_permissions": [{"role_id": "admin", "permission": "metrics:read"}],
         }
         self.completeness = 21
+        self.admin_metrics: dict[str, Any] | None = None
+        self.rpc_calls: list[str] = []
         self.storage = FakeStorage()
         self.auth = FakeAuth()
 
@@ -209,6 +214,10 @@ class FakeSupabase:
         return FakeTableQuery(self, table_name)
 
     def rpc(self, function_name: str, _params: dict[str, Any]) -> FakeRpcQuery:
+        self.rpc_calls.append(function_name)
+        if function_name == "admin_metrics":
+            return FakeRpcQuery(self.admin_metrics)
+
         if function_name == "set_primary_uploaded_document":
             user_id = _params["p_user_id"]
             document_id = _params["p_document_id"]
