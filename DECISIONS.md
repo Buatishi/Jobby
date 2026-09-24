@@ -505,7 +505,9 @@ descartada: exige un proceso de trabajo permanente que Render no ofrece gratis (
 Decisión 15) y sin él no se puede mostrar el mensaje entrando y saliendo de la cola; (b) declarar
 además el almacenamiento de archivos — descartada: la consigna recomienda una sola capacidad y
 descuenta si una adicional queda incompleta, y hoy `POST /profiles/documents` acepta la ruta del
-archivo sin verificar que pertenezca a la persona; (c) caché — el módulo existe pero no se usa.
+archivo sin verificar que pertenezca a la persona (corregido el 2026-09-23: la ruta tiene que
+estar en la carpeta de quien la registra y el perfil tiene que ser suyo);
+(c) caché — el módulo existe pero no se usa.
 
 **Fundamento:** es lo que el flujo central ya usa en producción, tiene tests propios (ruteo por
 plan y manejo de errores) y cumple la condición de la consigna de contemplar la falla o la demora
