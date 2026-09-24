@@ -18,7 +18,7 @@ title Diagrama de casos de uso de Jobby
 actor "Visitante" as V
 actor "Persona usuaria" as U
 actor "Persona usuaria\npremium" as P
-actor "Administrador\n(planificado)" as A
+actor "Administrador" as A
 
 rectangle "Jobby" {
   rectangle "Cuenta y acceso" {
@@ -63,6 +63,7 @@ actor "LemonSqueezy" as LS <<sistema>>
 actor "Servicio de email" as EM <<sistema>>
 
 P --|> U
+A --|> U
 
 V --> CU01
 V --> CU02

@@ -100,6 +100,19 @@ Configuración necesaria en Supabase:
   `<dominio de la web>/api/auth/callback`.
 - Aplicar las políticas RLS de las migraciones antes de probar flujos con sesión iniciada.
 
+### Rol de administración
+
+Toda cuenta nueva tiene el rol `user`. Para que una cuenta vea las métricas agregadas en
+`/admin`, se le asigna el rol `admin` desde el editor SQL de Supabase (no hay pantalla para
+eso, a propósito):
+
+```sql
+update public.users set role = 'admin' where email = '<correo de la cuenta>';
+```
+
+Para quitarlo, volver a `'user'`. Qué puede hacer cada rol está en la tabla `role_permissions`
+(Decisión 21); la web muestra la opción después de recargar la página.
+
 ## Controles antes de un pull request
 
 Web (desde `apps/web`):

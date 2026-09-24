@@ -18,6 +18,7 @@ const aiCrawlerPatterns = [
 ];
 
 const sensitivePrefixes = [
+  "/admin",
   "/api",
   "/dashboard",
   "/profile",
@@ -66,6 +67,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/admin/:path*",
     "/api/:path*",
     "/dashboard/:path*",
     "/profile/:path*",

@@ -12,15 +12,19 @@ import {
   Lock,
   Menu,
   MessagesSquare,
+  ShieldCheck,
   TriangleAlert,
   UserRound,
-  X
+  X,
+  type LucideIcon
 } from "lucide-react";
 
 import type { UserTier } from "@jobmatch/shared-types";
 import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { hasPermission, Permission } from "@/lib/auth/permissions";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +34,15 @@ type AppSidebarProps = {
   userName?: string;
 };
 
-const navItems = [
+type NavItem = {
+  href: string;
+  labelKey: string;
+  icon: LucideIcon;
+  pendingBadge?: boolean;
+  lockedForFree?: boolean;
+};
+
+const navItems: NavItem[] = [
   { href: "/dashboard", labelKey: "common.dashboard", icon: Gauge },
   { href: "/profile", labelKey: "common.profile", icon: UserRound },
   {
@@ -49,6 +61,13 @@ const navItems = [
   }
 ];
 
+// Solo aparece si la API informa el permiso; la API igual lo vuelve a verificar (403).
+const adminNavItem: NavItem = {
+  href: "/admin",
+  labelKey: "common.admin",
+  icon: ShieldCheck
+};
+
 function SidebarContent({
   pendingAnalysesCount,
   userTier,
@@ -57,6 +76,10 @@ function SidebarContent({
 }: AppSidebarProps & { onNavigate?: () => void }) {
   const { t } = useI18n();
   const pathname = usePathname();
+  const profile = useCurrentUser();
+  const items = hasPermission(profile, Permission.MetricsRead)
+    ? [...navItems, adminNavItem]
+    : navItems;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
@@ -88,7 +111,7 @@ function SidebarContent({
       <div className="h-px bg-neutral-100" />
 
       <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-5">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);

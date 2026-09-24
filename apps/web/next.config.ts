@@ -63,6 +63,10 @@ const nextConfig: NextConfig = {
         headers: securityHeaders
       },
       {
+        source: "/admin/:path*",
+        headers: sensitiveHeaders
+      },
+      {
         source: "/dashboard/:path*",
         headers: sensitiveHeaders
       },

@@ -15,6 +15,13 @@ export class ApiAuthenticationError extends Error {
   }
 }
 
+export class ApiForbiddenError extends Error {
+  constructor(message = "No tenés permisos para esta acción.") {
+    super(message);
+    this.name = "ApiForbiddenError";
+  }
+}
+
 export class ApiConnectionError extends Error {
   constructor(
     message = "No pudimos conectar con el servidor. Revisá la configuración y volvé a intentar."
@@ -147,6 +154,14 @@ export async function apiClient<TResponse>(
       await redirectToLoginAfterAuthFailure();
       throw new ApiAuthenticationError();
     }
+  }
+
+  if (response.status === 403) {
+    // La sesión es válida pero no alcanza: se informa, no se manda al login.
+    const payload = await parseApiError(response);
+    throw payload.startsWith("API request failed")
+      ? new ApiForbiddenError()
+      : new ApiForbiddenError(payload);
   }
 
   if (!response.ok) {

@@ -42,7 +42,7 @@ Ambiente local: frontend en `localhost:3000`, API en `localhost:8000` y Redis po
 | Eje | Valores | Dónde vive | Qué controla |
 |---|---|---|---|
 | Plan | `free` / `premium` | `users.tier` (existente) | Límites de uso y funciones premium (403 `PREMIUM_REQUIRED`) |
-| Rol | `user` / `admin` | `users.role` (migración 023, nueva) | Métricas agregadas en `/admin/metrics` (403 si no es admin) |
+| Rol | `user` / `admin` | `users.role` y `role_permissions` (migración 026) | Métricas agregadas en `/admin/metrics` (403 sin el permiso `metrics:read`) |
 
 El control de acceso vive en el servidor, en cada endpoint. La identidad sale del token,
 nunca de un parámetro del cliente. La autenticación (registro, login, hash de contraseñas
@@ -53,10 +53,10 @@ y emisión del JWT) está delegada en Supabase Auth.
 1. `/api/v1/tasks/{id}` y `/stream` con autenticación y control de dueño.
 2. El borrado de cuenta usa el bucket real `cv-documents` (Decisión 5).
 3. `PATCH` y `DELETE` de `jobs`, con 409 `JOB_HAS_DEPENDENT_RESULTS` (Decisión 1).
-4. `users.role`, `GET /admin/metrics` y `GET /users/me`.
+4. `users.role`, `GET /admin/metrics` y `GET /users/me` (hecho el 2026-09-24, Decisión 21).
 5. Datos inválidos responden 400 `VALIDATION_ERROR`, con límites de entrada.
 6. Tests unitarios separados de los de integración; estos contra un Supabase de prueba.
-7. Pipeline con gate de deploy y `main` como única rama de producción.
+7. Pipeline con gate de deploy y `main` como única rama de producción (hecho el 2026-09-24).
 8. Frontend: logout, manejo de 403, plan real en la interfaz y sin fallback a la URL de
    producción en `next.config.ts`.
 9. `docker-compose` con solo Redis (el Postgres local no se usa).

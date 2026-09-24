@@ -1,8 +1,7 @@
 # Casos de uso
 
 Estado: Etapa 1. Todo se verificó contra el código: endpoints de `services/api/app/api/v1/`,
-tareas de `services/api/app/tasks/` y pantallas de `apps/web`. Lo que aún no existe está marcado
-como **planificado**.
+tareas de `services/api/app/tasks/` y pantallas de `apps/web`.
 
 ## 1. Diagrama
 
@@ -18,7 +17,7 @@ lámina A3 en [pdf/laminas/casos-de-uso.pdf](pdf/laminas/casos-de-uso.pdf).
 | Visitante | Humano | Persona sin cuenta o sin sesión iniciada |
 | Persona usuaria | Humano | Persona con cuenta y plan gratuito |
 | Persona usuaria premium | Humano | Hereda todo lo de la persona usuaria y suma el optimizador de CV y el kit de entrevista |
-| Administrador | Humano | Consulta métricas agregadas, sin acceso a CV ni a datos personales (**planificado**, Decisión 2) |
+| Administrador | Humano | Hereda todo lo de la persona usuaria y suma la consulta de métricas agregadas, sin acceso a CV ni a datos personales de otras personas. Es un rol guardado en la base con el permiso `metrics:read` (Decisión 21) |
 | Supabase Auth con Google | Sistema | Verifica la identidad y emite la sesión |
 | Proveedores de IA | Sistema | DeepSeek, Anthropic y OpenAI (solo vectores) |
 | Sitios de ofertas y LinkedIn | Sistema | Páginas públicas cuyo contenido se lee |
@@ -67,7 +66,7 @@ la persona o por un evento de LemonSqueezy.
 | CU20 | Procesar evento de suscripción | LemonSqueezy | `POST /webhooks/lemonsqueezy` |
 | CU21 | Enviar aviso de suscripción | Sistema | Servicio de email |
 | CU22 | Eliminar cuenta | Persona usuaria | `DELETE /users/me` |
-| CU23 | Consultar métricas agregadas | Administrador | **Planificado** |
+| CU23 | Consultar métricas agregadas | Administrador | `/admin` (`GET /admin/metrics`) |
 
 ## 3. Narrativas de los tres casos de uso principales
 

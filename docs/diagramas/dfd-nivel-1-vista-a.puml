@@ -19,7 +19,7 @@ skinparam legendBorderColor #9AA5B1
 title DFD nivel 1 — Vista 1A: procesos y personas
 
 rectangle "Persona\nusuaria" as U #D5EBE3
-rectangle "Administrador\n(planificado)" as A #F1F1F1;line.dashed
+rectangle "Administrador" as A #D5EBE3
 
 rectangle "Sistema Jobby" as SIS #FFFFFF {
   usecase "1\nGestionar cuenta\ny acceso" as P1 #D6E2F3
@@ -28,7 +28,7 @@ rectangle "Sistema Jobby" as SIS #FFFFFF {
   usecase "4\nEvaluar\ncompatibilidad" as P4 #D6E2F3
   usecase "5\nGenerar kit\nde entrevista" as P5 #D6E2F3
   usecase "6\nGestionar\nsuscripción" as P6 #D6E2F3
-  usecase "7\nConsultar métricas\n(planificado)" as P7 #F1F1F1;line.dashed
+  usecase "7\nConsultar\nmétricas" as P7 #D6E2F3
 }
 
 U --> P1 : F1 Credenciales y datos de registro\nF7 Solicitud de baja de cuenta
@@ -50,7 +50,6 @@ A <-- P7 : F20 Métricas agregadas de uso
 legend right
   |<#D5EBE3>      | Entidad externa: persona |
   |<#D6E2F3>      | Proceso del nivel 1 |
-  |<#F1F1F1>      | Planificado: todavía no existe |
   Los sistemas externos están en la vista 1B y los almacenes, en la vista 1C.
 endlegend
 @enduml

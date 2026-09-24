@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    admin,
     ats,
     billing,
     dashboard,
@@ -26,3 +27,4 @@ api_router.include_router(interview_kits.router)
 api_router.include_router(billing.router)
 api_router.include_router(webhooks.router)
 api_router.include_router(users.router)
+api_router.include_router(admin.router)

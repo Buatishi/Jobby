@@ -177,7 +177,7 @@ async def get_current_user(
 
     response = (
         await supabase.table("users")
-        .select("id,supabase_uid,email")
+        .select("id,supabase_uid,email,role,tier")
         .eq("supabase_uid", supabase_uid)
         .maybe_single()
         .execute()
@@ -207,7 +207,7 @@ async def get_current_user(
         else:
             retry_response = (
                 await supabase.table("users")
-                .select("id,supabase_uid,email")
+                .select("id,supabase_uid,email,role,tier")
                 .eq("supabase_uid", supabase_uid)
                 .maybe_single()
                 .execute()
@@ -234,4 +234,6 @@ async def get_current_user(
         id=str(user_data["id"]),
         supabase_uid=str(user_data["supabase_uid"]),
         email=user_data.get("email"),
+        role=str(user_data.get("role") or "user"),
+        tier=str(user_data.get("tier") or "free"),
     )
