@@ -2,6 +2,8 @@ import httpx
 import pytest
 
 from app.services.ai_gateway import AIGateway
+from app.services.ai_gateway.claude import ClaudeProvider
+from app.services.ai_gateway.deepseek import DeepSeekProvider
 from app.services.ai_gateway.errors import (
     PremiumRequiredError,
     ProviderUnavailableError,
@@ -10,6 +12,19 @@ from app.services.ai_gateway.openai_embeddings import (
     OPENAI_EMBEDDINGS_URL,
     OpenAIEmbeddingsProvider,
 )
+from app.services.ai_gateway.retry import retry_with_backoff
+
+
+@pytest.fixture()
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Registra las esperas entre reintentos sin esperar de verdad."""
+    recorded: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        recorded.append(delay)
+
+    monkeypatch.setattr("app.services.ai_gateway.retry.asyncio.sleep", fake_sleep)
+    return recorded
 
 
 class MockProvider:
@@ -121,7 +136,7 @@ def test_openai_embeddings_api_key_is_normalized() -> None:
 
 @pytest.mark.asyncio
 async def test_openai_embeddings_unauthorized_returns_actionable_error(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
 ) -> None:
     class FakeResponse:
         status_code = 401
@@ -159,6 +174,8 @@ async def test_openai_embeddings_unauthorized_returns_actionable_error(
         await provider.embed("Python")
 
     assert "OPENAI_API_KEY" in str(exc_info.value)
+    # Una clave rechazada no se arregla esperando: falla en el primer intento.
+    assert sleeps == []
 
 
 @pytest.mark.asyncio
@@ -205,3 +222,80 @@ async def test_openai_embeddings_batches_multiple_inputs(
 
     assert result == [[0.1] * 1536, [0.2] * 1536]
     assert FakeClient.posted_payloads[0]["input"] == ["Python", "FastAPI"]
+
+
+def _provider_http_error(status_code: int) -> ProviderUnavailableError:
+    """Como lo arman los proveedores: el error HTTP queda como causa."""
+    request = httpx.Request("POST", "https://proveedor.example/v1")
+    response = httpx.Response(status_code, request=request)
+    error = ProviderUnavailableError("proveedor", f"HTTP {status_code}")
+    error.__cause__ = httpx.HTTPStatusError("error", request=request, response=response)
+    return error
+
+
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 422])
+async def test_a_client_error_is_not_retried(
+    sleeps: list[float], status_code: int
+) -> None:
+    calls = 0
+
+    async def operation() -> str:
+        nonlocal calls
+        calls += 1
+        raise _provider_http_error(status_code)
+
+    with pytest.raises(ProviderUnavailableError):
+        await retry_with_backoff(operation, delays=(30.0, 60.0))
+
+    assert calls == 1
+    assert sleeps == []
+
+
+@pytest.mark.parametrize("status_code", [408, 429, 500, 503])
+async def test_a_temporary_error_is_retried_after_each_delay(
+    sleeps: list[float], status_code: int
+) -> None:
+    calls = 0
+
+    async def operation() -> str:
+        nonlocal calls
+        calls += 1
+        raise _provider_http_error(status_code)
+
+    with pytest.raises(ProviderUnavailableError):
+        await retry_with_backoff(operation, delays=(30.0, 60.0))
+
+    assert calls == 3
+    assert sleeps == [30.0, 60.0]
+
+
+async def test_a_network_failure_is_retried_until_it_works(
+    sleeps: list[float],
+) -> None:
+    failures = [httpx.ConnectError("sin conexión")]
+
+    async def operation() -> str:
+        if failures:
+            raise failures.pop()
+        return "ok"
+
+    assert await retry_with_backoff(operation, delays=(30.0, 60.0)) == "ok"
+    assert sleeps == [30.0]
+
+
+@pytest.mark.parametrize(
+    ("call", "variable"),
+    [
+        (lambda: DeepSeekProvider("").generate("hola"), "DEEPSEEK_API_KEY"),
+        (lambda: ClaudeProvider("").generate("hola"), "ANTHROPIC_API_KEY"),
+        (lambda: OpenAIEmbeddingsProvider("").embed("hola"), "OPENAI_API_KEY"),
+        (lambda: OpenAIEmbeddingsProvider("").embed_many(["hola"]), "OPENAI_API_KEY"),
+    ],
+)
+async def test_a_missing_key_fails_without_waiting(
+    sleeps: list[float], call: object, variable: str
+) -> None:
+    with pytest.raises(ProviderUnavailableError, match=variable):
+        await call()  # type: ignore[operator]
+
+    assert sleeps == []
