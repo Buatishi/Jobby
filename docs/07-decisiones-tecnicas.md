@@ -70,7 +70,7 @@
   permanente que Render no ofrece gratis, y sin él no se puede mostrar el mensaje entrando y
   saliendo. El almacenamiento existe (bucket privado con políticas por persona) pero no se
   declara: la consigna recomienda una sola capacidad y descuenta si una adicional queda
-  incompleta. La caché existe en el código pero no se usa.
+  incompleta. La caché no se implementó: el módulo que había nunca se conectó y se quitó.
 - **Prestación resignada:** las tareas largas corren dentro de la API (hasta dos a la vez) y su
   estado vive en memoria: si el servicio se reinicia, se pierde el seguimiento de una tarea en
   curso.
@@ -93,5 +93,5 @@ diseño, la arquitectura y el alcance son propias; el resultado de las herramien
 antes de incorporarse. Se comprende la totalidad del código entregado y no se usarán
 asistentes durante la defensa individual.
 
-*El registro completo de decisiones operativas (Decisiones 1 a 18) está en `DECISIONS.md`; este
+*El registro completo de decisiones operativas (Decisiones 1 a 19) está en `DECISIONS.md`; este
 documento resume las cinco decisiones estructurales que pide la consigna.*

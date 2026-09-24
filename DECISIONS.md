@@ -507,7 +507,7 @@ además el almacenamiento de archivos — descartada: la consigna recomienda una
 descuenta si una adicional queda incompleta, y hoy `POST /profiles/documents` acepta la ruta del
 archivo sin verificar que pertenezca a la persona (corregido el 2026-09-23: la ruta tiene que
 estar en la carpeta de quien la registra y el perfil tiene que ser suyo);
-(c) caché — el módulo existe pero no se usa.
+(c) caché — el módulo nunca se usó y se quitó (Decisión 19).
 
 **Fundamento:** es lo que el flujo central ya usa en producción, tiene tests propios (ruteo por
 plan y manejo de errores) y cumple la condición de la consigna de contemplar la falla o la demora
@@ -541,3 +541,24 @@ flujo: los 110 flujos se compararon uno por uno.
 **Prestación resignada:** GitHub no dibuja PlantUML dentro del Markdown, así que después de editar
 un `.puml` hay que regenerar su `.svg` (`python docs/tools/render_diagrams.py`) y versionar ambos;
 generarlos requiere Java.
+
+## Decisión 19 — Sin caché: el reporte ATS pide los vectores en lote
+
+**Estado:** Aprobada (2026-09-23), en la auditoría del checkpoint. Reemplaza la tarea del plan
+de código que proponía activar `ai_gateway/cache.py` para los vectores del reporte ATS.
+
+**Elegida:** el reporte ATS pide los vectores de las palabras clave y de los términos del CV en
+dos lotes (`embed_many`), y el módulo de caché, que nunca se había conectado, sale del código.
+
+**Alternativas evaluadas:** (a) activar la caché en Redis para esos vectores — descartada: el
+primer reporte de cada puesto seguiría haciendo cientos de llamadas en serie; la consigna define
+la caché como una capa que evita consultar la base de datos, y esta no lo haría; y sumarla como
+segunda capacidad avanzada resta si queda incompleta (Decisión 17); (b) dejar el módulo sin uso
+— descartada: código muerto que la documentación tenía que explicar.
+
+**Fundamento:** con 10 palabras faltantes y 40 términos en el CV, el reporte hacía 410 llamadas
+a OpenAI una detrás de otra; ahora hace 2, con el mismo resultado. Un test cuenta las llamadas y
+falla con el código anterior.
+
+**Prestación resignada:** dos reportes seguidos del mismo puesto vuelven a pedir los vectores
+(dos llamadas por reporte).
