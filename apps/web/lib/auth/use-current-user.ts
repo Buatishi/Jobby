@@ -16,6 +16,11 @@ export function loadCurrentUser(): Promise<CurrentUserProfile | null> {
   return pending;
 }
 
+/** Olvida el perfil cargado: al cerrar sesión no debe quedar el de la persona anterior. */
+export function forgetCurrentUser(): void {
+  pending = null;
+}
+
 export function useCurrentUser(): CurrentUserProfile | null {
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
 

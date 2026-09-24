@@ -10,6 +10,7 @@ import {
   FileSearch,
   Gauge,
   Lock,
+  LogOut,
   Menu,
   MessagesSquare,
   ShieldCheck,
@@ -24,6 +25,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { hasPermission, Permission } from "@/lib/auth/permissions";
+import { signOutAndLeave } from "@/lib/auth/sign-out";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,17 @@ function SidebarContent({
   const { t } = useI18n();
   const pathname = usePathname();
   const profile = useCurrentUser();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
+  async function handleSignOut() {
+    setSignOutError(null);
+    setIsSigningOut(true);
+    if (!(await signOutAndLeave())) {
+      setIsSigningOut(false);
+      setSignOutError(t("auth.signOutFailed"));
+    }
+  }
   const items = hasPermission(profile, Permission.MetricsRead)
     ? [...navItems, adminNavItem]
     : navItems;
@@ -163,6 +176,23 @@ function SidebarContent({
           </div>
         </div>
       ) : null}
+
+      <div className="border-t border-neutral-100 p-3">
+        <button
+          className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-black/70 transition-colors hover:bg-neutral-100 hover:text-black disabled:opacity-60"
+          disabled={isSigningOut}
+          onClick={handleSignOut}
+          type="button"
+        >
+          <LogOut className="h-4 w-4 flex-none" />
+          {isSigningOut ? t("auth.signingOut") : t("auth.signOut")}
+        </button>
+        {signOutError ? (
+          <p className="mt-1 px-3 text-xs font-medium text-destructive" role="alert">
+            {signOutError}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

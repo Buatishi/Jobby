@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
 
@@ -43,6 +44,7 @@ export default function LoginPage() {
     }
 
     setResetSuccess(searchParams.get("reset") === "success");
+    setSignedOut(searchParams.get("signed_out") === "1");
   }, []);
 
   async function handleEmailLogin(event: React.FormEvent<HTMLFormElement>) {
@@ -116,6 +118,15 @@ export default function LoginPage() {
       {resetSuccess ? (
         <div className="mt-6 rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-3 text-sm font-medium text-[#0F6E56]">
           {t("auth.passwordReset")}
+        </div>
+      ) : null}
+
+      {signedOut ? (
+        <div
+          className="mt-6 rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-3 text-sm font-medium text-[#0F6E56]"
+          role="status"
+        >
+          {t("auth.signedOut")}
         </div>
       ) : null}
 
