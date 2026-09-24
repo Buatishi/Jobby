@@ -48,33 +48,6 @@ def _send(user: dict[str, Any], subject: str, html: str) -> None:
     )
 
 
-def send_subscription_expiring(
-    user: dict[str, Any],
-    days_remaining: int,
-) -> None:
-    _send(
-        user,
-        "Tu suscripcion Premium esta por vencer",
-        (
-            f"<p>{_name(user)}, tu suscripcion Premium vence en "
-            f"{days_remaining} dias.</p>"
-            "<p>Si queres conservar tus Interview Kits y beneficios Premium, "
-            "revisa tu metodo de pago.</p>"
-        ),
-    )
-
-
-def send_subscription_expired(user: dict[str, Any]) -> None:
-    _send(
-        user,
-        "Tu suscripcion Premium vencio",
-        (
-            f"<p>{_name(user)}, tu suscripcion Premium vencio.</p>"
-            "<p>Tu cuenta sigue activa en el plan Free.</p>"
-        ),
-    )
-
-
 def send_payment_failed(user: dict[str, Any], attempt_number: int) -> None:
     _send(
         user,
@@ -83,16 +56,5 @@ def send_payment_failed(user: dict[str, Any], attempt_number: int) -> None:
             f"<p>{_name(user)}, no pudimos procesar tu pago de Premium.</p>"
             f"<p>Intento #{attempt_number}. Actualiza tu metodo de pago para "
             "evitar la baja del plan.</p>"
-        ),
-    )
-
-
-def send_downgrade_notification(user: dict[str, Any]) -> None:
-    _send(
-        user,
-        "Tu cuenta paso al plan Free",
-        (
-            f"<p>{_name(user)}, tu cuenta fue movida al plan Free.</p>"
-            "<p>Podes volver a Premium cuando quieras desde Pricing.</p>"
         ),
     )

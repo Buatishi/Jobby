@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 from typing import Any
 
 from postgrest.exceptions import APIError
@@ -307,3 +308,56 @@ class FakeStorage:
         if bucket != self.bucket:
             return FakeStorageBucket(FakeStorage(bucket))
         return FakeStorageBucket(self)
+
+
+class FakeRedis:
+    """Redis en memoria con las operaciones que usa la API: límites, webhook y bajas."""
+
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.ttls: dict[str, int] = {}
+
+    async def incr(self, key: str) -> int:
+        value = int(self.values.get(key, "0")) + 1
+        self.values[key] = str(value)
+        return value
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        if key not in self.values:
+            return False
+        self.ttls[key] = seconds
+        return True
+
+    async def get(self, key: str) -> str | None:
+        return self.values.get(key)
+
+    async def set(
+        self, key: str, value: str, ex: int | None = None, nx: bool = False
+    ) -> bool | None:
+        if nx and key in self.values:
+            return None
+        self.values[key] = value
+        if ex is not None:
+            self.ttls[key] = ex
+        return True
+
+    async def scan(
+        self, cursor: int = 0, match: str | None = None, count: int | None = None
+    ) -> tuple[int, list[str]]:
+        keys = [
+            key
+            for key in self.values
+            if match is None or fnmatch.fnmatchcase(key, match)
+        ]
+        return 0, keys
+
+    async def delete(self, *keys: str) -> int:
+        removed = 0
+        for key in keys:
+            if self.values.pop(key, None) is not None:
+                removed += 1
+            self.ttls.pop(key, None)
+        return removed
+
+    async def aclose(self) -> None:
+        return None

@@ -26,7 +26,8 @@ Para imprimir: láminas A3 en [pdf/laminas/](pdf/laminas/) (`arquitectura.pdf`,
 
 Además: `render.yaml` declara dos workers de Celery que nunca se crearon (Render no tiene plan
 gratuito para ese tipo de servicio), y en Render existe un servicio heredado con el mismo código
-(`jobby-fp0r.onrender.com`) que la web solo usaría si le faltaran las variables de la API.
+(`jobby-fp0r.onrender.com`) que se reconstruye en cada push pero ya no usa nadie: desde el
+2026-09-23 la web, si le faltan las variables, apunta a la API local de desarrollo y no a él.
 
 ## 2. Comunicaciones: protocolo, puerto y si cruzan Internet
 
@@ -57,7 +58,7 @@ TLS y se protege con tokens de sesión y con secretos guardados en cada platafor
 
 | Dónde se cargan | Variables (solo nombres) | Quién las usa |
 |---|---|---|
-| Panel de Vercel | `NEXT_PUBLIC_API_URL`, URL y clave anon de Supabase, precios mensual y anual | La web. Las `NEXT_PUBLIC_*` se incrustan en el JavaScript del navegador: son públicas por diseño. La clave anon no es secreta; la protegen las políticas RLS. Faltan `NEXT_PUBLIC_APP_URL` y `NEXT_PUBLIC_SENTRY_DSN`. |
+| Panel de Vercel | `NEXT_PUBLIC_API_URL`, URL y clave anon de Supabase, precios mensual y anual | La web. Las `NEXT_PUBLIC_*` se incrustan en el JavaScript del navegador: son públicas por diseño. La clave anon no es secreta; la protegen las políticas RLS. `NEXT_PUBLIC_SENTRY_DSN` no está cargada: Sentry queda sin activar en la web. |
 | Panel de Render (declaradas en `render.yaml` con `sync: false`, sin valor) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `REDIS_URL`, `RESEND_API_KEY`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_PREMIUM_VARIANT_ID` | Solo la API. La clave de servicio de Supabase no pasa por RLS: es la más sensible y nunca llega al navegador. |
 | Panel de Render (configuración no secreta) | `ENVIRONMENT=production`, `PORT`, `FRONTEND_URL`, `TASK_EXECUTION_MODE=local` | `ENVIRONMENT=production` cierra `/docs` y agrega HSTS y CSP; `FRONTEND_URL` alimenta CORS. |
 | Secretos de GitHub Actions | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_PROJECT_REF` | Ningún workflow los usa hoy. |
@@ -88,17 +89,20 @@ y llegan al navegador; por eso nunca contienen secretos.
 | 2. Pull request hacia `main` | `pull_request` | Dispara el workflow «CI». | Funciona desde el 2026-09-22: hasta ese día la cuenta de GitHub estaba bloqueada por facturación y ninguna ejecución llegaba a correr un paso |
 | 3. Protección de `main` | — | Pull request obligatorio también para administradores, sin force-push ni borrado, y los tres trabajos del CI en verde. | Funciona. Comprobado con un error deliberado: el CI quedó en rojo y GitHub bloqueó el merge |
 | 4. Merge a `main` | `push` a `main` | Dispara el CI y los despliegues. | Funciona |
-| 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint, tests y build. API: mypy, ruff, tests y cobertura con corte del 65 %. Tipos compartidos: build. | Funciona; cobertura medida: 77,91 % |
-| 5b. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Pendiente de los secretos `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`: mientras faltan, el trabajo lo avisa |
-| 5c. Render y Vercel | `push` a `main` (integración con Git) | Construyen y despliegan por su cuenta. | Funciona, pero todavía no espera al CI: se apaga cuando se carguen los deploy hooks |
+| 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint, tests y build. API: mypy, ruff, tests y cobertura con corte del 65 %. Tipos compartidos: build. | Funciona; cobertura medida: 80,23 % |
+| 5b. Render | `push` a `main` (integración con Git) | Construye la imagen y despliega `jobmatch-api` (y el servicio heredado). | Funciona, pero todavía no espera al CI: se apaga cuando se cargue el deploy hook |
+| 5c. Vercel | `push` a `main` (integración con Git) | Hasta el 2026-09-23 construía `main` solo como vista previa; desde entonces `apps/web/vercel.json` lo desactiva. La rama de producción configurada es todavía `feat/jobmatch-phase-1-2`. | Producción se actualiza a mano: el último despliegue productivo se creó desde `main` el 2026-09-23 |
+| 5d. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Pendiente de los secretos `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`: mientras faltan, el trabajo lo avisa |
 | 6. Producción | — | Web y API por HTTPS. | Funciona |
 
-Lo único que falta para cerrar el circuito (Decisión 6): cargar los dos deploy hooks como
-secretos del repositorio y apagar el despliegue automático de Render y Vercel, para que el
-único camino a producción sea el trabajo que depende del CI. La evidencia de una ejecución
-fallida con su corrección ya está en el historial del pipeline (rama
-`ci/verificacion-del-corte`, 2026-09-22): se bajó a propósito el mínimo de perfil de 60 % a
-50 %, un test lo detectó, el despliegue no corrió y el commit siguiente lo revirtió.
+Lo que falta para cerrar el circuito (Decisión 6): en Vercel, tomar `main` como rama de
+producción y crear su deploy hook; en Render, copiar el deploy hook y apagar el despliegue
+automático; y cargar los dos como secretos del repositorio. Así el único camino a producción
+es el trabajo que depende del CI.
+
+La evidencia de una ejecución fallida con su corrección ya está en el historial del pipeline
+(rama `ci/verificacion-del-corte`, 2026-09-22): se bajó a propósito el mínimo de perfil de
+60 % a 50 %, un test lo detectó, el despliegue no corrió y el commit siguiente lo revirtió.
 
 ## 5. Ambiente local frente a producción
 
@@ -113,5 +117,5 @@ fallida con su corrección ya está en el historial del pipeline (rama
 | Secretos | Archivos `.env` y `.env.local`, fuera de Git | Paneles de Vercel y Render |
 
 La diferencia entre ambientes se resuelve solo con variables de entorno: el mismo código apunta a
-la API local o a la productiva según `NEXT_PUBLIC_API_URL`. El `docker-compose.yml` también
-levanta un PostgreSQL 16 que la aplicación no usa, porque accede a Supabase por su API.
+la API local o a la productiva según `NEXT_PUBLIC_API_URL`. El `docker-compose.yml` levanta solo
+Redis: la base de datos es Supabase también en desarrollo.

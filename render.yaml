@@ -38,8 +38,6 @@ services:
         sync: false
       - key: LEMONSQUEEZY_PREMIUM_VARIANT_ID
         sync: false
-      - key: NEXT_PUBLIC_APP_URL
-        sync: false
       - key: RESEND_API_KEY
         sync: false
 
