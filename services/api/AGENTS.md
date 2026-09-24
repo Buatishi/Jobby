@@ -5,7 +5,7 @@
 - FastAPI 0.115+ on Python 3.13+.
 - Pydantic v2 for request and response schemas.
 - Celery 5 with Redis 7 for background work.
-- Supabase with PostgreSQL 16, pgvector, and Auth.
+- Supabase with PostgreSQL 17, pgvector, and Auth.
 - PyJWT for JWT validation. Do not use `python-jose`.
 
 ## Project Structure

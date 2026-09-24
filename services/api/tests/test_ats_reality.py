@@ -40,6 +40,45 @@ class FakeATSGateway:
             return [1.0, 0.0, 0.0]
         return [0.0, 1.0, 0.0]
 
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        return [await self.embed(text) for text in texts]
+
+
+class CountingATSGateway(FakeATSGateway):
+    """Registra cada pedido de vectores: el reporte debe pedirlos en lote."""
+
+    def __init__(self, keywords: list[str]) -> None:
+        self.keywords = keywords
+        self.batches: list[list[str]] = []
+        self.single_calls = 0
+
+    async def generate(
+        self,
+        _task_type: str,
+        _user_tier: str,
+        _prompt: str,
+        system: str | None = None,
+        json_mode: bool = False,
+    ) -> str:
+        return json.dumps({"keywords": self.keywords})
+
+    async def embed(self, text: str) -> list[float]:
+        self.single_calls += 1
+        return await super().embed(text)
+
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
+        self.batches.append(list(texts))
+        # Lo que habla de APIs se parece entre sí; el resto de keywords y de términos
+        # del CV apuntan a direcciones distintas y no se parecen.
+        return [
+            [1.0, 0.0, 0.0]
+            if "api" in text.lower()
+            else [0.0, 1.0, 0.0]
+            if text in self.keywords
+            else [0.0, 0.0, 1.0]
+            for text in texts
+        ]
+
 
 @pytest.mark.asyncio
 async def test_ats_scores_full_keyword_coverage() -> None:
@@ -69,6 +108,46 @@ async def test_ats_scores_zero_keyword_coverage() -> None:
     assert score == 0
     assert [match.status for match in result.matches] == ["missing", "missing"]
 
+
+
+@pytest.mark.asyncio
+async def test_ats_asks_for_the_vectors_in_two_batches() -> None:
+    """Antes había una llamada por palabra y el CV se repetía por cada faltante."""
+    gateway = CountingATSGateway(["GraphQL", "Kubernetes", "REST APIs", "Terraform"])
+    job = {"required_skills": [], "tech_stack": []}
+    cv_terms = [f"Skill {index}" for index in range(30)] + ["Diseño de APIs"]
+    primary_cv = {
+        "parsed_data": {
+            "skills": [{"name": name} for name in cv_terms],
+            "format_flags": {},
+        }
+    }
+
+    result = await analyze_keywords(job, primary_cv, gateway=gateway)  # type: ignore[arg-type]
+
+    assert gateway.single_calls == 0
+    assert len(gateway.batches) == 2
+    assert gateway.batches[0] == ["GraphQL", "Kubernetes", "REST APIs", "Terraform"]
+    assert "Diseño de APIs" in gateway.batches[1]
+    statuses = {match.keyword: match.status for match in result.matches}
+    assert statuses == {
+        "GraphQL": "missing",
+        "Kubernetes": "missing",
+        "REST APIs": "semantic",
+        "Terraform": "missing",
+    }
+
+
+@pytest.mark.asyncio
+async def test_ats_does_not_ask_for_vectors_when_every_keyword_is_literal() -> None:
+    gateway = CountingATSGateway(["Python"])
+    job = {"required_skills": [], "tech_stack": []}
+    primary_cv = {"parsed_data": {"skills": [{"name": "Python"}], "format_flags": {}}}
+
+    result = await analyze_keywords(job, primary_cv, gateway=gateway)  # type: ignore[arg-type]
+
+    assert gateway.batches == []
+    assert [match.status for match in result.matches] == ["literal"]
 
 def test_reality_gap_endpoint_returns_lowest_coherence_first(
     client: TestClient,
