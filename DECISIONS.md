@@ -586,3 +586,30 @@ producción no había cuentas premium, así que nadie lo aprovechó.
 
 **Prestación resignada:** una función futura que quiera leer datos desde el navegador tiene que
 pasar por la API o pedir un permiso explícito en su migración.
+
+## Decisión 21 — Roles con permisos guardados como datos
+
+**Estado:** Aprobada (2026-09-24). Migración 026, aplicada primero en el proyecto de pruebas.
+
+**Elegida:** dos roles, `user` y `admin`, en la tabla `roles`; sus permisos en
+`role_permissions` (hoy `admin` tiene `metrics:read`); el rol de cada persona en `users.role`,
+con `user` por defecto. Cada endpoint exige un permiso con `require_permission`, que consulta en
+la base los permisos del rol de quien llama. El administrador ve métricas agregadas en `/admin`
+(`GET /admin/metrics`), calculadas por una sola función de la base y filtradas por el modelo de
+respuesta: nunca CV ni datos personales de otra persona. La web muestra la opción solo si
+`GET /users/me` informa el permiso, y un 403 se explica en pantalla en vez de mandar al login.
+
+**Alternativas evaluadas:** (a) una columna `is_admin` o comparar `role == "admin"` en el código
+— descartada: la consigna no admite la comparación literal y cada permiso nuevo obligaría a
+cambiar código; (b) el rol en los metadatos del token de Supabase — descartada: un cambio de rol
+exige renovar la sesión y el dato queda fuera del modelo del dominio; (c) un solo campo para rol
+y plan — descartada: son ejes independientes (`AGENTS.md`).
+
+**Fundamento:** la consigna pide roles persistidos y consultados como cualquier dato, 403 para
+quien no tiene permiso y control en el servidor. Un test da el permiso al rol `user` en la tabla
+y comprueba que alcanza; otro falla si el control se cambia por una comparación de nombres. Nadie
+puede cambiarse el rol desde el navegador: la clave pública no tiene privilegios sobre las tablas
+(Decisión 20).
+
+**Prestación resignada:** los endpoints con permiso hacen una consulta más por pedido (los
+permisos no se guardan en memoria), y el rol admin se asigna con SQL en Supabase, sin pantalla.

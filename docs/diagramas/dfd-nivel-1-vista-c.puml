@@ -23,7 +23,7 @@ usecase "3\nAnalizar\npuesto" as P3 #D6E2F3
 usecase "4\nEvaluar\ncompatibilidad" as P4 #D6E2F3
 usecase "5\nGenerar kit\nde entrevista" as P5 #D6E2F3
 usecase "6\nGestionar\nsuscripción" as P6 #D6E2F3
-usecase "7\nConsultar métricas\n(planificado)" as P7 #F1F1F1;line.dashed
+usecase "7\nConsultar\nmétricas" as P7 #D6E2F3
 
 database "D1\nUsuarios y planes" as D1 #E3F1EC
 database "D2\nPerfil maestro" as D2 #E3F1EC
@@ -58,13 +58,13 @@ P4 <--> D8 : Estado de la tarea
 P5 <--> D8 : Estado de la tarea
 P6 <--> D8 : Eventos ya procesados
 D1 --> P7 : Conteos agregados
+D3 --> P7 : Conteos agregados
 D4 --> P7 : Conteos agregados
 D5 --> P7 : Conteos agregados
 D6 --> P7 : Conteos agregados
 
 legend right
   |<#D6E2F3>      | Proceso del nivel 1 |
-  |<#F1F1F1>      | Planificado: todavía no existe |
   |<#E3F1EC>      | Almacén en Supabase (tablas y Storage) |
   |<#EDEFF2>      | Almacén en Redis |
   Flecha doble: el proceso lee y escribe en el almacén.

@@ -19,7 +19,7 @@ skinparam legendBorderColor #9AA5B1
 title DFD nivel 0 — Diagrama de contexto de Jobby
 
 rectangle "Persona usuaria" as U #D5EBE3
-rectangle "Administrador\n(planificado)" as A #F1F1F1;line.dashed
+rectangle "Administrador" as A #D5EBE3
 usecase "0\nSistema\nJobby" as P #D6E2F3
 rectangle "Proveedor de identidad\nSupabase Auth con Google" as ID #FFE9AE
 rectangle "Proveedores de IA\nDeepSeek, Anthropic y OpenAI" as IA #FFE9AE
@@ -47,7 +47,6 @@ legend right
   |<#D5EBE3>      | Entidad externa: persona |
   |<#FFE9AE>      | Entidad externa: sistema de terceros |
   |<#D6E2F3>      | El sistema completo como un único proceso |
-  |<#F1F1F1>      | Planificado: todavía no existe |
   33 flujos (F1 a F34, sin F10), rotulados con el dato que viaja.
   Los flujos entre el mismo par y en el mismo sentido comparten flecha.
 endlegend

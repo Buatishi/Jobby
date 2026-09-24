@@ -4,8 +4,8 @@ Estado: Etapa 1. Verificado el 2026-09-21 contra las 22 migraciones de
 `services/api/migrations` y contra los catálogos de la base real de Supabase (solo metadatos:
 tablas, columnas, tipos, claves, índices y políticas; no se leyó ningún dato de personas). Las
 columnas del diagrama se compararon una a una con `information_schema` y coinciden. Actualizado
-el 2026-09-23 con las migraciones 023 y 024, que agregan una función e índices sin cambiar
-tablas ni columnas.
+el 2026-09-23 con las migraciones 023 a 026: una función, índices, el cierre de privilegios de la
+clave pública y los roles con sus permisos (dos tablas nuevas y la columna `users.role`).
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)
 
@@ -19,14 +19,16 @@ A3 en [pdf/laminas/modelo-entidad-relacion.pdf](pdf/laminas/modelo-entidad-relac
 - `<<PK>>` marca la clave primaria y `<<FK>>` la clave foránea; el asterisco (`*`), las
   columnas obligatorias (`NOT NULL`).
 - Cardinalidad con patas de gallo: `||` uno y solo uno, `|o` cero o uno, `o{` cero o muchos.
-- Colores: verde, cuenta y plan; azul, perfil maestro y sus datos; amarillo, archivos y caché;
+- Colores: verde, cuenta, plan y roles; azul, perfil maestro y sus datos; amarillo, archivos y caché;
   violeta, puestos y resultados.
 
 ## 2. Tablas
 
 | Tabla | Para qué sirve | ¿Datos de personas? |
 |---|---|---|
-| `users` | Cuenta, plan (`tier`: free o premium) y datos de la suscripción de LemonSqueezy. | Sí: correo y nombre |
+| `users` | Cuenta, plan (`tier`: free o premium), rol (`role`: user o admin) y datos de la suscripción de LemonSqueezy. Rol y plan son ejes independientes. | Sí: correo y nombre |
+| `roles` | Roles posibles: `user` y `admin` (migración 026). | No |
+| `role_permissions` | Permisos de cada rol; hoy `admin` tiene `metrics:read`. Los endpoints exigen un permiso, nunca un nombre de rol. | No |
 | `master_profiles` | Perfil profesional único de cada persona: titular, resumen, rol y seniority buscados, modalidad, industrias y porcentaje de perfil completo. | Sí |
 | `uploaded_documents` | CV subidos: ruta en el almacén privado, estado del análisis y CV estructurado (`parsed_data`). | Sí: el contenido del CV |
 | `skills` | Habilidades (confirmadas o no, si figuran en el CV o en LinkedIn) con su vector de 1536 números. | Sí |
@@ -45,6 +47,8 @@ A3 en [pdf/laminas/modelo-entidad-relacion.pdf](pdf/laminas/modelo-entidad-relac
 | Relación | Cardinalidad | Clave foránea | Al borrar el padre |
 |---|---|---|---|
 | `auth.users` – `users` | 1 a 0..1 | `users.supabase_uid` (única) | NO ACTION |
+| `roles` – `users` | 1 a 0..N | `users.role` | NO ACTION: no se puede borrar un rol en uso |
+| `roles` – `role_permissions` | 1 a 0..N | `role_permissions.role_id` | CASCADE |
 | `users` – `master_profiles` | 1 a 0..1 | `master_profiles.user_id` (única) | CASCADE |
 | `users` – `uploaded_documents` | 1 a 0..N | `uploaded_documents.user_id` | CASCADE |
 | `master_profiles` – `uploaded_documents` | 1 a 0..N | `uploaded_documents.profile_id` | CASCADE |
@@ -55,8 +59,9 @@ A3 en [pdf/laminas/modelo-entidad-relacion.pdf](pdf/laminas/modelo-entidad-relac
 | `job_matches` – `interview_kits` | 0..1 a 0..N | `interview_kits.match_id` (opcional) | SET NULL |
 | `users` – `linkedin_scrape_cache` | 1 a 0..N | `linkedin_scrape_cache.user_id` | CASCADE |
 
-De las 18 claves foráneas entre tablas de la aplicación, 17 borran en cascada y
-`interview_kits.match_id` queda vacía (el kit se conserva). La clave hacia `auth.users` no borra
+De las 20 claves foráneas entre tablas de la aplicación, 18 borran en cascada,
+`interview_kits.match_id` queda vacía (el kit se conserva) y `users.role` impide borrar un rol
+que alguien tiene asignado. La clave hacia `auth.users` no borra
 en cascada: por eso el borrado de cuenta elimina primero la fila de `users` y después la identidad.
 
 ## 4. Reglas que impone la base
@@ -68,7 +73,8 @@ en cascada: por eso el borrado de cuenta elimina primero la fila de `users` y de
   después: la web no las lee ni las escribe y todo pasa por la API. Antes, con su propio token,
   una persona podía cambiarse el plan a premium escribiendo su fila por la API REST de
   Supabase (se reprodujo en el proyecto de pruebas; `services/api/tests/sql/`).
-- **Acceso por dueño (RLS):** las 13 tablas mantienen seguridad por fila como segunda barrera.
+- **Acceso por dueño (RLS):** las 15 tablas mantienen seguridad por fila como segunda barrera
+  (`roles` y `role_permissions` sin políticas: solo las lee la API).
   La API usa la clave de servicio, que no pasa por RLS, así que en sus consultas el
   aislamiento entre personas depende de filtrar por el usuario que sale del token.
 - **Vectores:** las columnas `embedding` usan pgvector (`vector(1536)`) con índices HNSW de

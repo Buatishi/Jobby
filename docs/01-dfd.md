@@ -19,11 +19,9 @@ nivel 0 no cambia porque `F25` y `F27` ya estaban.
 | Elipse numerada | Proceso |
 | Cilindro `D#` | Almacén de datos |
 | Flecha | Flujo de datos, rotulado con **el dato que viaja** y no con la acción. Los flujos entre el mismo par de elementos y en el mismo sentido comparten flecha, con un rótulo por flujo |
-| Gris | Planificado: todavía no existe |
 
 Todo lo descrito se verificó contra el código: los endpoints de `services/api/app/api/v1/`,
-las tareas de `services/api/app/tasks/` y las pantallas de `apps/web`. Lo que aún no existe
-está marcado como **planificado**.
+las tareas de `services/api/app/tasks/` y las pantallas de `apps/web`.
 
 ## 1. Nivel 0: diagrama de contexto
 
@@ -38,7 +36,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-0.pdf](pdf/laminas/dfd-nivel
 | Entidad | Quién es |
 |---|---|
 | Persona usuaria | Quien busca empleo; usa el plan gratuito o el premium |
-| Administrador | Consulta métricas agregadas, sin acceso a CV ni a datos personales (**planificado**, Decisión 2) |
+| Administrador | Persona usuaria con el permiso de métricas: consulta conteos agregados, sin acceso a CV ni a datos personales de otras personas (Decisión 21) |
 | Proveedor de identidad | Supabase Auth, con inicio de sesión federado con Google |
 | Proveedores de IA | DeepSeek (principal), Anthropic (premium) y OpenAI (solo vectores) |
 | LemonSqueezy | Cobra la suscripción premium |
@@ -125,7 +123,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-1-vista-c.pdf](pdf/laminas/d
 | 4 | Evaluar compatibilidad | Calcula el Match Score, el reporte ATS y el Reality Gap, arma el resumen del panel y, en el plan premium, optimiza el CV con IA | `/matches`, `/ats`, `/dashboard`, `/profiles/reality-gap` |
 | 5 | Generar kit de entrevista | Solo plan premium: arma el kit con IA a partir del perfil, el puesto y, si se indican, perfiles de LinkedIn | `/interview-kits` |
 | 6 | Gestionar suscripción | Crea el checkout, recibe los eventos firmados de LemonSqueezy, actualiza el plan y avisa por email | `POST /billing/checkout`, `POST /webhooks/lemonsqueezy` |
-| 7 | Consultar métricas agregadas | Devuelve conteos sin datos personales al administrador (**planificado**) | (no existe todavía) |
+| 7 | Consultar métricas agregadas | Verifica el permiso de métricas del rol y devuelve conteos y promedios de personas, CV, puestos, matches y kits, sin datos personales ni CV | `GET /admin/metrics` |
 
 ### Almacenes de datos
 

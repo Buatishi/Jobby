@@ -1,6 +1,6 @@
 # Arquitectura y despliegue
 
-Estado: Etapa 1. Verificado el 2026-09-21 y el 2026-09-22 contra `apps/web` (`next.config.ts`,
+Estado: Etapa 1. Verificado del 2026-09-21 al 2026-09-24 contra `apps/web` (`next.config.ts`,
 `lib/api/client.ts`, `lib/supabase`), `services/api` (`main.py`, `config.py`, `Dockerfile`),
 `render.yaml`, `.github/workflows/`, `docker-compose.yml`, el README y comprobaciones de solo
 lectura sobre producción. De los paneles de Vercel, Render y Supabase se documentan solo los
@@ -61,7 +61,7 @@ TLS y se protege con tokens de sesión y con secretos guardados en cada platafor
 | Panel de Vercel | `NEXT_PUBLIC_API_URL`, URL y clave anon de Supabase, precios mensual y anual | La web. Las `NEXT_PUBLIC_*` se incrustan en el JavaScript del navegador: son públicas por diseño. La clave anon no es secreta: con ella no se puede leer ni escribir ninguna tabla (migración 025) y las políticas RLS son una segunda barrera. `NEXT_PUBLIC_SENTRY_DSN` no está cargada: Sentry queda sin activar en la web. |
 | Panel de Render (declaradas en `render.yaml` con `sync: false`, sin valor) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `REDIS_URL`, `RESEND_API_KEY`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_PREMIUM_VARIANT_ID` | Solo la API. La clave de servicio de Supabase no pasa por RLS: es la más sensible y nunca llega al navegador. |
 | Panel de Render (configuración no secreta) | `ENVIRONMENT=production`, `PORT`, `FRONTEND_URL`, `TASK_EXECUTION_MODE=local` | `ENVIRONMENT=production` cierra `/docs` y agrega HSTS y CSP; `FRONTEND_URL` alimenta CORS. |
-| Secretos de GitHub Actions | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_PROJECT_REF` | Ningún workflow los usa hoy. |
+| Secretos de GitHub Actions | `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`; además `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_PROJECT_REF` | Los deploy hooks los usa el trabajo de despliegue de `ci.yml` (paso 5d del recorrido); los de Supabase no los usa ningún workflow. |
 | Equipo local | `.env` y `.env.local` a partir de `.env.example` | Ignorados por Git: el repositorio solo versiona `.env.example`, sin valores. |
 
 **Recorrido de un secreto** (ejemplo: la clave de servicio de Supabase):
@@ -88,17 +88,18 @@ y llegan al navegador; por eso nunca contienen secretos.
 | 1. Cambio en una rama | Trabajo local | Typecheck, lint, tests y build en el equipo. | Funciona |
 | 2. Pull request hacia `main` | `pull_request` | Dispara el workflow «CI». | Funciona desde el 2026-09-22: hasta ese día la cuenta de GitHub estaba bloqueada por facturación y ninguna ejecución llegaba a correr un paso |
 | 3. Protección de `main` | — | Pull request obligatorio también para administradores, sin force-push ni borrado, y los tres trabajos del CI en verde. | Funciona. Comprobado con un error deliberado: el CI quedó en rojo y GitHub bloqueó el merge |
-| 4. Merge a `main` | `push` a `main` | Dispara el CI y los despliegues. | Funciona |
+| 4. Merge a `main` | `push` a `main` | Dispara el CI; el despliegue sale solo del paso 5d. | Funciona |
 | 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint, tests y build. API: mypy, ruff, tests y cobertura con corte del 65 %. Tipos compartidos: build. | Funciona; cobertura medida: 80,63 % |
-| 5b. Render | `push` a `main` (integración con Git) | Construye la imagen y despliega `jobmatch-api` (y el servicio heredado). | Funciona, pero todavía no espera al CI: se apaga cuando se cargue el deploy hook |
-| 5c. Vercel | `push` a `main` (integración con Git) | Hasta el 2026-09-23 construía `main` solo como vista previa; desde entonces `apps/web/vercel.json` lo desactiva. La rama de producción configurada es todavía `feat/jobmatch-phase-1-2`. | Producción se actualiza a mano: el último despliegue productivo se creó desde `main` el 2026-09-23 |
-| 5d. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Pendiente de los secretos `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`: mientras faltan, el trabajo lo avisa |
+| 5b. Render | Deploy hook del paso 5d | Construye la imagen y despliega `jobmatch-api`. El servicio heredado sigue desplegando en cada push hasta que se suspenda. | Funciona desde el 2026-09-24: el despliegue automático está apagado y cada deploy figura como disparado por el hook |
+| 5c. Vercel | Deploy hook del paso 5d | Construye `main` como producción y lo publica en `jobbyweb.vercel.app`. `apps/web/vercel.json` apaga los builds automáticos de `main`; las otras ramas siguen generando vistas previas. | Funciona desde el 2026-09-24, con `main` como rama de producción |
+| 5d. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Funciona: el 2026-09-24 (PR #21) llamó a los dos después de los tres trabajos en verde |
 | 6. Producción | — | Web y API por HTTPS. | Funciona |
 
-Lo que falta para cerrar el circuito (Decisión 6): en Vercel, tomar `main` como rama de
-producción y crear su deploy hook; en Render, copiar el deploy hook y apagar el despliegue
-automático; y cargar los dos como secretos del repositorio. Así el único camino a producción
-es el trabajo que depende del CI.
+El circuito quedó cerrado el 2026-09-24 (Decisión 6): Render tiene el despliegue automático
+apagado, Vercel toma `main` como rama de producción sin builds automáticos, y los dos despliegan
+solo cuando los llama el paso 5d, que corre únicamente si los tres trabajos del CI pasan. Un
+detalle de Vercel: si el dominio público se asigna a mano (por ejemplo en un rollback), la
+asignación automática queda apagada hasta que se promueve un deployment.
 
 La evidencia de una ejecución fallida con su corrección ya está en el historial del pipeline
 (rama `ci/verificacion-del-corte`, 2026-09-22): se bajó a propósito el mínimo de perfil de
