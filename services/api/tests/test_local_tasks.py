@@ -27,7 +27,7 @@ def _forbidden(*_args: Any, **_kwargs: Any) -> Any:
 
 @pytest.fixture
 def local_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(analysis.settings, "task_execution_mode", "local")
+    monkeypatch.setattr(local_fallback.settings, "task_execution_mode", "local")
     monkeypatch.setattr(local_fallback, "_semaphore", threading.BoundedSemaphore(2))
     monkeypatch.setattr(analysis.job_analysis_task, "apply_async", _forbidden)
     monkeypatch.setattr(analysis.match_task, "apply_async", _forbidden)
@@ -73,7 +73,7 @@ def test_match_runs_in_process(
 def test_interview_kit_runs_in_process_and_mode_is_case_insensitive(
     local_mode: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(analysis.settings, "task_execution_mode", "LOCAL")
+    monkeypatch.setattr(local_fallback.settings, "task_execution_mode", "LOCAL")
 
     async def fake_run(kit_id: str, user_id: str) -> dict[str, Any]:
         return {"kit": kit_id, "user": user_id}
@@ -113,7 +113,7 @@ def test_celery_mode_is_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
         published.append({"args": args, **kwargs})
         return SimpleNamespace(id=kwargs["task_id"])
 
-    monkeypatch.setattr(analysis.settings, "task_execution_mode", "celery")
+    monkeypatch.setattr(local_fallback.settings, "task_execution_mode", "celery")
     monkeypatch.setattr(analysis.job_analysis_task, "apply_async", fake_apply_async)
     monkeypatch.setattr(analysis.match_task, "apply_async", fake_apply_async)
     monkeypatch.setattr(analysis.interview_kit_task, "apply_async", fake_apply_async)
@@ -182,3 +182,50 @@ def test_chained_task_waits_but_direct_task_fails_when_capacity_is_full(
     release.set()
     assert _wait_for(first, {"SUCCESS"}).state == "SUCCESS"
     assert _wait_for(chained, {"SUCCESS"}).result == {"done": True}
+
+
+def test_finished_tasks_are_forgotten_after_the_retention_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(local_fallback, "_now", lambda: clock[0])
+    monkeypatch.setattr(local_fallback, "_semaphore", threading.BoundedSemaphore(2))
+
+    async def done() -> dict[str, Any]:
+        return {"ok": True}
+
+    task_id = local_fallback.enqueue_local_task(
+        done, prefix="local-test", owner_id="user-1"
+    )
+    _wait_for(task_id, {"SUCCESS"})
+
+    clock[0] += local_fallback.FINISHED_TASK_RETENTION_SECONDS - 1
+    assert local_fallback.get_local_task(task_id) is not None
+
+    clock[0] += 2
+    assert local_fallback.get_local_task(task_id) is None
+
+
+def test_running_tasks_are_kept_however_long_they_take(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(local_fallback, "_now", lambda: clock[0])
+    monkeypatch.setattr(local_fallback, "_semaphore", threading.BoundedSemaphore(2))
+    release = threading.Event()
+
+    async def slow() -> dict[str, Any]:
+        await asyncio.to_thread(release.wait, 5)
+        return {"ok": True}
+
+    task_id = local_fallback.enqueue_local_task(
+        slow, prefix="local-test", owner_id="user-1"
+    )
+    _wait_for(task_id, {"STARTED"})
+    clock[0] += local_fallback.FINISHED_TASK_RETENTION_SECONDS * 10
+
+    try:
+        assert local_fallback.get_local_task(task_id) is not None
+    finally:
+        release.set()
+    assert _wait_for(task_id, {"SUCCESS"}).result == {"ok": True}

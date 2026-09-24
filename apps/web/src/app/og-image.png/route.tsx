@@ -102,7 +102,10 @@ export function GET() {
               ["ATS", "76%", "#F0A500"],
               ["Brechas críticas", "18%", "#E24B4A"]
             ].map(([label, value, color]) => (
-              <div key={label} style={{ marginTop: 16 }}>
+              <div
+                key={label}
+                style={{ display: "flex", flexDirection: "column", marginTop: 16 }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -119,6 +122,7 @@ export function GET() {
                   style={{
                     background: "#edf2f1",
                     borderRadius: 999,
+                    display: "flex",
                     height: 9,
                     marginTop: 8,
                     overflow: "hidden"

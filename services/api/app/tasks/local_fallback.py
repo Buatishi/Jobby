@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 from collections.abc import Callable, Coroutine
 from typing import Any, Literal
 
@@ -12,12 +13,21 @@ TaskState = Literal["PENDING", "STARTED", "SUCCESS", "FAILURE"]
 # turno en lugar de fallar mientras la tarea que la encadena aun ocupa un cupo.
 LOCAL_SLOT_WAIT_SECONDS = 300.0
 
+# Una tarea terminada se guarda una hora para que el cliente lea el resultado y después
+# se descarta. Sin este límite, cada tarea (con su resultado) quedaba en memoria para
+# siempre.
+FINISHED_TASK_RETENTION_SECONDS = 60 * 60
+
+# Reloj inyectable: los tests lo reemplazan para simular el paso del tiempo.
+_now = time.monotonic
+
 
 class LocalTaskResult:
     def __init__(self, task_id: str, state: TaskState, result: Any = None) -> None:
         self.id = task_id
         self.state = state
         self.result = result
+        self.finished_at = _now() if self.ready() else None
 
     def ready(self) -> bool:
         return self.state in {"SUCCESS", "FAILURE"}
@@ -31,8 +41,26 @@ _lock = threading.Lock()
 _semaphore = threading.BoundedSemaphore(settings.local_task_max_concurrency)
 
 
+def is_local_mode() -> bool:
+    return settings.task_execution_mode.lower() == "local"
+
+
+def _forget_expired_tasks() -> None:
+    """Descarta las tareas terminadas hace más de una hora. Requiere `_lock` tomado."""
+    now = _now()
+    expired = [
+        task_id
+        for task_id, task in _tasks.items()
+        if task.finished_at is not None
+        and now - task.finished_at > FINISHED_TASK_RETENTION_SECONDS
+    ]
+    for task_id in expired:
+        del _tasks[task_id]
+
+
 def get_local_task(task_id: str) -> LocalTaskResult | None:
     with _lock:
+        _forget_expired_tasks()
         return _tasks.get(task_id)
 
 
@@ -45,6 +73,7 @@ def enqueue_local_task(
 ) -> str:
     task_id = new_task_id(owner_id, prefix)
     with _lock:
+        _forget_expired_tasks()
         _tasks[task_id] = LocalTaskResult(task_id, "PENDING")
 
     def runner() -> None:

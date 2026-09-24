@@ -7,7 +7,6 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 
-from app.config import settings
 from app.core.public_errors import public_error_message
 from app.core.task_ids import new_task_id
 from app.database import get_supabase_client
@@ -22,7 +21,7 @@ from app.services.ai_gateway.prompts.interview_kit_v1 import build_user_prompt
 from app.services.match_engine import MatchResult, compute_match_score
 from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
-from app.tasks.local_fallback import enqueue_local_task
+from app.tasks.local_fallback import enqueue_local_task, is_local_mode
 
 JobSource = Literal["url", "text"]
 MAX_JOB_TEXT_CHARS = 30_000
@@ -322,10 +321,6 @@ async def run_job_analysis(
     return payload
 
 
-def _use_local_execution() -> bool:
-    return settings.task_execution_mode.lower() == "local"
-
-
 def _local_factory(
     run: Callable[..., Awaitable[dict[str, Any]]],
     *args: Any,
@@ -362,7 +357,7 @@ def enqueue_job_analysis(
     url: str | None,
     raw_text: str | None,
 ) -> str:
-    if _use_local_execution():
+    if is_local_mode():
         return enqueue_local_task(
             _local_factory(run_job_analysis, job_id, user_id, source, url, raw_text),
             prefix="local-job",
@@ -386,7 +381,7 @@ def match_task(job_id: str, profile_id: str, user_id: str) -> dict[str, Any]:
 
 
 def enqueue_match(job_id: str, profile_id: str, user_id: str) -> str:
-    if _use_local_execution():
+    if is_local_mode():
         # Encadenada desde el analisis, que todavia ocupa un cupo: espera su turno.
         return enqueue_local_task(
             _local_factory(run_match, job_id, profile_id, user_id),
@@ -545,7 +540,7 @@ def interview_kit_task(kit_id: str, user_id: str) -> dict[str, Any]:
 
 
 def enqueue_interview_kit(kit_id: str, user_id: str) -> str:
-    if _use_local_execution():
+    if is_local_mode():
         return enqueue_local_task(
             _local_factory(run_interview_kit, kit_id, user_id),
             prefix="local-kit",

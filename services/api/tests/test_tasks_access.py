@@ -5,12 +5,13 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.v1.tasks import TASK_UNAVAILABLE_MESSAGE
 from app.core.task_ids import new_task_id, task_belongs_to
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
 from app.services.ai_gateway.errors import ProviderUnavailableError
-from app.tasks import analysis, parsing
+from app.tasks import analysis, local_fallback, parsing
 from app.tasks.local_fallback import enqueue_local_task, get_local_task
 
 
@@ -207,7 +208,7 @@ def test_parse_cv_celery_task_id_is_bound_to_the_owner(
     def fake_apply_async(_args: Any, **kwargs: Any) -> Any:
         return SimpleNamespace(id=kwargs["task_id"])
 
-    monkeypatch.setattr(parsing.settings, "task_execution_mode", "celery")
+    monkeypatch.setattr(local_fallback.settings, "task_execution_mode", "celery")
     monkeypatch.setattr(parsing.parse_cv_task, "apply_async", fake_apply_async)
 
     task_id = parsing.enqueue_parse_cv("doc-1", "user-1")
@@ -229,7 +230,7 @@ def test_parse_cv_local_fallback_keeps_the_owner(
         captured["owner_id"] = owner_id
         return new_task_id(owner_id, prefix)
 
-    monkeypatch.setattr(parsing.settings, "task_execution_mode", "celery")
+    monkeypatch.setattr(local_fallback.settings, "task_execution_mode", "celery")
     monkeypatch.setattr(parsing.parse_cv_task, "apply_async", broken_apply_async)
     monkeypatch.setattr(parsing, "enqueue_local_task", fake_local)
 
@@ -271,3 +272,26 @@ def test_local_task_ids_are_bound_to_the_owner() -> None:
     assert result is not None
     assert result.successful()
     assert result.result == 42
+
+
+def test_lost_local_task_fails_at_once_without_asking_celery(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tras un reinicio la tarea ya no está en memoria: no se espera 15 minutos."""
+    monkeypatch.setattr(local_fallback.settings, "task_execution_mode", "local")
+    monkeypatch.setattr("app.api.v1.tasks.AsyncResult", ForbiddenCelery)
+    app.dependency_overrides[get_current_user] = _user
+
+    status_response = client.get("/api/v1/tasks/user-1.local-job-perdida")
+    stream_response = client.get("/api/v1/tasks/user-1.local-job-perdida/stream")
+
+    assert status_response.status_code == 200
+    assert status_response.json() == {
+        "task_id": "user-1.local-job-perdida",
+        "status": "failed",
+        "result": None,
+        "error": TASK_UNAVAILABLE_MESSAGE,
+    }
+    assert stream_response.text.startswith("event: complete")
+    assert '"status":"failed"' in stream_response.text

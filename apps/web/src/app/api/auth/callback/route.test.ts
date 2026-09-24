@@ -24,6 +24,24 @@ describe("auth callback route", () => {
     expect(response.headers.get("location")).toBe("http://localhost:3000/dashboard");
   });
 
+  it.each([
+    ["https://evil.example/phishing"],
+    ["//evil.example"],
+    ["/\u005cevil.example"]
+  ])("never redirects to another site (next=%s)", async (next) => {
+    const supabase = {
+      auth: {
+        exchangeCodeForSession: async () => ({ data: { session: null }, error: null })
+      }
+    } as unknown as Parameters<typeof exchangeAuthCode>[1];
+    const url = new URL("http://localhost:3000/api/auth/callback?code=abc123");
+    url.searchParams.set("next", next);
+
+    const response = await exchangeAuthCode(url, supabase);
+
+    expect(response.headers.get("location")).toBe("http://localhost:3000/dashboard");
+  });
+
   it("redirects OAuth provider errors back to login", async () => {
     const supabase = {
       auth: {

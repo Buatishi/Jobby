@@ -9,5 +9,18 @@
     "web:typecheck": "pnpm --filter @jobmatch/web typecheck",
     "web:lint": "pnpm --filter @jobmatch/web lint",
     "shared:build": "pnpm --filter @jobmatch/shared-types build"
+  },
+  "pnpm": {
+    "overrides": {
+      "baseline-browser-mapping": "^2.11.0",
+      "brace-expansion@^1": "^1.1.18",
+      "brace-expansion@^5": "^5.0.9",
+      "browserslist": "^4.28.7",
+      "fast-uri": "^3.1.6",
+      "js-yaml@^4": "^4.3.2",
+      "nanoid@^3": "^3.3.18",
+      "postcss": "^8.5.23",
+      "sharp": "^0.35.4"
+    }
   }
 }
