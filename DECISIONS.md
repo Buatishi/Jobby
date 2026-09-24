@@ -678,6 +678,17 @@ lo traduce a 400 en lugar de 500. Cubre todas las rutas de una vez, incluidas la
 Los puestos, además, validan su id como uuid antes de consultar la base (Decisión 1). Cualquier
 otro error de la base sigue respondiendo 500 y queda registrado.
 
+## Actualización — Decisión 17 (2026-09-24)
+
+**Estado:** Ajustada.
+
+La pasarela de IA reintenta solo lo que puede andar en otro intento: fallas de red, tiempo
+agotado (408), demasiados pedidos (429) y errores del proveedor (5xx). Cualquier otro 4xx, como
+una clave rechazada o sin saldo (401), falla en el primer intento, y una clave que falta falla
+antes de intentar. Antes, un CV con la clave de OpenAI rechazada esperaba 60 s (dos esperas de
+30 s) hasta marcarse como fallido, y DeepSeek o Claude esperaban 90 s; esa espera además ocupaba
+uno de los dos lugares de tareas simultáneas del modo local.
+
 ## Actualización — Decisión 4 (2026-09-24)
 
 **Estado:** Implementada.
