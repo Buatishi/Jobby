@@ -94,18 +94,29 @@ async def extract_job_keywords(
     return _parse_keywords(content, job)
 
 
-async def _semantic_match(
-    keyword: str,
+async def _semantic_matches(
+    keywords: list[str],
     cv_terms: list[str],
     gateway: AIGateway,
     threshold: float,
-) -> str | None:
-    keyword_embedding = await gateway.embed(keyword)
-    for term in cv_terms:
-        term_embedding = await gateway.embed(term)
-        if cosine_similarity(keyword_embedding, term_embedding) >= threshold:
-            return term
-    return None
+) -> dict[str, str]:
+    """Primer término del CV parecido a cada keyword que no apareció literal.
+
+    Pide los vectores en dos lotes: antes se pedía uno por palabra y los del CV se
+    repetían por cada keyword faltante (10 faltantes y 40 términos: 410 llamadas).
+    """
+    if not keywords or not cv_terms:
+        return {}
+
+    keyword_vectors = await gateway.embed_many(keywords)
+    term_vectors = await gateway.embed_many(cv_terms)
+    matches: dict[str, str] = {}
+    for keyword, keyword_vector in zip(keywords, keyword_vectors, strict=True):
+        for term, term_vector in zip(cv_terms, term_vectors, strict=True):
+            if cosine_similarity(keyword_vector, term_vector) >= threshold:
+                matches[keyword] = term
+                break
+    return matches
 
 
 async def analyze_keywords(
@@ -118,8 +129,7 @@ async def analyze_keywords(
     keywords = await extract_job_keywords(job, ai_gateway)
     cv_terms = _cv_terms(primary_cv)
     normalized_cv = {normalize_text(term): term for term in cv_terms}
-    matches: list[KeywordMatch] = []
-
+    literals: dict[str, str] = {}
     for keyword in keywords:
         normalized_keyword = normalize_text(keyword)
         literal = next(
@@ -131,17 +141,22 @@ async def analyze_keywords(
             None,
         )
         if literal:
-            matches.append(KeywordMatch(keyword, "literal", literal))
-            continue
+            literals[keyword] = literal
 
-        semantic = await _semantic_match(
-            keyword,
-            cv_terms,
-            ai_gateway,
-            semantic_threshold,
-        )
-        if semantic:
-            matches.append(KeywordMatch(keyword, "semantic", semantic))
+    pending = [keyword for keyword in keywords if keyword not in literals]
+    semantic = await _semantic_matches(
+        pending,
+        cv_terms,
+        ai_gateway,
+        semantic_threshold,
+    )
+
+    matches: list[KeywordMatch] = []
+    for keyword in keywords:
+        if keyword in literals:
+            matches.append(KeywordMatch(keyword, "literal", literals[keyword]))
+        elif keyword in semantic:
+            matches.append(KeywordMatch(keyword, "semantic", semantic[keyword]))
         else:
             matches.append(KeywordMatch(keyword, "missing"))
 
