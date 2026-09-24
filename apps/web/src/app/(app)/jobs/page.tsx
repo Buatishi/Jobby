@@ -7,27 +7,22 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import type { JobSummary } from "@/lib/jobs/job-edit";
 
-type Job = {
-  id: string;
-  company_name?: string | null;
-  job_title?: string | null;
-  created_at?: string | null;
-};
+import { JobCard } from "./job-card";
 
 export default function JobsPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiClient<Job[]>("/api/v1/jobs")
+    apiClient<JobSummary[]>("/api/v1/jobs")
       .then(setJobs)
       .catch((requestError: unknown) => {
         setError(
@@ -38,6 +33,16 @@ export default function JobsPage() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  function handleUpdated(updated: JobSummary) {
+    setJobs((current) =>
+      current.map((job) => (job.id === updated.id ? { ...job, ...updated } : job))
+    );
+  }
+
+  function handleDeleted(jobId: string) {
+    setJobs((current) => current.filter((job) => job.id !== jobId));
+  }
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -76,19 +81,12 @@ export default function JobsPage() {
 
       <div className="grid gap-3">
         {jobs.map((job) => (
-          <Card key={job.id}>
-            <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">{job.job_title || "Puesto sin título"}</p>
-                <p className="text-sm text-muted-foreground">
-                  {job.company_name || "Empresa no detectada"}
-                </p>
-              </div>
-              <Button asChild variant="secondary">
-                <Link href={`/jobs/${job.id}`}>Ver reporte</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <JobCard
+            job={job}
+            key={job.id}
+            onDeleted={handleDeleted}
+            onUpdated={handleUpdated}
+          />
         ))}
       </div>
     </main>

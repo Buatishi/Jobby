@@ -28,8 +28,8 @@ rectangle "Sitios de ofertas laborales\ny LinkedIn" as W #FFE9AE
 rectangle "Servicio de email\nResend" as EM #FFE9AE
 rectangle "Sentry" as SE #FFE9AE
 
-U --> P : F1 Credenciales y datos de registro\nF2 CV en PDF\nF3 Datos del perfil\nF4 Oferta laboral\nF5 Valoración de resultados\nF6 Solicitud de plan premium\nF7 Solicitud de baja de cuenta\nF8 Solicitud de CV optimizado\nF9 Solicitud de kit de entrevista\nF35 Solicitud de cierre de sesión
-P --> U : F11 Perfil estructurado del CV\nF12 Resultados de compatibilidad\nF13 CV optimizado\nF14 Kit de entrevista\nF15 Estado de las tareas\nF16 Enlace de pago\nF17 Resumen del panel\nF18 Confirmación de baja
+U --> P : F1 Credenciales y datos de registro\nF2 CV en PDF\nF3 Datos del perfil\nF4 Oferta laboral\nF5 Valoración de resultados\nF6 Solicitud de plan premium\nF7 Solicitud de baja de cuenta\nF8 Solicitud de CV optimizado\nF9 Solicitud de kit de entrevista\nF35 Solicitud de cierre de sesión\nF37 Cambios en los datos de un puesto\nF38 Solicitud de baja de un puesto
+P --> U : F11 Perfil estructurado del CV\nF12 Resultados de compatibilidad\nF13 CV optimizado\nF14 Kit de entrevista\nF15 Estado de las tareas\nF16 Enlace de pago\nF17 Resumen del panel\nF18 Confirmación de baja\nF39 Puestos guardados\nF40 Resultado de la baja del puesto
 A --> P : F19 Solicitud de métricas
 P --> A : F20 Métricas agregadas de uso
 P --> ID : F21 Credenciales a verificar\nF23 Orden de eliminar identidad\nF36 Orden de cerrar la sesión
@@ -47,7 +47,7 @@ legend right
   |<#D5EBE3>      | Entidad externa: persona |
   |<#FFE9AE>      | Entidad externa: sistema de terceros |
   |<#D6E2F3>      | El sistema completo como un único proceso |
-  35 flujos (F1 a F36, sin F10), rotulados con el dato que viaja.
+  39 flujos (F1 a F40, sin F10), rotulados con el dato que viaja.
   Los flujos entre el mismo par y en el mismo sentido comparten flecha.
 endlegend
 @enduml

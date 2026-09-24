@@ -19,7 +19,7 @@ title DFD nivel 1 — Vista 1C: procesos y almacenes de datos
 
 usecase "1\nGestionar cuenta\ny acceso" as P1 #D6E2F3
 usecase "2\nProcesar CV\ny perfil" as P2 #D6E2F3
-usecase "3\nAnalizar\npuesto" as P3 #D6E2F3
+usecase "3\nAnalizar y\ngestionar puestos" as P3 #D6E2F3
 usecase "4\nEvaluar\ncompatibilidad" as P4 #D6E2F3
 usecase "5\nGenerar kit\nde entrevista" as P5 #D6E2F3
 usecase "6\nGestionar\nsuscripción" as P6 #D6E2F3
@@ -40,7 +40,10 @@ P1 --> D7 : Orden de borrado de caché
 P1 --> D8 : Orden de invalidar claves
 P2 --> D3 : CV y estado de procesamiento
 P2 --> D2 : Perfil estructurado
-P3 --> D4 : Puesto estructurado con vector
+P3 --> D4 : Puesto estructurado con vector\nDatos corregidos del puesto\nBaja del puesto
+P3 <-- D4 : Puestos guardados
+P3 <-- D5 : Resultados que usan el puesto
+P3 <-- D6 : Kits que usan el puesto
 D1 --> P4 : Plan de la persona
 D2 --> P4 : Perfil y habilidades
 D4 --> P4 : Puesto estructurado

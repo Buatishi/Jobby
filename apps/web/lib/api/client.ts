@@ -168,6 +168,11 @@ export async function apiClient<TResponse>(
     throw new Error(await parseApiError(response));
   }
 
+  // Un borrado exitoso responde 204 sin cuerpo: no hay JSON para leer.
+  if (response.status === 204) {
+    return undefined as TResponse;
+  }
+
   return response.json() as Promise<TResponse>;
 }
 

@@ -1,6 +1,16 @@
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+# Los mismos valores que entiende el cálculo del MatchScore (s_seniority y s_company):
+# editar a otro texto dejaría el puesto con un valor que la fórmula ignora.
+JobSeniority = Literal["junior", "mid", "senior", "staff", "principal"]
+JobModality = Literal["remote", "hybrid", "onsite"]
+JobText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+]
+JobSalary = Annotated[int, Field(ge=0, le=100_000_000)]
+JobCurrency = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 
 
 class JobAnalysisRequest(BaseModel):
@@ -36,6 +46,24 @@ class JobDescription(BaseModel):
     salary_max: int | None = None
     currency: str | None = None
     created_at: str | None = None
+
+
+class JobUpdateRequest(BaseModel):
+    """Datos editables de un puesto (Decisión 1).
+
+    El texto original y la URL no se aceptan: cambiarlos exigiría volver a analizar el
+    puesto con IA. Un campo enviado como null se borra; uno que no se envía no cambia.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    job_title: JobText | None = None
+    company_name: JobText | None = None
+    required_seniority: JobSeniority | None = None
+    required_modality: JobModality | None = None
+    salary_min: JobSalary | None = None
+    salary_max: JobSalary | None = None
+    currency: JobCurrency | None = None
 
 
 class StructuredJobDescription(BaseModel):

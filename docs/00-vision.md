@@ -52,7 +52,8 @@ y emisión del JWT) está delegada en Supabase Auth.
 
 1. `/api/v1/tasks/{id}` y `/stream` con autenticación y control de dueño.
 2. El borrado de cuenta usa el bucket real `cv-documents` (Decisión 5).
-3. `PATCH` y `DELETE` de `jobs`, con 409 `JOB_HAS_DEPENDENT_RESULTS` (Decisión 1).
+3. `PATCH` y `DELETE` de `jobs`, con 409 `JOB_HAS_DEPENDENT_RESULTS` (hecho el 2026-09-24,
+   Decisión 1).
 4. `users.role`, `GET /admin/metrics` y `GET /users/me` (hecho el 2026-09-24, Decisión 21).
 5. Datos inválidos responden 400 `VALIDATION_ERROR`, con límites de entrada.
 6. Tests unitarios separados de los de integración; estos contra un Supabase de prueba.

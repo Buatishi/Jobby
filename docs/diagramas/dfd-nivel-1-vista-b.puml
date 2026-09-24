@@ -21,7 +21,7 @@ title DFD nivel 1 — Vista 1B: procesos y sistemas externos
 rectangle "Sistema Jobby" as SIS #FFFFFF {
   usecase "1\nGestionar cuenta\ny acceso" as P1 #D6E2F3
   usecase "2\nProcesar CV\ny perfil" as P2 #D6E2F3
-  usecase "3\nAnalizar\npuesto" as P3 #D6E2F3
+  usecase "3\nAnalizar y\ngestionar puestos" as P3 #D6E2F3
   usecase "4\nEvaluar\ncompatibilidad" as P4 #D6E2F3
   usecase "5\nGenerar kit\nde entrevista" as P5 #D6E2F3
   usecase "6\nGestionar\nsuscripción" as P6 #D6E2F3

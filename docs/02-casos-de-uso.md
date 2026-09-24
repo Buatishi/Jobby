@@ -68,6 +68,8 @@ la persona o por un evento de LemonSqueezy.
 | CU22 | Eliminar cuenta | Persona usuaria | `DELETE /users/me` |
 | CU23 | Consultar métricas agregadas | Administrador | `/admin` (`GET /admin/metrics`) |
 | CU24 | Cerrar sesión | Persona usuaria | Botón «Cerrar sesión» de la barra lateral (Supabase Auth) |
+| CU25 | Editar puesto | Persona usuaria | `PATCH /jobs/{id}`; botón «Editar» de la pantalla Jobs |
+| CU26 | Eliminar puesto | Persona usuaria | `DELETE /jobs/{id}` (409 si tiene comparaciones o kits); botón «Eliminar» de la pantalla Jobs |
 
 ## 3. Narrativas de los tres casos de uso principales
 

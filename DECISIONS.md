@@ -639,3 +639,30 @@ Supabase Auth, y fallan si se quita la comprobación.
 
 **Prestación resignada:** cerrar sesión cierra solo la del dispositivo actual; las abiertas en
 otros dispositivos siguen hasta que se cierren o venzan.
+
+## Actualización — Decisión 1 (2026-09-24)
+
+**Estado:** Implementada.
+
+`PATCH /jobs/{job_id}` y `DELETE /jobs/{job_id}` siguen las reglas de la Decisión 1. Precisiones de
+la implementación:
+
+- **Edición parcial:** cambia solo lo que se envía y un campo en `null` se borra. Cualquier otro
+  campo (`raw_text`, `source_url`, `user_id`, el vector) responde 400 `VALIDATION_ERROR` sin tocar
+  nada, y un cuerpo vacío, 400 `JOB_UPDATE_EMPTY`.
+- **Valores válidos:** seniority `junior`, `mid`, `senior`, `staff` o `principal` y modalidad
+  `remote`, `hybrid` u `onsite`: los mismos que entiende el cálculo del MatchScore, que ignoraría
+  otro texto. La moneda es un código de tres letras en mayúsculas y los salarios, enteros de 0 a
+  100 millones. Si se toca el salario, el mínimo no puede superar al máximo (400
+  `JOB_SALARY_RANGE_INVALID`); un rango viejo mal detectado por la IA no impide corregir otro dato.
+- **Borrado:** 409 `JOB_HAS_DEPENDENT_RESULTS` si hay comparaciones o kits, con el detalle de
+  cuáles, y 204 si no. Las claves foráneas borrarían en cascada, pero la API no llega a esa
+  cascada. El chequeo y el borrado no son atómicos: si una comparación termina justo entre los
+  dos, la cascada la borra junto con el puesto. Es una ventana de milisegundos y la que pidió
+  borrar es la misma persona.
+- **Puesto ajeno o inexistente:** 404 `JOB_NOT_FOUND`, sin revelar que existe.
+- **Id mal formado:** el id del puesto se valida como uuid y responde 400. Antes, con la base
+  real, PostgreSQL rechazaba el valor y la API respondía 500; los tests no lo veían porque el
+  simulador acepta cualquier texto. En los otros routers sigue pendiente.
+- **Web:** la pantalla Jobs suma «Editar» (un formulario en la misma tarjeta que envía solo lo
+  cambiado) y «Eliminar» (con confirmación, y el motivo del 409 cuando corresponde).
