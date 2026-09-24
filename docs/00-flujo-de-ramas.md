@@ -9,9 +9,13 @@ main                       tronco y rama de producción; todo se integra acá po
  |- docs/<tema>            documentación               (docs/dfd, docs/der, docs/arquitectura)
  |- test/<tema>            tests                       (test/integration-real-db)
  |- ci/<tema>              pipeline y despliegue       (ci/coverage-gate, ci/deploy-gate)
- |- chore/<tema>           mantenimiento
- '- feat/jobmatch-phase-1-2   historial congelado de la fase 1-2 (no se usa más)
+ '- chore/<tema>           mantenimiento
 ```
+
+Las ramas integradas se borran del remoto: su historial queda en `main` y cada una se puede
+restaurar desde su PR. La única que se conserva es `ci/verificacion-del-corte`, evidencia de
+una ejecución fallida del pipeline. `feat/jobmatch-phase-1-2`, el historial de la fase 1-2, se
+borró el 2026-09-24 con el mismo criterio.
 
 Reglas:
 
