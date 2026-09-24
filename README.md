@@ -143,6 +143,23 @@ y no se despliega (Decisiones 3 y 6). Las exclusiones del cálculo están declar
 `[tool.coverage.run]` de `services/api/pyproject.toml`: solo la configuración y el arranque
 del worker.
 
+La suite tiene dos partes. `tests/unit` no usa la red: los endpoints hablan con una base
+simulada en memoria (`tests/fakes.py`). `tests/integration` llama a la API contra el proyecto
+de Supabase **de pruebas** (Decisión 4) y necesita `TEST_SUPABASE_URL` y
+`TEST_SUPABASE_SERVICE_ROLE_KEY` de ese proyecto. Sin esas variables las pruebas de integración
+fallan en lugar de saltearse, y si la URL coincide con `SUPABASE_URL` se niegan a correr contra
+producción. En PowerShell:
+
+```powershell
+$env:TEST_SUPABASE_URL = "https://<proyecto-de-pruebas>.supabase.co"
+$env:TEST_SUPABASE_SERVICE_ROLE_KEY = "<clave service_role del proyecto de pruebas>"
+```
+
+Para correr solo las unitarias: `poetry run pytest -m "not integration"`. El orden de los tests
+cambia en cada corrida (`pytest-randomly`) para comprobar que no dependen unos de otros; para
+repetir un orden, `poetry run pytest --randomly-seed=<semilla>`, con la semilla que aparece al
+principio de la salida.
+
 Tipos compartidos (desde `packages/shared-types`): `pnpm build`.
 
 Pruebas E2E (desde `apps/web`): `pnpm exec playwright test`. El flujo completo solo corre con
@@ -214,4 +231,6 @@ Web:
 | `NEXT_PUBLIC_SENTRY_DSN` | Reporte de errores del servidor de la web (opcional: sin valor, Sentry no se activa) |
 
 Secretos de GitHub para el despliegue que corre después del CI: `RENDER_DEPLOY_HOOK_URL` y
-`VERCEL_DEPLOY_HOOK_URL` (ver `docs/06-arquitectura-y-despliegue.md`, sección 4).
+`VERCEL_DEPLOY_HOOK_URL` (ver `docs/06-arquitectura-y-despliegue.md`, sección 4). Para las
+pruebas de integración del CI: `TEST_SUPABASE_URL` y `TEST_SUPABASE_SERVICE_ROLE_KEY`, del
+proyecto de Supabase de pruebas.
