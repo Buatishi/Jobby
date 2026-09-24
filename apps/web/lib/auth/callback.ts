@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ServerSupabaseClient = Awaited<
@@ -14,7 +15,7 @@ export async function exchangeAuthCode(
     requestUrl.searchParams.get("error_description") ??
     requestUrl.searchParams.get("error");
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/dashboard";
+  const next = safeRedirectPath(requestUrl.searchParams.get("next"));
 
   if (oauthError) {
     const loginUrl = new URL("/login", requestUrl.origin);

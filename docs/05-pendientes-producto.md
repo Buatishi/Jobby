@@ -1,6 +1,6 @@
 # Pendientes de producto y frontend
 
-Estado: 2026-09-21. Origen: auditoría del frontend en vivo y en el código, y evaluación de
+Estado: 2026-09-21, actualizado el 2026-09-23. Origen: auditoría del frontend en vivo y en el código, y evaluación de
 propuestas de redes sociales. Nada de esto está implementado salvo lo marcado como hecho;
 cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 
@@ -10,6 +10,7 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 |---|---|---|
 | F1 | Arranque en frío de la API: pre-calentamiento al abrir la web, reintento de GET y aviso de demora | Decisión 14, `docs/operacion/arranque-en-frio.md` |
 | M1 | Tareas en segundo plano en modo local (análisis, match y kits) | Decisión 15, `docs/operacion/modo-local-de-tareas.md` |
+| F9 | `/og-image.png` salía con 200 y 0 bytes: Satori exige `display: flex` en todo `<div>` cuyo contenido no sea solo texto, y la pista de cada barra no lo tenía. Corregido el 2026-09-23, con un test que genera la imagen y valida el PNG | `apps/web/src/app/og-image.png/route.test.ts` |
 
 ## 2. Frontend
 
@@ -21,7 +22,6 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 | F5 | Media | Solo el layout raíz define `metadata`; sin título ni descripción por página | Mejor SEO y pestañas legibles. Validar inspeccionando `<title>` y con Lighthouse | Bajo, S | Páginas públicas de `apps/web/src/app` |
 | F6 | Media | 15 atributos `aria` y 1 `sr-only`; el titular de la landing tardaba más de 3 s en tomar su color final (observación puntual) | Accesibilidad. Validar con Lighthouse o axe | Bajo, S–M | Componentes compartidos y landing |
 | F7 | Baja | Modo oscuro forzado a claro en `globals.css` (`color-scheme: light` y un bloque `prefers-color-scheme: dark` que repite los valores claros); depende de F3 | Comodidad; no es requisito de la consigna | Medio, M–L | `globals.css`, `layout.tsx`, `lib/utils/score-colors.ts` |
-| F9 | Media | `/og-image.png` responde 200 con 0 bytes y queda cacheada como inmutable (observado en producción el 2026-09-21); el código de la ruta no cambió desde el despliegue anterior | Vista previa al compartir el enlace. Validar con `curl` (debe traer bytes) | Bajo, S | `apps/web/src/app/og-image.png/route.tsx` (runtime edge) |
 | P1 | Media | `next.config.ts` cae a `https://jobby-fp0r.onrender.com` (API duplicada) si faltan las variables de entorno | Evita apuntar en silencio a un servicio que se va a suspender. Validar con un build sin variables | Bajo, S | `apps/web/next.config.ts` |
 | P2 | Alta | La interfaz fija el plan en `free` (`(app)/layout.tsx`), así que un usuario premium vería funciones bloqueadas | Plan real en la UI. Validar con un usuario premium de prueba | Medio, M | `apps/web/src/app/(app)/layout.tsx`, `components/app-shell.tsx` |
 | P3 | Media | No hay ningún control de cierre de sesión en la interfaz | Cierre de sesión explícito. Validar iniciando y cerrando sesión | Bajo, S | `components/app-sidebar.tsx` |
