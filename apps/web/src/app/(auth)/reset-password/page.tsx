@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
+import { PasswordInput } from "@/src/components/auth/PasswordInput";
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
@@ -112,7 +113,7 @@ export default function ResetPasswordPage() {
           <label className="text-sm font-semibold" htmlFor="password">
             Nueva contraseña
           </label>
-          <input
+          <PasswordInput
             autoComplete="new-password"
             className={inputClassName}
             disabled={isPreparingSession}
@@ -121,7 +122,6 @@ export default function ResetPasswordPage() {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Mínimo 8 caracteres"
             required
-            type="password"
             value={password}
           />
         </div>
@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
           <label className="text-sm font-semibold" htmlFor="confirmPassword">
             Confirmar contraseña
           </label>
-          <input
+          <PasswordInput
             autoComplete="new-password"
             className={inputClassName}
             disabled={isPreparingSession}
@@ -139,7 +139,6 @@ export default function ResetPasswordPage() {
             onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder="Repetí la contraseña"
             required
-            type="password"
             value={confirmPassword}
           />
         </div>
