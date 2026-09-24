@@ -90,6 +90,8 @@ sanitizados). La cola queda como ampliación posible si se paga un worker.
 - `tests/integration/`: peticiones HTTP contra un proyecto Supabase de pruebas
   (Decisión 4); fallan cerradas si faltan `TEST_SUPABASE_*`.
 - El orden de los tests cambia en cada corrida (`pytest-randomly`).
+- Errores deliberados: `python -m tests.deliberate_bugs` altera once reglas de a una y cada
+  alteración hace fallar alguna prueba (11 de 11 desde el 2026-09-24; eran 5).
 - Casos obligatorios: 201, 200, PATCH, DELETE, 400, 404 y una regla de negocio de
   extremo a extremo.
 - Cobertura de líneas del backend >= 65 %, medida y exigida en el pipeline.

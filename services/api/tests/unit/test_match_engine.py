@@ -1,6 +1,7 @@
 import pytest
 
 from app.services.match_engine import compute_match_score
+from app.services.match_engine.formula import _weighted_score
 from app.tasks.matching import run_match
 from tests.fakes import FakeSupabase
 
@@ -193,3 +194,30 @@ async def test_run_match_persists_full_score_breakdown() -> None:
     assert match["ai_model_used"] == "deepseek-chat"
     assert match["recommendations"]
     assert db.tables["job_matches"][0]["score_breakdown"]["sub_scores"]["skills"] == 1.0
+
+
+COMPONENTS = ("skills", "seniority", "education", "languages", "company", "soft")
+
+
+@pytest.mark.parametrize(
+    ("component", "points"),
+    [
+        ("skills", 35),
+        ("seniority", 25),
+        ("company", 15),
+        ("education", 10),
+        ("languages", 10),
+        ("soft", 5),
+    ],
+)
+def test_each_component_weighs_what_the_formula_says(
+    component: str, points: int
+) -> None:
+    """Con un solo componente al máximo, el puntaje es exactamente su peso."""
+    scores = {name: 1.0 if name == component else 0.0 for name in COMPONENTS}
+
+    assert _weighted_score(scores) == points
+
+
+def test_the_weights_add_up_to_one_hundred() -> None:
+    assert _weighted_score(dict.fromkeys(COMPONENTS, 1.0)) == 100

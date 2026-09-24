@@ -188,3 +188,31 @@ def test_create_interview_kit_requires_premium(client: TestClient) -> None:
 
     assert response.status_code == 403
     assert response.json()["code"] == "PREMIUM_REQUIRED"
+
+
+@pytest.mark.parametrize(("completeness_pct", "status_code"), [(99, 403), (100, 202)])
+def test_create_interview_kit_requires_a_complete_profile(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    completeness_pct: int,
+    status_code: int,
+) -> None:
+    fake_supabase = FakeSupabase()
+    _seed_premium_kit(fake_supabase)
+    fake_supabase.tables["master_profiles"][0]["completeness_pct"] = completeness_pct
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    monkeypatch.setattr(
+        "app.api.v1.interview_kits.enqueue_interview_kit",
+        lambda _kit_id, _user_id: "user-1.kit-test",
+    )
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.post("/api/v1/interview-kits", json={"job_id": "job-1"})
+
+    assert response.status_code == status_code
+    if status_code == 403:
+        assert response.json()["code"] == "PROFILE_INCOMPLETE"

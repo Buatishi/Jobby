@@ -160,6 +160,12 @@ cambia en cada corrida (`pytest-randomly`) para comprobar que no dependen unos d
 repetir un orden, `poetry run pytest --randomly-seed=<semilla>`, con la semilla que aparece al
 principio de la salida.
 
+Prueba de errores deliberados (consigna 3.7.7): `poetry run python -m tests.deliberate_bugs`
+altera de a una once reglas de negocio (pesos del Match Score, límites por plan, dueño de las
+tareas, firma del webhook, guarda anti-SSRF y otras), corre las pruebas unitarias con cada una y
+restaura el código. Tarda unos tres minutos y cada alteración tiene que hacer fallar alguna
+prueba: hoy se detectan las once (el 2026-09-21 eran cinco).
+
 Tipos compartidos (desde `packages/shared-types`): `pnpm build`.
 
 Pruebas E2E (desde `apps/web`): `pnpm exec playwright test`. El flujo completo solo corre con

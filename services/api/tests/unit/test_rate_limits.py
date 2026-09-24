@@ -54,3 +54,19 @@ async def test_each_person_has_its_own_counter(fake_redis: FakeRedis) -> None:
     await increment_rate_limit("user-2", "free", RateLimitKind.JOBS)
 
     assert sorted(fake_redis.values.values()) == ["1", "1"]
+
+
+@pytest.mark.asyncio
+async def test_free_jobs_allow_ten_a_month_and_block_the_eleventh(
+    fake_redis: FakeRedis,
+) -> None:
+    counts = [
+        await increment_rate_limit("user-1", "free", RateLimitKind.JOBS)
+        for _ in range(10)
+    ]
+
+    with pytest.raises(RateLimitExceededError) as exceeded:
+        await increment_rate_limit("user-1", "free", RateLimitKind.JOBS)
+
+    assert counts == list(range(1, 11))
+    assert exceeded.value.limit == 10
