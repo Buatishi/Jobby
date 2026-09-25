@@ -720,3 +720,13 @@ límite de pedidos se sigue reintentando.
 - **Orden:** `pytest-randomly`, dependencia de desarrollo, mezcla el orden en cada corrida (3.7.6)
   y deja la semilla en el encabezado. Antes de sumarlo, la suite pasó completa con tres órdenes
   mezclados distintos.
+
+## Actualización — Decisión 17 (2026-09-25)
+
+**Estado:** Confirmada por el autor.
+
+La observabilidad (consigna 3.5) no se presenta como capacidad y queda como «No aplica», igual que
+la cola, la caché y el tiempo real. El sistema tiene registros en Render y Sentry opcional en la
+API, pero eso no alcanza para mostrar en la defensa qué pasó en producción en un momento dado, y la
+consigna advierte que una capacidad adicional resuelta de manera deficiente resta. Se prefiere una
+sola capacidad, la integración con terceros, comprendida en profundidad.
