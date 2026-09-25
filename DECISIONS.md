@@ -697,3 +697,26 @@ reintenta. OpenAI responde 429 con el código `insufficient_quota`, el mismo est
 un límite de pedidos por minuto, y la pasarela lo reintentaba 60 s. Ahora la pasarela distingue
 los dos casos: la falta de saldo falla en el primer intento, con un error que lo dice, y el
 límite de pedidos se sigue reintentando.
+
+## Actualización — Decisión 4 (2026-09-24)
+
+**Estado:** Implementada.
+
+- **Dos carpetas, un comando:** `tests/unit/` (las pruebas de siempre, con la base simulada) y
+  `tests/integration/` (contra el proyecto `jobby-test`). `poetry run pytest` corre las dos, en
+  el equipo y en el CI.
+- **Qué es real:** la API corre dentro del proceso (httpx con `ASGITransport`) y habla con
+  PostgreSQL, PostgREST y Supabase Auth del proyecto de pruebas. Solo se reemplaza la sesión por
+  la persona que crea cada prueba: la validación del token ya tiene sus pruebas unitarias.
+- **Datos:** cada prueba crea su propia persona en Supabase Auth (el disparador de la migración
+  015 crea su fila de `users` y su perfil) y al terminar borra esa fila, que arrastra en cascada
+  todo lo demás, y después la identidad. No quedan datos y ninguna prueba depende de otra.
+- **Falla cerrada:** sin `TEST_SUPABASE_URL` o `TEST_SUPABASE_SERVICE_ROLE_KEY`, cada prueba de
+  integración falla con un mensaje que explica qué falta. Si la URL coincide con `SUPABASE_URL`,
+  se niega a correr: nunca se usan las variables de producción.
+- **Casos:** POST 201, GET 200, PATCH, DELETE, 400 (dato inválido e id mal formado en cuatro
+  rutas), 404 (inexistente y ajeno) y la regla del perfil al 60 %; además, que el 409 de un puesto
+  con comparaciones evita la cascada real de la base.
+- **Orden:** `pytest-randomly`, dependencia de desarrollo, mezcla el orden en cada corrida (3.7.6)
+  y deja la semilla en el encabezado. Antes de sumarlo, la suite pasó completa con tres órdenes
+  mezclados distintos.

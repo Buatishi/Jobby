@@ -57,7 +57,8 @@ y emisión del JWT) está delegada en Supabase Auth.
 4. `users.role`, `GET /admin/metrics` y `GET /users/me` (hecho el 2026-09-24, Decisión 21).
 5. Datos inválidos responden 400 `VALIDATION_ERROR`, con límites de entrada; también un id
    mal formado que rechaza la base (hecho el 2026-09-24, Decisión 8).
-6. Tests unitarios separados de los de integración; estos contra un Supabase de prueba.
+6. Tests unitarios separados de los de integración; estos contra un Supabase de prueba (hecho
+   el 2026-09-24, Decisión 4).
 7. Pipeline con gate de deploy y `main` como única rama de producción (hecho el 2026-09-24).
 8. Frontend: logout, manejo de 403, plan real en la interfaz y sin fallback a la URL de
    producción en `next.config.ts`.
@@ -84,10 +85,13 @@ sanitizados). La cola queda como ampliación posible si se paga un worker.
 
 ## 6. Estrategia de tests
 
-- `tests/unit/`: lógica pura de negocio (motor de match, ATS, reglas de límites, merge de
-  skills), sin I/O, en milisegundos.
+- `tests/unit/`: lógica de negocio (motor de match, ATS, reglas de límites, merge de skills) y
+  endpoints contra una base simulada en memoria, sin red.
 - `tests/integration/`: peticiones HTTP contra un proyecto Supabase de pruebas
-  (Decisión 4); deben fallar cerrados si faltan `TEST_SUPABASE_*`.
+  (Decisión 4); fallan cerradas si faltan `TEST_SUPABASE_*`.
+- El orden de los tests cambia en cada corrida (`pytest-randomly`).
+- Errores deliberados: `python -m tests.deliberate_bugs` altera once reglas de a una y cada
+  alteración hace fallar alguna prueba (11 de 11 desde el 2026-09-24; eran 5).
 - Casos obligatorios: 201, 200, PATCH, DELETE, 400, 404 y una regla de negocio de
   extremo a extremo.
 - Cobertura de líneas del backend >= 65 %, medida y exigida en el pipeline.

@@ -175,3 +175,17 @@ async def test_deepseek_unauthorized_returns_actionable_error(
         await ai_structurer._call_deepseek("Python FastAPI")
 
     assert exc_info.value.code == "DEEPSEEK_UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_extract_pdf_text_rejects_files_over_ten_megabytes(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "cv.pdf"
+    with pdf_path.open("wb") as pdf:
+        pdf.truncate(10 * 1024 * 1024 + 1)
+
+    with pytest.raises(CVParsingError) as error:
+        await extract_pdf_text(pdf_path)
+
+    assert error.value.code == "PDF_TOO_LARGE"

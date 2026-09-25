@@ -29,6 +29,7 @@ from app.services.scraper.url_guard import (
         "file:///etc/passwd",
         "javascript:alert(1)",
         "https://user:secret@example.com/",
+        "http://example.com:22/",
         "http://example.com:6379/",
         "http://example.com:8080/",
         "http://intranet.local/",

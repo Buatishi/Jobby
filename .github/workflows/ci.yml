@@ -79,6 +79,12 @@ jobs:
 
       - name: Test and coverage
         # Decisión 3: el 65 % es eliminatorio y aplica solo al backend.
+        # Decisión 4: las pruebas de integración usan el proyecto de Supabase de pruebas y
+        # fallan a propósito si faltan estos secretos. El orden de los tests cambia en cada
+        # corrida (pytest-randomly); la semilla queda en el encabezado para repetirla.
+        env:
+          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
         run: poetry run pytest --cov=app --cov-fail-under=65
 
   shared-types:

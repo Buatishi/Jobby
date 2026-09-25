@@ -70,6 +70,6 @@ Es un cambio de variable de entorno en producción, así que requiere aprobació
 
 ## 7. Pruebas
 
-`services/api/tests/test_local_tasks.py` (7 casos): ejecución en proceso de análisis, match
+`services/api/tests/unit/test_local_tasks.py` (7 casos): ejecución en proceso de análisis, match
 y kit, sin distinguir mayúsculas; reporte de fallas; Celery sin cambios; solo el match
 encadenado espera cupo; espera frente a falla inmediata con la capacidad llena.

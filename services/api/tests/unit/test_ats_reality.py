@@ -270,3 +270,15 @@ def test_ats_optimize_returns_rewritten_sections(
 
     assert response.status_code == 200
     assert response.json()["sections"][0]["rewritten_text"] == "Python, FastAPI"
+
+
+def test_a_semantic_match_counts_half_of_a_literal_one() -> None:
+    matches = [
+        KeywordMatch("python", "literal", "python"),
+        KeywordMatch("rest apis", "semantic", "apis rest"),
+        KeywordMatch("kubernetes", "missing"),
+        KeywordMatch("fastapi", "missing"),
+    ]
+
+    # (1 literal + 0,5 por la semántica) / 4 palabras clave = 37,5 %, que redondea a 38.
+    assert compute_ats_score(matches, []) == 38
