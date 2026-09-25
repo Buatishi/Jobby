@@ -761,8 +761,8 @@ código atrape el error. Con la guarda puesta, esa fue la única que la usaba.
 
 ## Decisión 23 — Menos espera en cada paso
 
-**Estado:** Aprobada por el autor (2026-09-25), en cuatro mejoras con un pull request cada una;
-la cuarta está pendiente.
+**Estado:** Aprobada por el autor (2026-09-25) como cuatro mejoras, un pull request cada una. Se
+hicieron las tres primeras; la cuarta se descartó al medirla.
 
 **Problema:** cada paso se sentía lento. Medido en producción: la API corre en Oregon y la base en
 São Paulo, así que cada consulta a la base cuesta entre 0,19 y 0,24 s (registros de Supabase), y
@@ -777,7 +777,12 @@ la pantalla quedaba vacía hasta que respondía la API.
 3. Pantallas de carga, error y página inexistente (#39), y la última respuesta de cada pantalla en
    la memoria de la pestaña (`useApiResource`): al volver a una sección se ve al instante lo último
    y se actualiza por detrás; si la actualización falla, queda lo anterior junto con el error.
-4. Pendiente: que el navegador llame directo a la API, sin pasar por el proxy de Vercel.
+4. Descartada al medirla: que el navegador llame directo a la API, sin el proxy de Vercel. Desde
+   Buenos Aires, con la conexión reutilizada como hace el navegador (10 pedidos por caso), el proxy
+   suma unos 40 ms (268 ms contra 229 ms directo a Render). Ir directo obliga a una consulta previa
+   de CORS de unos 190 ms por cada dirección distinta cada 10 minutos, y a abrir otra conexión con
+   Render. La estimación anterior, de 200 ms por pedido, se había medido abriendo una conexión nueva
+   en cada pedido.
 
 **Privacidad:** la memoria es de la pestaña, nunca `localStorage`, y se borra al iniciar sesión,
 registrarse y salir (`forgetSessionData`). Un contador descarta las respuestas pedidas con la
