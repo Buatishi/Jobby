@@ -13,11 +13,21 @@ from app.services.lemonsqueezy_service import (
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-async def _already_processed(event_key: str) -> bool:
+PROCESSED_EVENT_TTL_SECONDS = 60 * 60 * 24
+
+
+async def _was_processed(event_key: str) -> bool:
     client = Redis.from_url(settings.redis_url, decode_responses=True)
     try:
-        was_set = await client.set(event_key, "1", ex=60 * 60 * 24, nx=True)
-        return was_set is None
+        return await client.get(event_key) is not None
+    finally:
+        await client.aclose()
+
+
+async def _mark_processed(event_key: str) -> None:
+    client = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        await client.set(event_key, "1", ex=PROCESSED_EVENT_TTL_SECONDS)
     finally:
         await client.aclose()
 
@@ -71,13 +81,30 @@ async def lemonsqueezy_webhook(request: Request) -> dict[str, str]:
 
     event_key = f"lemonsqueezy:webhook:{event_name}:{data_id or 'unknown'}"
     try:
-        if await _already_processed(event_key):
+        if await _was_processed(event_key):
             return {"status": "ok"}
     except Exception as exc:
+        # Sin Redis se procesa igual: repetir un evento solo vuelve a escribir el plan.
         capture_exception(exc)
 
     try:
         await handle_webhook_event(event_name, data, custom_data)
+    except Exception as exc:
+        capture_exception(exc)
+        # Un error hace que LemonSqueezy reintente el aviso. Antes se respondía «ok» con
+        # el evento ya marcado, y quien pagaba podía quedarse sin premium.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "No se pudo procesar el evento de Lemon Squeezy",
+                "code": "LEMONSQUEEZY_EVENT_FAILED",
+                "details": {},
+            },
+        ) from exc
+
+    # Se marca recién ahora, cuando el evento ya quedó aplicado.
+    try:
+        await _mark_processed(event_key)
     except Exception as exc:
         capture_exception(exc)
 
