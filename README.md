@@ -207,6 +207,9 @@ Activá los eventos `order_created`, `subscription_created`, `subscription_updat
 `subscription_cancelled`, `subscription_expired`, `subscription_payment_success` y
 `subscription_payment_failed`. Copiá el secreto de firma en `LEMONSQUEEZY_WEBHOOK_SECRET`.
 
+La API marca cada evento como procesado recién después de aplicarlo. Si algo falla, responde 500
+y Lemon Squeezy reintenta el aviso; un evento repetido que ya se aplicó se ignora.
+
 ## Variables de entorno
 
 API:
