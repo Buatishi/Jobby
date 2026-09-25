@@ -746,3 +746,15 @@ pre-calentamiento de la web sigue cubriendo el primer pedido.
 que puede quedar algún arranque lento; la programación se apaga sola tras 60 días sin actividad
 en el repositorio; si se reactiva otro servicio gratis de Render hay que volver a hacer la cuenta
 de horas. Costo: USD 0.
+
+## Actualización — Decisión 4 (2026-09-25)
+
+**Estado:** Ampliada.
+
+Las pruebas unitarias tampoco salen a la red. Los registros de Supabase de producción mostraron 35
+pedidos en un día a `/auth/v1/user` con el token `invalid-token`: era
+`test_invalid_token_returns_401`, que en el equipo local (con el `.env` apuntando a producción)
+consultaba el Supabase Auth real. No exponía datos, pero una prueba unitaria no debe depender de
+producción. Ahora simula esa respuesta, y `tests/unit/conftest.py` reemplaza los transportes reales
+de httpx por uno que falla: cualquier prueba que intente salir a Internet queda en rojo, aunque el
+código atrape el error. Con la guarda puesta, esa fue la única que la usaba.
