@@ -61,7 +61,7 @@ y emisión del JWT) está delegada en Supabase Auth.
    el 2026-09-24, Decisión 4).
 7. Pipeline con gate de deploy y `main` como única rama de producción (hecho el 2026-09-24).
 8. Frontend: logout, manejo de 403, plan real en la interfaz y sin fallback a la URL de
-   producción en `next.config.ts`.
+   producción en `next.config.ts` (hecho; el plan real, el 2026-09-25).
 9. `docker-compose` con solo Redis (el Postgres local no se usa).
 10. Mitigación del cold start de la API.
 
