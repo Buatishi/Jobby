@@ -4,5 +4,8 @@
     "deploymentEnabled": {
       "main": false
     }
-  }
+  },
+  "regions": [
+    "gru1"
+  ]
 }
