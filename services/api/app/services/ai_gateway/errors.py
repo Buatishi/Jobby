@@ -8,6 +8,10 @@ class ProviderUnavailableError(AIGatewayError):
         super().__init__(message or f"{provider} is unavailable.")
 
 
+class ProviderQuotaExceededError(ProviderUnavailableError):
+    """La cuenta del proveedor no tiene saldo: otro intento falla igual."""
+
+
 class PremiumRequiredError(AIGatewayError):
     def __init__(self, task_type: str) -> None:
         self.task_type = task_type
