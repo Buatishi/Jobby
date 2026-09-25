@@ -146,7 +146,9 @@ y no se despliega (Decisiones 3 y 6). Las exclusiones del cálculo están declar
 del worker.
 
 La suite tiene dos partes. `tests/unit` no usa la red: los endpoints hablan con una base
-simulada en memoria (`tests/fakes.py`). `tests/integration` llama a la API contra el proyecto
+simulada en memoria (`tests/fakes.py`), y `tests/unit/conftest.py` hace fallar cualquier prueba
+que intente salir a Internet (hasta el 2026-09-25, una consultaba el Supabase Auth de producción
+en cada corrida local). `tests/integration` llama a la API contra el proyecto
 de Supabase **de pruebas** (Decisión 4) y necesita `TEST_SUPABASE_URL` y
 `TEST_SUPABASE_SERVICE_ROLE_KEY` de ese proyecto. Sin esas variables las pruebas de integración
 fallan en lugar de saltearse, y si la URL coincide con `SUPABASE_URL` se niegan a correr contra
