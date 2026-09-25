@@ -92,5 +92,5 @@ las migraciones, las pruebas y producción. Las decisiones de diseño, la arquit
 son propias; el resultado de las herramientas se revisó antes de incorporarse. Se comprende la
 totalidad del código entregado y no se usarán asistentes durante la defensa individual.
 
-*El registro completo de decisiones operativas (Decisiones 1 a 22) está en `DECISIONS.md`; este
-documento resume las cinco decisiones estructurales que pide la consigna.*
+*El registro completo de decisiones operativas, que crece durante el trimestre, está en
+`DECISIONS.md`; este documento resume las cinco decisiones estructurales que pide la consigna.*
