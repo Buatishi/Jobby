@@ -80,11 +80,11 @@ BUGS = (
         "M8",
         "Plan premium para crear un kit (cualquiera puede)",
         "app/api/v1/interview_kits.py",
-        "user_tier = await _fetch_user_tier(supabase, current_user.id)\n"
+        "user_tier = current_user.tier\n"
         '    if user_tier != "premium":\n'
         "        raise _premium_required()\n\n"
         "    profile = await _fetch_profile(supabase, current_user.id)",
-        "user_tier = await _fetch_user_tier(supabase, current_user.id)\n\n"
+        "user_tier = current_user.tier\n\n"
         "    profile = await _fetch_profile(supabase, current_user.id)",
     ),
     DeliberateBug(
