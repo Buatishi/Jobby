@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { startGoogleSignIn } from "@/lib/auth/google-sign-in";
+import { forgetSessionData } from "@/lib/auth/session-data";
 import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
@@ -70,6 +71,7 @@ export default function RegisterPage() {
         return;
       }
 
+      forgetSessionData();
       router.push("/dashboard");
       router.refresh();
     } catch (authError) {

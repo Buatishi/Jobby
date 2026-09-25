@@ -8,6 +8,7 @@ import { ArrowRight, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { startGoogleSignIn } from "@/lib/auth/google-sign-in";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
+import { forgetSessionData } from "@/lib/auth/session-data";
 import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
@@ -65,6 +66,7 @@ export default function LoginPage() {
         return;
       }
 
+      forgetSessionData();
       const searchParams = new URLSearchParams(window.location.search);
       router.push(safeRedirectPath(searchParams.get("next")));
       router.refresh();

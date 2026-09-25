@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,37 +10,27 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient } from "@/lib/api/client";
+import { useApiResource } from "@/lib/api/use-api-resource";
 import type { JobSummary } from "@/lib/jobs/job-edit";
 
 import { JobCard } from "./job-card";
 
 export default function JobsPage() {
-  const [jobs, setJobs] = useState<JobSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiClient<JobSummary[]>("/api/v1/jobs")
-      .then(setJobs)
-      .catch((requestError: unknown) => {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "No se pudieron cargar los jobs."
-        );
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
+  const {
+    data: jobs = [],
+    error,
+    loading: isLoading,
+    mutate
+  } = useApiResource<JobSummary[]>("/api/v1/jobs", "No se pudieron cargar los jobs.");
 
   function handleUpdated(updated: JobSummary) {
-    setJobs((current) =>
-      current.map((job) => (job.id === updated.id ? { ...job, ...updated } : job))
+    mutate((current) =>
+      current?.map((job) => (job.id === updated.id ? { ...job, ...updated } : job))
     );
   }
 
   function handleDeleted(jobId: string) {
-    setJobs((current) => current.filter((job) => job.id !== jobId));
+    mutate((current) => current?.filter((job) => job.id !== jobId));
   }
 
   return (

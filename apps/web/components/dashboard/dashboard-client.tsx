@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -22,7 +22,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient } from "@/lib/api/client";
+import { useApiResource } from "@/lib/api/use-api-resource";
 import { useI18n } from "@/lib/i18n/provider";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
@@ -66,7 +66,7 @@ function clampScore(value: number | null | undefined) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function getFirstName(summary: DashboardSummary | null) {
+function getFirstName(summary: DashboardSummary | undefined) {
   const fullName = summary?.full_name?.trim();
   if (fullName) {
     return fullName.split(/\s+/)[0] ?? "";
@@ -178,42 +178,14 @@ function ScoreCard({
 
 export function DashboardClient() {
   const { language, t } = useI18n();
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadSummary() {
-      try {
-        const response = await apiClient<DashboardSummary>(
-          "/api/v1/dashboard/summary"
-        );
-        if (isMounted) {
-          setSummary(response);
-        }
-      } catch (requestError) {
-        if (isMounted) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : t("app.summaryError")
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadSummary();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [t]);
+  const {
+    data: summary,
+    error,
+    loading: isLoading
+  } = useApiResource<DashboardSummary>(
+    "/api/v1/dashboard/summary",
+    t("app.summaryError")
+  );
 
   const locale = language === "es" ? "es-AR" : "en-US";
   const today = useMemo(
