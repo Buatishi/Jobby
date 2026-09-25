@@ -758,3 +758,42 @@ consultaba el Supabase Auth real. No exponía datos, pero una prueba unitaria no
 producción. Ahora simula esa respuesta, y `tests/unit/conftest.py` reemplaza los transportes reales
 de httpx por uno que falla: cualquier prueba que intente salir a Internet queda en rojo, aunque el
 código atrape el error. Con la guarda puesta, esa fue la única que la usaba.
+
+## Decisión 23 — Menos espera en cada paso
+
+**Estado:** Aprobada por el autor (2026-09-25) como cuatro mejoras, un pull request cada una. Se
+hicieron las tres primeras; la cuarta se descartó al medirla.
+
+**Problema:** cada paso se sentía lento. Medido en producción: la API corre en Oregon y la base en
+São Paulo, así que cada consulta a la base cuesta entre 0,19 y 0,24 s (registros de Supabase), y
+un pedido autenticado hace tres o cuatro seguidas. Además, cada vez que se volvía a una sección,
+la pantalla quedaba vacía hasta que respondía la API.
+
+**Elegido:**
+
+1. Funciones de Vercel en São Paulo (`gru1`, #36): entre 105 y 161 ms menos por página protegida.
+2. El plan viaja con la sesión (#37): una consulta menos (0,21 s) al listar y analizar puestos, en
+   el reporte ATS, el optimizador de CV y los kits. De paso, la web muestra el plan real.
+3. Pantallas de carga, error y página inexistente (#39), y la última respuesta de cada pantalla en
+   la memoria de la pestaña (`useApiResource`): al volver a una sección se ve al instante lo último
+   y se actualiza por detrás; si la actualización falla, queda lo anterior junto con el error.
+4. Descartada al medirla: que el navegador llame directo a la API, sin el proxy de Vercel. Desde
+   Buenos Aires, con la conexión reutilizada como hace el navegador (10 pedidos por caso), el proxy
+   suma unos 40 ms (268 ms contra 229 ms directo a Render). Ir directo obliga a una consulta previa
+   de CORS de unos 190 ms por cada dirección distinta cada 10 minutos, y a abrir otra conexión con
+   Render. La estimación anterior, de 200 ms por pedido, se había medido abriendo una conexión nueva
+   en cada pedido.
+
+**Privacidad:** la memoria es de la pestaña, nunca `localStorage`, y se borra al iniciar sesión,
+registrarse y salir (`forgetSessionData`). Un contador descarta las respuestas pedidas con la
+sesión anterior, así que una segunda cuenta en la misma pestaña no ve datos de la primera.
+
+**No es la capacidad «caché» de la consigna (3.5):** cada visita igual consulta la API y la base;
+solo evita la pantalla vacía mientras tanto. La Decisión 17 sigue declarando una sola capacidad y
+la Decisión 19 (sin caché del lado del servidor) no cambia.
+
+**Alternativas descartadas:** (a) mover la API a Virginia, más cerca de São Paulo (unos 60 ms menos
+por consulta): exige otro servicio en Render y cambiar URL y deploy hooks; queda como propuesta;
+(b) SWR o TanStack Query: una dependencia nueva para lo que resuelve un hook propio de unas 100
+líneas; (c) guardar las respuestas en `localStorage`: dejaría datos del CV en el navegador después
+de cerrar la pestaña.

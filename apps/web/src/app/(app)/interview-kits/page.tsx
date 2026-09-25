@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarDays, Plus } from "lucide-react";
 
@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient } from "@/lib/api/client";
+import { useApiResource } from "@/lib/api/use-api-resource";
 import { planOf } from "@/lib/auth/permissions";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -62,36 +62,20 @@ function statusClassName(status: KitStatus) {
 }
 
 export default function InterviewKitsPage() {
-  const [kits, setKits] = useState<InterviewKitListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: kits,
+    error,
+    loading
+  } = useApiResource<InterviewKitListItem[]>(
+    "/api/v1/interview-kits",
+    "No se pudieron cargar los kits."
+  );
   // Sin plan todavía (perfil cargando) no se muestra ni el botón ni el aviso premium.
   const plan = planOf(useCurrentUser());
 
-  useEffect(() => {
-    async function loadKits() {
-      try {
-        const response = await apiClient<InterviewKitListItem[]>(
-          "/api/v1/interview-kits"
-        );
-        setKits(response);
-      } catch (requestError) {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "No se pudieron cargar los kits."
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadKits();
-  }, []);
-
   const sortedKits = useMemo(
     () =>
-      [...kits].sort((left, right) =>
+      [...(kits ?? [])].sort((left, right) =>
         String(right.created_at ?? "").localeCompare(String(left.created_at ?? ""))
       ),
     [kits]

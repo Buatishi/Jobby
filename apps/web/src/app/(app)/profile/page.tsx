@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient } from "@/lib/api/client";
+import { useApiResource } from "@/lib/api/use-api-resource";
 
 type Profile = {
   headline?: string | null;
@@ -23,20 +22,10 @@ type Profile = {
 };
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    apiClient<Profile>("/api/v1/profiles/me")
-      .then(setProfile)
-      .catch((requestError: unknown) => {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "No se pudo cargar el perfil."
-        );
-      });
-  }, []);
+  const { data: profile, error } = useApiResource<Profile>(
+    "/api/v1/profiles/me",
+    "No se pudo cargar el perfil."
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

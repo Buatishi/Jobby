@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient } from "@/lib/api/client";
+import { useApiResource } from "@/lib/api/use-api-resource";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
 type RealityGapSkill = {
@@ -33,27 +33,11 @@ type RealityGapReport = {
 const filters = ["all", "technical", "soft", "language", "domain"];
 
 export default function RealityGapPage() {
-  const [report, setReport] = useState<RealityGapReport | null>(null);
+  const { data: report, error } = useApiResource<RealityGapReport>(
+    "/api/v1/profiles/reality-gap",
+    "No se pudo cargar Reality Gap."
+  );
   const [category, setCategory] = useState("all");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadReport() {
-      try {
-        setReport(
-          await apiClient<RealityGapReport>("/api/v1/profiles/reality-gap")
-        );
-      } catch (requestError) {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "No se pudo cargar Reality Gap."
-        );
-      }
-    }
-
-    void loadReport();
-  }, []);
 
   const filteredSkills = useMemo(() => {
     const skills = report?.skills ?? [];
@@ -63,7 +47,8 @@ export default function RealityGapPage() {
     return skills.filter((skill) => skill.category === category);
   }, [category, report?.skills]);
 
-  if (error) {
+  // Si falla la actualización pero hay un reporte anterior, se muestra con el error arriba.
+  if (error && !report) {
     return (
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <Card>
@@ -83,6 +68,8 @@ export default function RealityGapPage() {
           Coherencia entre CV, LinkedIn y perfil
         </h1>
       </div>
+
+      {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
 
       <Card>
         <CardHeader>

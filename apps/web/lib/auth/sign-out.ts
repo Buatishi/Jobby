@@ -1,4 +1,4 @@
-import { forgetCurrentUser } from "@/lib/auth/use-current-user";
+import { forgetSessionData } from "@/lib/auth/session-data";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export const SIGNED_OUT_URL = "/login?signed_out=1";
@@ -35,7 +35,7 @@ export async function signOutAndLeave(
     return false;
   }
 
-  forgetCurrentUser();
+  forgetSessionData();
   navigate(SIGNED_OUT_URL);
   return true;
 }
