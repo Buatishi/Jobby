@@ -3,10 +3,24 @@ from typing import Any
 import httpx
 
 from app.config import settings
-from app.services.ai_gateway.errors import ProviderUnavailableError
+from app.services.ai_gateway.errors import (
+    ProviderQuotaExceededError,
+    ProviderUnavailableError,
+)
 from app.services.ai_gateway.retry import retry_with_backoff
 
 OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings"
+
+
+def _quota_exhausted(response: httpx.Response) -> bool:
+    # OpenAI avisa la falta de saldo con un 429 y el código insufficient_quota; un 429
+    # sin ese código es un límite de pedidos por minuto, que sí se arregla esperando.
+    try:
+        payload = response.json()
+    except ValueError:
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    return isinstance(error, dict) and error.get("code") == "insufficient_quota"
 
 
 class OpenAIEmbeddingsProvider:
@@ -63,6 +77,12 @@ class OpenAIEmbeddingsProvider:
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code
+                if status_code == 429 and _quota_exhausted(exc.response):
+                    raise ProviderQuotaExceededError(
+                        self.name,
+                        "OpenAI no tiene saldo disponible. "
+                        "Carga credito en la cuenta de OpenAI.",
+                    ) from exc
                 if status_code == 401:
                     raise ProviderUnavailableError(
                         self.name,

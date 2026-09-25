@@ -7,6 +7,14 @@ type ServerSupabaseClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
+// El verificador PKCE vive en una cookie del navegador que empezó el inicio con Google:
+// sin ella el código no se puede canjear (otro navegador, o la cookie se borró).
+function describeExchangeError(error: { code?: string; message: string }) {
+  return error.code === "pkce_code_verifier_not_found"
+    ? "No pudimos terminar el inicio con Google en este navegador. Volvé a intentarlo."
+    : error.message;
+}
+
 export async function exchangeAuthCode(
   requestUrl: URL,
   supabase: ServerSupabaseClient
@@ -33,7 +41,7 @@ export async function exchangeAuthCode(
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       const loginUrl = new URL("/login", requestUrl.origin);
-      loginUrl.searchParams.set("error", error.message);
+      loginUrl.searchParams.set("error", describeExchangeError(error));
       return NextResponse.redirect(loginUrl);
     }
   }

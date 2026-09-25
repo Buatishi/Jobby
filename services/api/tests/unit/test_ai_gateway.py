@@ -6,6 +6,7 @@ from app.services.ai_gateway.claude import ClaudeProvider
 from app.services.ai_gateway.deepseek import DeepSeekProvider
 from app.services.ai_gateway.errors import (
     PremiumRequiredError,
+    ProviderQuotaExceededError,
     ProviderUnavailableError,
 )
 from app.services.ai_gateway.openai_embeddings import (
@@ -299,3 +300,53 @@ async def test_a_missing_key_fails_without_waiting(
         await call()  # type: ignore[operator]
 
     assert sleeps == []
+
+
+def _openai_answering(status_code: int, body: dict[str, object]) -> type:
+    class FakeClient:
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> httpx.Response:
+            request = httpx.Request("POST", OPENAI_EMBEDDINGS_URL)
+            return httpx.Response(status_code, json=body, request=request)
+
+    return FakeClient
+
+
+async def test_openai_without_credit_fails_at_once_and_says_so(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    monkeypatch.setattr(
+        "app.services.ai_gateway.openai_embeddings.httpx.AsyncClient",
+        _openai_answering(
+            429,
+            {"error": {"code": "insufficient_quota", "type": "insufficient_quota"}},
+        ),
+    )
+
+    with pytest.raises(ProviderQuotaExceededError, match="saldo"):
+        await OpenAIEmbeddingsProvider("clave-de-prueba").embed("Python")
+
+    assert sleeps == []
+
+
+async def test_openai_rate_limit_is_still_retried(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    monkeypatch.setattr(
+        "app.services.ai_gateway.openai_embeddings.httpx.AsyncClient",
+        _openai_answering(429, {"error": {"code": "rate_limit_exceeded"}}),
+    )
+
+    with pytest.raises(ProviderUnavailableError) as error:
+        await OpenAIEmbeddingsProvider("clave-de-prueba").embed("Python")
+
+    assert not isinstance(error.value, ProviderQuotaExceededError)
+    assert sleeps == [30.0, 30.0]

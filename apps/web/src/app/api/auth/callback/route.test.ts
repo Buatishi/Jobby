@@ -63,4 +63,29 @@ describe("auth callback route", () => {
       "http://localhost:3000/login?error=Google+OAuth+failed"
     );
   });
+
+  it("explains in Spanish when the PKCE verifier is missing", async () => {
+    const supabase = {
+      auth: {
+        exchangeCodeForSession: async () => ({
+          data: { session: null },
+          error: {
+            code: "pkce_code_verifier_not_found",
+            message: "PKCE code verifier not found in storage."
+          }
+        })
+      }
+    } as unknown as Parameters<typeof exchangeAuthCode>[1];
+
+    const response = await exchangeAuthCode(
+      new URL("http://localhost:3000/api/auth/callback?code=abc123"),
+      supabase
+    );
+
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.pathname).toBe("/login");
+    expect(location.searchParams.get("error")).toBe(
+      "No pudimos terminar el inicio con Google en este navegador. Volvé a intentarlo."
+    );
+  });
 });

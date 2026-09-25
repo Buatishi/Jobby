@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { startGoogleSignIn } from "@/lib/auth/google-sign-in";
 import { useI18n } from "@/lib/i18n/provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
@@ -89,20 +90,13 @@ export default function RegisterPage() {
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const origin = window.location.origin;
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${origin}/api/auth/callback?next=/dashboard`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "select_account"
-          }
-        }
-      });
+      const oauthError = await startGoogleSignIn(
+        supabase.auth,
+        window.location.origin
+      );
 
       if (oauthError) {
-        setError(oauthError.message);
+        setError(oauthError);
         setIsOAuthLoading(false);
       }
     } catch (authError) {

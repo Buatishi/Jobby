@@ -689,6 +689,15 @@ antes de intentar. Antes, un CV con la clave de OpenAI rechazada esperaba 60 s (
 30 s) hasta marcarse como fallido, y DeepSeek o Claude esperaban 90 s; esa espera además ocupaba
 uno de los dos lugares de tareas simultáneas del modo local.
 
+## Aclaración — Decisión 17 (2026-09-24)
+
+La actualización anterior decía que una clave «sin saldo» responde 401, y no es así: cada
+proveedor lo avisa distinto. DeepSeek responde 402 y Anthropic 400, y ninguno de los dos se
+reintenta. OpenAI responde 429 con el código `insufficient_quota`, el mismo estado que usa para
+un límite de pedidos por minuto, y la pasarela lo reintentaba 60 s. Ahora la pasarela distingue
+los dos casos: la falta de saldo falla en el primer intento, con un error que lo dice, y el
+límite de pedidos se sigue reintentando.
+
 ## Actualización — Decisión 4 (2026-09-24)
 
 **Estado:** Implementada.
