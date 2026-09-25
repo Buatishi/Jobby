@@ -68,7 +68,30 @@ def test_valid_token_provisions_missing_public_user(client: TestClient) -> None:
     assert fake_supabase.tables["master_profiles"][0]["user_id"] == "users-1"
 
 
-def test_invalid_token_returns_401(client: TestClient) -> None:
+def test_invalid_token_returns_401(client: TestClient, monkeypatch) -> None:
+    auth_checks: list[str] = []
+
+    class RejectingSupabaseAuth:
+        """Supabase Auth tampoco reconoce el token (sin salir a la red)."""
+
+        status_code = 401
+
+        def __init__(self, **_: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "RejectingSupabaseAuth":
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            pass
+
+        async def get(self, url: str, **__: object) -> "RejectingSupabaseAuth":
+            auth_checks.append(url)
+            return self
+
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+    monkeypatch.setattr("app.dependencies.httpx.AsyncClient", RejectingSupabaseAuth)
+
     response = client.get(
         "/api/v1/profiles/me",
         headers={"Authorization": "Bearer invalid-token"},
@@ -80,6 +103,7 @@ def test_invalid_token_returns_401(client: TestClient) -> None:
         "code": "UNAUTHORIZED",
         "details": {},
     }
+    assert auth_checks == [settings.supabase_auth_user_url]
 
 
 async def test_hs256_supabase_token_uses_jwt_secret(
