@@ -264,6 +264,17 @@ export const dictionaries: Record<Language, TranslationTree> = {
       publicSuccessTitle: "Pago confirmado",
       publicSuccessBody:
         "Tu plan Premium se activará cuando Lemon Squeezy confirme la suscripción por webhook. Esto suele tardar unos segundos."
+    },
+    status: {
+      loadingSection: "Cargando la sección…",
+      errorTitle: "No pudimos mostrar esta sección",
+      errorBody: "Puede ser una falla momentánea: probá de nuevo en unos segundos.",
+      retry: "Reintentar",
+      goDashboard: "Ir al dashboard",
+      goHome: "Ir al inicio",
+      notFoundTitle: "Esta página no existe",
+      notFoundBody:
+        "Puede que el enlace esté mal escrito o que la página ya no esté."
     }
   },
   en: {
@@ -513,6 +524,16 @@ export const dictionaries: Record<Language, TranslationTree> = {
       publicSuccessTitle: "Payment confirmed",
       publicSuccessBody:
         "Your Premium plan will activate when Lemon Squeezy confirms the subscription by webhook. This usually takes a few seconds."
+    },
+    status: {
+      loadingSection: "Loading this section…",
+      errorTitle: "We couldn't show this section",
+      errorBody: "It may be a momentary failure: try again in a few seconds.",
+      retry: "Try again",
+      goDashboard: "Go to dashboard",
+      goHome: "Go home",
+      notFoundTitle: "This page doesn't exist",
+      notFoundBody: "The link may be mistyped or the page may be gone."
     }
   }
 };
