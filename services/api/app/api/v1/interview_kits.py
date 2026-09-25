@@ -30,15 +30,6 @@ async def _execute(query: Any) -> Any:
     return getattr(response, "data", None)
 
 
-async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
-    data = await _execute(
-        supabase.table("users").select("tier").eq("id", user_id).maybe_single()
-    )
-    if isinstance(data, dict) and isinstance(data.get("tier"), str):
-        return str(data["tier"])
-    return "free"
-
-
 async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
     data = await _execute(
         supabase.table("master_profiles")
@@ -127,7 +118,7 @@ async def create_interview_kit(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> InterviewKit:
-    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    user_tier = current_user.tier
     if user_tier != "premium":
         raise _premium_required()
 
@@ -241,7 +232,7 @@ async def regenerate_interview_kit(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> InterviewKit:
-    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    user_tier = current_user.tier
     if user_tier != "premium":
         raise _premium_required()
     kit = await _fetch_kit(supabase, kit_id, current_user.id)

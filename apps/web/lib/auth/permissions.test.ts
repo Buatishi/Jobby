@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   type CurrentUserProfile,
   hasPermission,
-  Permission
+  Permission,
+  planOf
 } from "@/lib/auth/permissions";
 
 function profile(permissions: string[]): CurrentUserProfile {
@@ -25,5 +26,25 @@ describe("hasPermission", () => {
   it("is false while the profile is loading or failed", () => {
     expect(hasPermission(null, Permission.MetricsRead)).toBe(false);
     expect(hasPermission(undefined, Permission.MetricsRead)).toBe(false);
+  });
+});
+
+describe("planOf", () => {
+  function withTier(tier: string): CurrentUserProfile {
+    return { ...profile([]), tier };
+  }
+
+  it("follows the plan the API reported", () => {
+    expect(planOf(withTier("premium"))).toBe("premium");
+    expect(planOf(withTier("free"))).toBe("free");
+  });
+
+  it("treats an unknown plan as free", () => {
+    expect(planOf(withTier("enterprise"))).toBe("free");
+  });
+
+  it("has no plan while the profile is loading or failed", () => {
+    expect(planOf(null)).toBeNull();
+    expect(planOf(undefined)).toBeNull();
   });
 });

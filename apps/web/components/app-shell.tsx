@@ -1,19 +1,15 @@
-import type { UserTier } from "@jobmatch/shared-types";
-
 import { AppSidebar } from "@/components/app-sidebar";
 import { WizardRedirectGuard } from "@/components/wizard-redirect-guard";
 
 type AppShellProps = {
   children: React.ReactNode;
   pendingAnalysesCount?: number;
-  userTier?: UserTier;
   userName?: string;
 };
 
 export function AppShell({
   children,
   pendingAnalysesCount = 0,
-  userTier = "free",
   userName
 }: AppShellProps) {
   return (
@@ -21,7 +17,6 @@ export function AppShell({
       <WizardRedirectGuard />
       <AppSidebar
         pendingAnalysesCount={pendingAnalysesCount}
-        userTier={userTier}
         userName={userName}
       />
       <div className="min-w-0 bg-[#f9fafb]">{children}</div>

@@ -24,6 +24,16 @@ async def _fake_current_user() -> CurrentUser:
     )
 
 
+async def _fake_premium_user() -> CurrentUser:
+    """El plan llega con la sesión: get_current_user lo lee junto con el rol."""
+    return CurrentUser(
+        id="user-1",
+        supabase_uid="auth-user-1",
+        email="person@example.com",
+        tier="premium",
+    )
+
+
 class FakeATSGateway:
     async def generate(
         self,
@@ -209,7 +219,6 @@ def test_ats_optimize_returns_rewritten_sections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_supabase = FakeSupabase()
-    fake_supabase.tables["users"][0]["tier"] = "premium"
     fake_supabase.tables["job_descriptions"].append(
         {
             "id": "job-1",
@@ -261,7 +270,7 @@ def test_ats_optimize_returns_rewritten_sections(
             ]
         )
 
-    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_current_user] = _fake_premium_user
     app.dependency_overrides[get_supabase_client] = fake_client
     monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
     monkeypatch.setattr("app.api.v1.ats.analyze_keywords", fake_analyze_keywords)

@@ -48,15 +48,6 @@ async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
     return data
 
 
-async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
-    data = await _execute(
-        supabase.table("users").select("tier").eq("id", user_id).maybe_single()
-    )
-    if isinstance(data, dict) and isinstance(data.get("tier"), str):
-        return str(data["tier"])
-    return "free"
-
-
 def _job_not_found() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -140,7 +131,7 @@ async def analyze_job(
                 "details": {"completeness_pct": completeness_pct},
             },
         )
-    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    user_tier = current_user.tier
     try:
         await increment_rate_limit(current_user.id, user_tier, RateLimitKind.JOBS)
     except RateLimitExceededError as exc:
@@ -176,7 +167,7 @@ async def list_jobs(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> list[JobDescription]:
-    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    user_tier = current_user.tier
     query = (
         supabase.table("job_descriptions")
         .select("*")

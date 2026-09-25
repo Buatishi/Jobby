@@ -17,7 +17,7 @@ export default async function AppLayout({
       : session.user.email ?? undefined;
 
   return (
-    <AppShell userName={userName} userTier="free">
+    <AppShell userName={userName}>
       {children}
     </AppShell>
   );
