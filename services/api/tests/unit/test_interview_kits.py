@@ -21,6 +21,16 @@ async def _fake_current_user() -> CurrentUser:
     )
 
 
+async def _fake_premium_user() -> CurrentUser:
+    """El plan llega con la sesión: get_current_user lo lee junto con el rol."""
+    return CurrentUser(
+        id="user-1",
+        supabase_uid="auth-user-1",
+        email="person@example.com",
+        tier="premium",
+    )
+
+
 class FakeInterviewGateway:
     async def generate(
         self,
@@ -60,6 +70,7 @@ class FakeInterviewGateway:
 
 
 def _seed_premium_kit(fake_supabase: FakeSupabase) -> None:
+    # La tarea en segundo plano no tiene sesión: lee el plan de la tabla users.
     fake_supabase.tables["users"][0]["tier"] = "premium"
     fake_supabase.tables["master_profiles"][0]["completeness_pct"] = 100
     fake_supabase.tables["job_descriptions"].append(
@@ -208,7 +219,7 @@ def test_create_interview_kit_requires_a_complete_profile(
         "app.api.v1.interview_kits.enqueue_interview_kit",
         lambda _kit_id, _user_id: "user-1.kit-test",
     )
-    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_current_user] = _fake_premium_user
     app.dependency_overrides[get_supabase_client] = fake_client
 
     response = client.post("/api/v1/interview-kits", json={"job_id": "job-1"})
