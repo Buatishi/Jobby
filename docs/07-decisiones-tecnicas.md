@@ -84,14 +84,13 @@ septiembre corresponden a este trimestre y los anteriores, a la base preexistent
 
 ## Uso de herramientas de inteligencia artificial
 
-Se utilizó **Codex** (OpenAI) durante el desarrollo, para generación y revisión de código,
-interpretación de errores y redacción de documentación técnica. La documentación de esta entrega
-(diagramas, matriz de requisitos y documentos técnicos) se elaboró con **Claude** (Anthropic) a
-partir del repositorio y de la consigna, verificando cada afirmación contra el código, las
-migraciones, las pruebas y comprobaciones de solo lectura sobre producción. Las decisiones de
-diseño, la arquitectura y el alcance son propias; el resultado de las herramientas se revisó
-antes de incorporarse. Se comprende la totalidad del código entregado y no se usarán
-asistentes durante la defensa individual.
+Se utilizaron dos herramientas. **Codex** (OpenAI) ayudó a construir las bases del proyecto:
+generación y revisión de código e interpretación de errores. **Claude** (Anthropic) acompañó todo
+el proyecto como ayuda de código (generación, revisión y pruebas) y como compañero de intercambio
+de ideas; con él también se elaboró la documentación, verificando cada afirmación contra el código,
+las migraciones, las pruebas y producción. Las decisiones de diseño, la arquitectura y el alcance
+son propias; el resultado de las herramientas se revisó antes de incorporarse. Se comprende la
+totalidad del código entregado y no se usarán asistentes durante la defensa individual.
 
 *El registro completo de decisiones operativas (Decisiones 1 a 22) está en `DECISIONS.md`; este
 documento resume las cinco decisiones estructurales que pide la consigna.*
