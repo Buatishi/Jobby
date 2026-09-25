@@ -15,7 +15,7 @@ Para imprimir: láminas A3 en [pdf/laminas/](pdf/laminas/) (`arquitectura.pdf`,
 
 | Componente | Tecnología | Plataforma | URL productiva |
 |---|---|---|---|
-| Web (cliente) | Next.js 15, React 19, TypeScript | Vercel | <https://jobbyweb.vercel.app> |
+| Web (cliente) | Next.js 15, React 19, TypeScript | Vercel; las funciones del servidor corren en São Paulo (`gru1`), la región de Supabase | <https://jobbyweb.vercel.app> |
 | API | FastAPI, Python 3.13, imagen Docker | Render, plan gratuito, región Oregón | <https://jobmatch-api-9xel.onrender.com> |
 | Tareas en segundo plano | Hilos dentro del proceso de la API (`TASK_EXECUTION_MODE=local`) | Render, el mismo servicio de la API | — |
 | Base de datos, identidad y archivos | Supabase: PostgreSQL 17 con pgvector, Auth y Storage (bucket privado `cv-documents`) | Supabase, región sa-east-1 | La URL del proyecto se carga como variable |
