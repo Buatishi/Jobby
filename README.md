@@ -16,7 +16,8 @@ Score y reporte ATS.
 | Base de datos, login y archivos | Supabase (PostgreSQL, Auth y Storage) | Supabase |
 
 La API corre en el plan gratuito de Render: si pasa 15 minutos sin uso se duerme y el primer
-pedido puede tardar unos 40 segundos. La web la despierta al abrirse. Más detalle en
+pedido puede tardar unos 40 segundos. De 8 a 24 (hora de Buenos Aires) un workflow la consulta
+cada 10 minutos para que no se duerma, y la web la despierta al abrirse. Más detalle en
 [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md).
 
 ## Estructura del proyecto
