@@ -44,6 +44,7 @@ en [docs/00-flujo-de-ramas.md](docs/00-flujo-de-ramas.md) y [docs/00-vision.md](
 - [docs/04-modelo-de-datos.md](docs/04-modelo-de-datos.md): modelo entidad-relación verificado contra la base real.
 - [docs/06-arquitectura-y-despliegue.md](docs/06-arquitectura-y-despliegue.md): componentes, protocolos y puertos, secretos, recorrido hasta producción y ambiente local.
 - [docs/07-decisiones-tecnicas.md](docs/07-decisiones-tecnicas.md): decisiones técnicas de la Etapa 1 y declaración de uso de IA.
+- [docs/08-incorporaciones-del-trimestre.md](docs/08-incorporaciones-del-trimestre.md): qué se incorporó en el trimestre sobre la base preexistente (borrador para la Etapa 2).
 - [docs/pdf/](docs/pdf/): la documentación de la Etapa 1 en PDF, generada con `docs/tools/build_pdf.py`.
 - [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md): arranque en frío de Render y reglas de suspensión de los planes gratuitos.
 - [docs/operacion/modo-local-de-tareas.md](docs/operacion/modo-local-de-tareas.md): tareas en segundo plano dentro de la API.
