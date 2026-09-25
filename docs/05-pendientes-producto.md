@@ -13,13 +13,13 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 | F9 | `/og-image.png` salía con 200 y 0 bytes: Satori exige `display: flex` en todo `<div>` cuyo contenido no sea solo texto, y la pista de cada barra no lo tenía. Corregido el 2026-09-23, con un test que genera la imagen y valida el PNG | `apps/web/src/app/og-image.png/route.test.ts` |
 | P3 | Cierre de sesión: botón en la barra lateral; Supabase Auth borra la sesión y la API rechaza al instante su token (Decisión 22). Hecho el 2026-09-24 | `lib/auth/sign-out.ts`, `app/dependencies.py` |
 | P1 | `next.config.ts` ya no cae a la API heredada (`jobby-fp0r.onrender.com`) si faltan las variables: usa la API local de desarrollo. Corregido el 2026-09-23 | `apps/web/next.config.ts` |
+| F2 | Pantallas propias de carga, error, página inexistente y error global (antes se veían las de Next, en inglés). La de carga aparece al instante al cambiar de sección dentro de la app, con la barra lateral visible; la de error permite reintentar sin mostrar detalles internos. Hecho el 2026-09-25 | `src/app/(app)/loading.tsx`, `src/app/error.tsx`, `src/app/(app)/error.tsx`, `src/app/not-found.tsx`, `src/app/global-error.tsx` |
 | P2 | Plan real en la interfaz: la barra lateral, la página de kits y el reporte de un puesto usan el plan que informa `GET /users/me` (antes estaba fijo en `free`). Mientras carga no muestran candados ni ofertas, y el plan free ya no ve botones que no puede usar. La API toma el plan de la sesión en lugar de volver a consultarlo. Hecho el 2026-09-25 | `lib/auth/permissions.ts` (`planOf`), `components/app-sidebar.tsx`, `services/api/tests/unit/test_plan_from_session.py` |
 
 ## 2. Frontend
 
 | ID | Prioridad | Problema y evidencia | Beneficio y cómo se valida | Riesgo y esfuerzo | Áreas |
 |---|---|---|---|---|---|
-| F2 | Alta | No existe ninguna página `not-found`, `error`, `global-error` ni `loading`: se ven las pantallas por defecto de Next | Marca coherente y salida de errores. Validar con una URL inexistente y un error forzado | Bajo, S | Cuatro archivos nuevos en `apps/web/src/app` |
 | F3 | Media | 161 colores hex fijos en 30 archivos y dos verdes de marca (`#0F6E56` en 83 usos, `#007a5e` en 11), aunque `AGENTS.md` pide tokens | Consistencia y base para temas. Validar con un grep sin hex y capturas antes y después | Medio (toca todas las pantallas), M | `globals.css`, `tailwind.config.ts`, sidebar, dashboard, login, registro |
 | F4 | Media | Sin toasts ni skeletons; solo 4 componentes shadcn (`badge`, `button`, `card`, `tooltip`) | Confirmaciones y estados de carga claros. Validar con pruebas manuales por flujo | Bajo–medio, M; una dependencia posible (toasts) a justificar | `apps/web/components/ui`, wizard |
 | F5 | Media | Solo el layout raíz define `metadata`; sin título ni descripción por página | Mejor SEO y pestañas legibles. Validar inspeccionando `<title>` y con Lighthouse | Bajo, S | Páginas públicas de `apps/web/src/app` |
