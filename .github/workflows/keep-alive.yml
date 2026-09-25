@@ -1,0 +1,26 @@
+name: Keep API awake
+
+# Render duerme la API gratuita a los 15 minutos sin tráfico y el primer pedido tarda
+# unos 40 s. De 8 a 24 (hora de Buenos Aires) se la consulta cada 10 minutos; de noche
+# duerme para cuidar las 750 horas gratis del mes (Decisión 14, actualización del
+# 2026-09-25). El pedido es a /health: público, sin credenciales y sin tocar la base.
+on:
+  schedule:
+    # Cron en UTC: 11:00-23:50 y 00:00-02:50 UTC son 08:00-23:50 en Buenos Aires (UTC-3).
+    - cron: "*/10 11-23 * * *"
+    - cron: "*/10 0-2 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Ping API
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: GET /health
+        run: >-
+          curl --silent --show-error --fail --max-time 90
+          --retry 2 --retry-all-errors
+          https://jobmatch-api-9xel.onrender.com/health

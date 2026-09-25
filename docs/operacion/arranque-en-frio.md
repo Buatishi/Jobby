@@ -1,6 +1,7 @@
 # Arranque en frío y suspensión por inactividad
 
-Estado: vigente desde 2026-09-21 (Decisión 14 de `DECISIONS.md`). Costo: USD 0.
+Estado: vigente desde 2026-09-21 (Decisión 14 de `DECISIONS.md`), con la consulta periódica
+de día sumada el 2026-09-25. Costo: USD 0.
 
 ## 1. Problema
 
@@ -50,6 +51,16 @@ Tres piezas en el frontend, sin servicios externos (`apps/web/lib/api/cold-start
 El componente `ColdStartNotice` (`apps/web/components/cold-start-notice.tsx`) está montado
 en el layout raíz, así que cubre también a quien entra directo a una pantalla interna.
 
+Desde el 2026-09-25 hay una cuarta pieza, fuera de la web:
+
+4. **Consulta periódica de día.** El workflow `.github/workflows/keep-alive.yml` pide
+   `/health` cada 10 minutos de 8 a 24 (hora de Buenos Aires), así la API no llega a dormirse
+   en el horario de uso. De noche duerme y la cubren las tres piezas anteriores. Es posible
+   porque `jobmatch-api` quedó como el único servicio gratis activo del workspace: despierta
+   unas 16 horas por día, usa cerca de 500 de las 750 horas del mes. En la pestaña Actions
+   estas corridas aparecen junto a las del pipeline: para ver el pipeline, filtrar por el
+   workflow «CI».
+
 ## 3. Alternativas evaluadas
 
 | Opción | Costo real | Motivo |
@@ -57,7 +68,7 @@ en el layout raíz, así que cubre también a quien entra directo a una pantalla
 | Monitor externo (UptimeRobot) cada 5 min | USD 0, pero 720 a 744 de las 750 horas | Descartada como principal: deja 6 a 30 horas para `Jobby` y `Dardo-Audio`; si se agotan Render suspende todo. `/health` no toca la base, así que no evita la pausa de Supabase. Sus términos permiten uso comercial ([política](https://uptimerobot.com/terms-fair-use/)). |
 | Health check nativo de Render | USD 0 | No evita el sueño (observado en logs). |
 | Cron job de Render | Mínimo USD 1/mes ([doc](https://render.com/docs/cronjobs)) | Costo real. |
-| GitHub Actions programado | USD 0 | Cuenta bloqueada y la programación se apaga a los 60 días sin actividad en repos públicos. |
+| GitHub Actions programado | USD 0 | Descartado el 2026-09-21 (cuenta bloqueada y tres servicios gratis compartiendo las horas). **Adoptado el 2026-09-25**, solo de día, cuando esas dos condiciones cambiaron. |
 | Optimizar imagen o imports | USD 0 | Uvicorn arranca unos 39 s después del pedido; no se puede separar plataforma de imports. No se justifica sin medir. |
 | Worker o cola | USD 0 a 7 | No resuelve: el encolado ocurre dentro de la API dormida. |
 | Render Starter (siempre despierta) | USD 7/mes, por segundo | Único arreglo total. Queda para evaluar ([precios](https://render.com/pricing)). |

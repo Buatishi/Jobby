@@ -730,3 +730,19 @@ la cola, la caché y el tiempo real. El sistema tiene registros en Render y Sent
 API, pero eso no alcanza para mostrar en la defensa qué pasó en producción en un momento dado, y la
 consigna advierte que una capacidad adicional resuelta de manera deficiente resta. Se prefiere una
 sola capacidad, la integración con terceros, comprendida en profundidad.
+
+## Actualización — Decisión 14 (2026-09-25)
+
+**Estado:** Ampliada, con aprobación del autor.
+
+Se suma una consulta periódica a `/health` desde GitHub Actions (`keep-alive.yml`): cada 10
+minutos de 8 a 24, hora de Buenos Aires. Las dos razones del descarte original ya no rigen: la
+cuenta de GitHub dejó de estar bloqueada, y de los tres servicios gratis del workspace de Render
+solo queda activo `jobmatch-api` (`Jobby` y `Dardo-Audio` están suspendidos). Despierta unas 16
+horas por día, la API usa cerca de 500 de las 750 horas gratis del mes; de noche duerme y el
+pre-calentamiento de la web sigue cubriendo el primer pedido.
+
+**Límites:** GitHub puede demorar o saltear ejecuciones programadas en horas de mucha carga, así
+que puede quedar algún arranque lento; la programación se apaga sola tras 60 días sin actividad
+en el repositorio; si se reactiva otro servicio gratis de Render hay que volver a hacer la cuenta
+de horas. Costo: USD 0.
