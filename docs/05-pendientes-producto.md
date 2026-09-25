@@ -1,6 +1,6 @@
 # Pendientes de producto y frontend
 
-Estado: 2026-09-21, actualizado el 2026-09-23. Origen: auditoría del frontend en vivo y en el código, y evaluación de
+Estado: 2026-09-21, actualizado el 2026-09-25. Origen: auditoría del frontend en vivo y en el código, y evaluación de
 propuestas de redes sociales. Nada de esto está implementado salvo lo marcado como hecho;
 cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 
@@ -13,6 +13,7 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 | F9 | `/og-image.png` salía con 200 y 0 bytes: Satori exige `display: flex` en todo `<div>` cuyo contenido no sea solo texto, y la pista de cada barra no lo tenía. Corregido el 2026-09-23, con un test que genera la imagen y valida el PNG | `apps/web/src/app/og-image.png/route.test.ts` |
 | P3 | Cierre de sesión: botón en la barra lateral; Supabase Auth borra la sesión y la API rechaza al instante su token (Decisión 22). Hecho el 2026-09-24 | `lib/auth/sign-out.ts`, `app/dependencies.py` |
 | P1 | `next.config.ts` ya no cae a la API heredada (`jobby-fp0r.onrender.com`) si faltan las variables: usa la API local de desarrollo. Corregido el 2026-09-23 | `apps/web/next.config.ts` |
+| P2 | Plan real en la interfaz: la barra lateral, la página de kits y el reporte de un puesto usan el plan que informa `GET /users/me` (antes estaba fijo en `free`). Mientras carga no muestran candados ni ofertas, y el plan free ya no ve botones que no puede usar. La API toma el plan de la sesión en lugar de volver a consultarlo. Hecho el 2026-09-25 | `lib/auth/permissions.ts` (`planOf`), `components/app-sidebar.tsx`, `services/api/tests/unit/test_plan_from_session.py` |
 
 ## 2. Frontend
 
@@ -24,7 +25,6 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 | F5 | Media | Solo el layout raíz define `metadata`; sin título ni descripción por página | Mejor SEO y pestañas legibles. Validar inspeccionando `<title>` y con Lighthouse | Bajo, S | Páginas públicas de `apps/web/src/app` |
 | F6 | Media | 15 atributos `aria` y 1 `sr-only`; el titular de la landing tardaba más de 3 s en tomar su color final (observación puntual) | Accesibilidad. Validar con Lighthouse o axe | Bajo, S–M | Componentes compartidos y landing |
 | F7 | Baja | Modo oscuro forzado a claro en `globals.css` (`color-scheme: light` y un bloque `prefers-color-scheme: dark` que repite los valores claros); depende de F3 | Comodidad; no es requisito de la consigna | Medio, M–L | `globals.css`, `layout.tsx`, `lib/utils/score-colors.ts` |
-| P2 | Alta | La interfaz fija el plan en `free` (`(app)/layout.tsx`), así que un usuario premium vería funciones bloqueadas | Plan real en la UI. Validar con un usuario premium de prueba | Medio, M | `apps/web/src/app/(app)/layout.tsx`, `components/app-shell.tsx` |
 
 ## 3. Backend y producto
 

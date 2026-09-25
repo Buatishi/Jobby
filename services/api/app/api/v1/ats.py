@@ -71,15 +71,6 @@ async def _fetch_primary_cv(supabase: Any, user_id: str) -> dict[str, Any]:
     return data
 
 
-async def _fetch_user_tier(supabase: Any, user_id: str) -> str:
-    data = await _execute(
-        supabase.table("users").select("tier").eq("id", user_id).maybe_single()
-    )
-    if isinstance(data, dict) and isinstance(data.get("tier"), str):
-        return str(data["tier"])
-    return "free"
-
-
 async def _build_ats_report(
     job_id: str,
     job: dict[str, Any],
@@ -119,7 +110,7 @@ async def get_ats_report(
 ) -> ATSReport:
     job = await _fetch_job(supabase, job_id, current_user.id)
     primary_cv = await _fetch_primary_cv(supabase, current_user.id)
-    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    user_tier = current_user.tier
     try:
         await increment_rate_limit(current_user.id, user_tier, RateLimitKind.ATS)
     except RateLimitExceededError as exc:
@@ -144,7 +135,7 @@ async def optimize_ats_cv(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> ATSOptimizeResponse:
-    user_tier = await _fetch_user_tier(supabase, current_user.id)
+    user_tier = current_user.tier
     if user_tier != "premium":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

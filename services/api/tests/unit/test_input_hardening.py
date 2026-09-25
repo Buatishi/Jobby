@@ -1,3 +1,5 @@
+from collections.abc import Awaitable, Callable
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -24,11 +26,24 @@ async def _user() -> CurrentUser:
     )
 
 
-def _use(fake_supabase: FakeSupabase) -> None:
+async def _fake_premium_user() -> CurrentUser:
+    """El plan llega con la sesión: get_current_user lo lee junto con el rol."""
+    return CurrentUser(
+        id="user-1",
+        supabase_uid="auth-user-1",
+        email="person@example.com",
+        tier="premium",
+    )
+
+
+def _use(
+    fake_supabase: FakeSupabase,
+    user: Callable[[], Awaitable[CurrentUser]] = _user,
+) -> None:
     async def fake_client() -> FakeSupabase:
         return fake_supabase
 
-    app.dependency_overrides[get_current_user] = _user
+    app.dependency_overrides[get_current_user] = user
     app.dependency_overrides[get_supabase_client] = fake_client
 
 
@@ -117,9 +132,8 @@ def test_create_kit_rejects_urls_that_are_not_public_linkedin(
     payload: dict[str, str],
 ) -> None:
     fake_supabase = FakeSupabase()
-    fake_supabase.tables["users"][0]["tier"] = "premium"
     fake_supabase.tables["master_profiles"][0]["completeness_pct"] = 100
-    _use(fake_supabase)
+    _use(fake_supabase, _fake_premium_user)
 
     response = client.post(
         "/api/v1/interview-kits",

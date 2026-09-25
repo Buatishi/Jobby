@@ -20,11 +20,10 @@ import {
   type LucideIcon
 } from "lucide-react";
 
-import type { UserTier } from "@jobmatch/shared-types";
 import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { hasPermission, Permission } from "@/lib/auth/permissions";
+import { hasPermission, Permission, planOf } from "@/lib/auth/permissions";
 import { signOutAndLeave } from "@/lib/auth/sign-out";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useI18n } from "@/lib/i18n/provider";
@@ -32,7 +31,6 @@ import { cn } from "@/lib/utils";
 
 type AppSidebarProps = {
   pendingAnalysesCount?: number;
-  userTier?: UserTier;
   userName?: string;
 };
 
@@ -72,13 +70,13 @@ const adminNavItem: NavItem = {
 
 function SidebarContent({
   pendingAnalysesCount,
-  userTier,
   userName,
   onNavigate
 }: AppSidebarProps & { onNavigate?: () => void }) {
   const { t } = useI18n();
   const pathname = usePathname();
   const profile = useCurrentUser();
+  const plan = planOf(profile);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
@@ -128,7 +126,7 @@ function SidebarContent({
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const isLocked = item.lockedForFree && userTier === "free";
+          const isLocked = item.lockedForFree && plan === "free";
 
           return (
             <Link
@@ -154,7 +152,7 @@ function SidebarContent({
         })}
       </nav>
 
-      {userTier === "free" ? (
+      {plan === "free" ? (
         <div className="border-t border-neutral-100 p-4">
           <div className="rounded-2xl border border-neutral-100 bg-[#e6f2ed] p-3.5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
             <div className="mb-3 flex items-center gap-2 text-sm font-black text-[#007a5e]">
@@ -199,7 +197,6 @@ function SidebarContent({
 
 export function AppSidebar({
   pendingAnalysesCount = 0,
-  userTier = "free",
   userName
 }: AppSidebarProps) {
   const { t } = useI18n();
@@ -228,7 +225,6 @@ export function AppSidebar({
         <SidebarContent
           pendingAnalysesCount={pendingAnalysesCount}
           userName={userName}
-          userTier={userTier}
         />
       </aside>
 
@@ -253,7 +249,6 @@ export function AppSidebar({
               onNavigate={() => setIsOpen(false)}
               pendingAnalysesCount={pendingAnalysesCount}
               userName={userName}
-              userTier={userTier}
             />
           </aside>
         </div>
