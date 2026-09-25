@@ -15,6 +15,8 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import { planOf } from "@/lib/auth/permissions";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
 type KitStatus = "pending" | "processing" | "done" | "failed";
@@ -63,7 +65,8 @@ export default function InterviewKitsPage() {
   const [kits, setKits] = useState<InterviewKitListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userTier] = useState<"free" | "premium">("free");
+  // Sin plan todavía (perfil cargando) no se muestra ni el botón ni el aviso premium.
+  const plan = planOf(useCurrentUser());
 
   useEffect(() => {
     async function loadKits() {
@@ -108,22 +111,17 @@ export default function InterviewKitsPage() {
             Guardá kits personalizados por puesto, empresa y entrevistador.
           </p>
         </div>
-        {userTier === "premium" ? (
+        {plan === "premium" ? (
           <Button asChild>
             <Link href="/interview-kits/new">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Kit
             </Link>
           </Button>
-        ) : (
-          <Button disabled type="button" title="Disponible en Premium">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Kit
-          </Button>
-        )}
+        ) : null}
       </div>
 
-      {userTier === "free" ? <PremiumGate className="mb-6" /> : null}
+      {plan === "free" ? <PremiumGate className="mb-6" /> : null}
 
       {error ? (
         <Card>

@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Info, Lock, Star } from "lucide-react";
+import { Info, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,8 +14,12 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import { planOf } from "@/lib/auth/permissions";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 import { cn } from "@/lib/utils";
+
+import { InterviewPrepLink } from "./interview-prep-link";
 
 type MatchReport = {
   id: string;
@@ -60,6 +63,7 @@ export default function MatchReportPage() {
   const [profileConfidence, setProfileConfidence] = useState<
     "high" | "medium" | null
   >(null);
+  const plan = planOf(useCurrentUser());
 
   useEffect(() => {
     async function loadReport() {
@@ -307,10 +311,7 @@ export default function MatchReportPage() {
               </p>
             ) : null}
 
-            <Button className="mt-6 w-full" disabled type="button">
-              <Lock className="mr-2 h-4 w-4" />
-              Preparar entrevista para este puesto
-            </Button>
+            <InterviewPrepLink plan={plan} />
           </CardContent>
         </Card>
       </section>
