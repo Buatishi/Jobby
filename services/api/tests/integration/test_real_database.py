@@ -207,3 +207,20 @@ async def test_a_profile_below_60_percent_cannot_analyze_jobs(
 
     assert response.status_code == 403
     assert response.json()["code"] == "PROFILE_INCOMPLETE"
+
+
+async def test_inserting_a_user_row_creates_its_profile(
+    database: AsyncClient, create_person: CreatePerson
+) -> None:
+    # El camino de la API cuando el token trae una persona sin fila en users: la base
+    # crea el perfil (migración 028), porque la API ya no lo verifica en cada pedido.
+    person = await create_person()
+    await database.table("users").delete().eq("id", person.id).execute()
+
+    inserted = (
+        await database.table("users")
+        .insert({"supabase_uid": person.supabase_uid, "email": person.email})
+        .execute()
+    ).data
+
+    assert await _profile_id(database, str(inserted[0]["id"]))
