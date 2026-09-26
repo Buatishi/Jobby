@@ -774,6 +774,9 @@ la pantalla quedaba vacía hasta que respondía la API.
 1. Funciones de Vercel en São Paulo (`gru1`, #36): entre 105 y 161 ms menos por página protegida.
 2. El plan viaja con la sesión (#37): una consulta menos (0,21 s) al listar y analizar puestos, en
    el reporte ATS, el optimizador de CV y los kits. De paso, la web muestra el plan real.
+   Verificado en producción (2026-09-26, 01:03 UTC, abriendo `/jobs` con sesión): desde el
+   deploy no hay ninguna consulta `users?select=tier`, y `GET /jobs` hace tres idas y vueltas a
+   la base en lugar de cuatro (sesión y usuario en paralelo, verificación del perfil, puestos).
 3. Pantallas de carga, error y página inexistente (#39), y la última respuesta de cada pantalla en
    la memoria de la pestaña (`useApiResource`): al volver a una sección se ve al instante lo último
    y se actualiza por detrás; si la actualización falla, queda lo anterior junto con el error.
