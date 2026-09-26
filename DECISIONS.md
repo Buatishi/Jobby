@@ -780,6 +780,10 @@ la pantalla quedaba vacía hasta que respondía la API.
    Después (aprobado el 2026-09-26) también salió la verificación del perfil: la migración 028
    agrega un disparador que crea el perfil maestro al insertar en `users`, y `get_current_user`
    ya no consulta `master_profiles`. Es otra ida y vuelta menos (~0,2 s) en cada pedido con sesión.
+   Verificado en producción (2026-09-26, 02:43 UTC, recorriendo la app con sesión): ninguna
+   consulta de verificación del perfil y ningún error en 36 pedidos a la base. `GET /jobs` pasó
+   de 0,54 s a 0,22 s de base (dos idas y vueltas) y el resumen del dashboard de cuatro idas y
+   vueltas (~0,9 s) a tres (~0,41 s).
 3. Pantallas de carga, error y página inexistente (#39), y la última respuesta de cada pantalla en
    la memoria de la pestaña (`useApiResource`): al volver a una sección se ve al instante lo último
    y se actualiza por detrás; si la actualización falla, queda lo anterior junto con el error.
