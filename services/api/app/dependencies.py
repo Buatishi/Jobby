@@ -256,19 +256,7 @@ async def get_current_user(
     if not isinstance(user_data, dict):
         raise _unauthorized("Usuario no encontrado")
 
-    profile_response = (
-        await supabase.table("master_profiles")
-        .select("id")
-        .eq("user_id", str(user_data["id"]))
-        .limit(1)
-        .execute()
-    )
-    profile_data = getattr(profile_response, "data", None)
-    if not (isinstance(profile_data, list) and profile_data):
-        await supabase.table("master_profiles").insert(
-            {"user_id": str(user_data["id"])}
-        ).execute()
-
+    # El perfil maestro lo crea la base al insertar en users (migración 028).
     return CurrentUser(
         id=str(user_data["id"]),
         supabase_uid=str(user_data["supabase_uid"]),

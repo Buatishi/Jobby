@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.database import get_supabase_client
-from app.dependencies import SESSION_VERIFIED_BY_AUTH, validate_jwt
+from app.dependencies import SESSION_VERIFIED_BY_AUTH, get_current_user, validate_jwt
 from app.main import app
-from tests.fakes import FakeSupabase
+from tests.fakes import FakeSupabase, FakeTableQuery
 
 SESSION_ID = "0f6b7c2e-3d1a-4b8e-9c5f-1a2b3c4d5e6f"
 
@@ -66,6 +66,21 @@ def test_valid_token_provisions_missing_public_user(client: TestClient) -> None:
     assert fake_supabase.tables["users"][0]["email"] == "new@example.com"
     assert fake_supabase.tables["users"][0]["full_name"] == "New User"
     assert fake_supabase.tables["master_profiles"][0]["user_id"] == "users-1"
+
+
+async def test_current_user_only_reads_the_user_row() -> None:
+    # La base crea el perfil (migración 028): la sesión no suma otra ida y vuelta.
+    tables_read: list[str] = []
+
+    class RecordingSupabase(FakeSupabase):
+        def table(self, table_name: str) -> FakeTableQuery:
+            tables_read.append(table_name)
+            return super().table(table_name)
+
+    current_user = await get_current_user(await _valid_claims(), RecordingSupabase())
+
+    assert current_user.id == "user-1"
+    assert tables_read == ["users"]
 
 
 def test_invalid_token_returns_401(client: TestClient, monkeypatch) -> None:

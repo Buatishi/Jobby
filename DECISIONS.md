@@ -777,6 +777,9 @@ la pantalla quedaba vacía hasta que respondía la API.
    Verificado en producción (2026-09-26, 01:03 UTC, abriendo `/jobs` con sesión): desde el
    deploy no hay ninguna consulta `users?select=tier`, y `GET /jobs` hace tres idas y vueltas a
    la base en lugar de cuatro (sesión y usuario en paralelo, verificación del perfil, puestos).
+   Después (aprobado el 2026-09-26) también salió la verificación del perfil: la migración 028
+   agrega un disparador que crea el perfil maestro al insertar en `users`, y `get_current_user`
+   ya no consulta `master_profiles`. Es otra ida y vuelta menos (~0,2 s) en cada pedido con sesión.
 3. Pantallas de carga, error y página inexistente (#39), y la última respuesta de cada pantalla en
    la memoria de la pestaña (`useApiResource`): al volver a una sección se ve al instante lo último
    y se actualiza por detrás; si la actualización falla, queda lo anterior junto con el error.

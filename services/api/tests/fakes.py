@@ -89,6 +89,16 @@ class FakeTableQuery:
             inserted = self.insert_payload.copy()
             inserted.setdefault("id", f"{self.table_name}-{len(rows) + 1}")
             rows.append(inserted)
+            if self.table_name == "users":
+                # Igual que el disparador de la migración 028.
+                profiles = self.supabase.tables["master_profiles"]
+                if not any(p.get("user_id") == inserted["id"] for p in profiles):
+                    profiles.append(
+                        {
+                            "id": f"master_profiles-{len(profiles) + 1}",
+                            "user_id": inserted["id"],
+                        }
+                    )
             return FakeResponse([inserted.copy()])
 
         if self.upsert_payload is not None:
