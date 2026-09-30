@@ -23,4 +23,4 @@ jobs:
         run: >-
           curl --silent --show-error --fail --max-time 90
           --retry 2 --retry-all-errors
-          https://jobmatch-api-9xel.onrender.com/health
+          https://jobmatch-api-virginia.onrender.com/health
