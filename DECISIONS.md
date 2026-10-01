@@ -762,7 +762,8 @@ código atrape el error. Con la guarda puesta, esa fue la única que la usaba.
 ## Decisión 23 — Menos espera en cada paso
 
 **Estado:** Aprobada por el autor (2026-09-25) como cuatro mejoras, un pull request cada una. Se
-hicieron las tres primeras; la cuarta se descartó al medirla.
+hicieron las tres primeras; la cuarta se descartó al medirla. Después se probó una quinta
+(mover la API a Virginia) y también se descartó al medirla.
 
 **Problema:** cada paso se sentía lento. Medido en producción: la API corre en Oregon y la base en
 São Paulo, así que cada consulta a la base cuesta entre 0,19 y 0,24 s (registros de Supabase), y
@@ -793,6 +794,15 @@ la pantalla quedaba vacía hasta que respondía la API.
    de CORS de unos 190 ms por cada dirección distinta cada 10 minutos, y a abrir otra conexión con
    Render. La estimación anterior, de 200 ms por pedido, se había medido abriendo una conexión nueva
    en cada pedido.
+5. Descartada al medirla: mover la API de Oregón a Virginia, que está más cerca de São Paulo
+   (donde corre Supabase) y prometía unos 60 ms menos por consulta. Se creó el servicio, se
+   apuntó la web a él y se midió con tráfico real en los registros de Supabase: cada ida y vuelta
+   de la API a la base costó entre 0,40 y 0,50 s desde Virginia, contra 0,20 a 0,23 s desde
+   Oregón. Una segunda prueba, con un token falso que obliga a una llamada a Supabase Auth, dio lo
+   mismo (unos 0,45 s extra en Virginia contra 0,30 s en Oregón). Solo mejoró el tramo de Vercel
+   a la API, unos 30 ms, y no compensa. Se volvió a Oregón (web, ping de mantenimiento, deploy y
+   webhook de cobros). No se encontró la causa; la estimación se había hecho por distancia y no
+   por medición. El servicio de Virginia quedó suspendido, no borrado.
 
 **Privacidad:** la memoria es de la pestaña, nunca `localStorage`, y se borra al iniciar sesión,
 registrarse y salir (`forgetSessionData`). Un contador descarta las respuestas pedidas con la
@@ -802,8 +812,6 @@ sesión anterior, así que una segunda cuenta en la misma pestaña no ve datos d
 solo evita la pantalla vacía mientras tanto. La Decisión 17 sigue declarando una sola capacidad y
 la Decisión 19 (sin caché del lado del servidor) no cambia.
 
-**Alternativas descartadas:** (a) mover la API a Virginia, más cerca de São Paulo (unos 60 ms menos
-por consulta): exige otro servicio en Render y cambiar URL y deploy hooks; queda como propuesta;
-(b) SWR o TanStack Query: una dependencia nueva para lo que resuelve un hook propio de unas 100
-líneas; (c) guardar las respuestas en `localStorage`: dejaría datos del CV en el navegador después
+**Alternativas descartadas:** (a) SWR o TanStack Query: una dependencia nueva para lo que resuelve un hook propio de unas 100
+líneas; (b) guardar las respuestas en `localStorage`: dejaría datos del CV en el navegador después
 de cerrar la pestaña.
