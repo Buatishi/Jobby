@@ -131,7 +131,9 @@ def test_endpoint_returns_the_checkout_url(
 
 
 def test_endpoint_answers_502_with_a_clear_message_when_lemon_fails(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     async def failing(_user_id: str, _email: str) -> str:
         raise CheckoutCreationError("Lemon Squeezy answered 404 creating the checkout.")
@@ -144,3 +146,6 @@ def test_endpoint_answers_502_with_a_clear_message_when_lemon_fails(
     assert response.status_code == 502
     assert response.json()["code"] == "BILLING_CHECKOUT_FAILED"
     assert response.json()["error"] == "Los pagos todavía no están disponibles"
+    # El motivo queda en los registros para poder diagnosticar la configuración.
+    assert "Lemon Squeezy answered 404" in caplog.text
+    assert "p@example.com" not in caplog.text
