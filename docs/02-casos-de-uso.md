@@ -159,8 +159,8 @@ guardado y el contador del límite mensual queda actualizado.
 
 1. La persona abre Precios y elige el plan premium.
 2. La web envía `POST /billing/checkout`.
-3. La API arma la URL de checkout de LemonSqueezy con el identificador y el email de la persona
-   y la devuelve.
+3. La API pide un checkout a la API de LemonSqueezy (tienda, variante premium, email e
+   identificador de la persona) y devuelve la URL que LemonSqueezy le entrega.
 4. La web lleva a la persona a LemonSqueezy, donde completa el pago. Jobby nunca ve los datos de
    la tarjeta.
 5. LemonSqueezy devuelve a la persona a la pantalla de pago exitoso.
@@ -171,8 +171,9 @@ guardado y el contador del límite mensual queda actualizado.
 
 **Flujos alternativos**
 
-- **A1 (paso 3), falla al armar el checkout:** la API responde 502 con
-  `BILLING_CHECKOUT_FAILED` y el plan no cambia.
+- **A1 (paso 3), falla al crear el checkout:** LemonSqueezy no responde o rechaza el pedido por
+  la configuración. La API responde 502 con `BILLING_CHECKOUT_FAILED`, la web muestra «Los pagos
+  todavía no están disponibles» sin salir de Jobby y el plan no cambia.
 - **A2 (paso 4), la persona cancela el pago:** vuelve a la pantalla de cancelación y sigue con el
   plan gratuito.
 - **A3 (paso 6), firma faltante o inválida:** la API responde 400 y no procesa el evento.

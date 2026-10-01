@@ -1,7 +1,8 @@
 import hashlib
 import hmac
 from typing import Any
-from urllib.parse import urlencode
+
+import httpx
 
 from app.config import settings
 from app.database import get_supabase_client
@@ -14,25 +15,88 @@ async def _execute(query: Any) -> Any:
     return getattr(response, "data", None)
 
 
-def build_checkout_url(user_id: str, user_email: str) -> str:
-    if not settings.lemonsqueezy_store_id:
-        raise RuntimeError("Missing Lemon Squeezy store id.")
-    if not settings.lemonsqueezy_premium_variant_id:
-        raise RuntimeError("Missing Lemon Squeezy premium variant id.")
-    if not user_email:
-        raise RuntimeError("User email is required to create checkout.")
+LEMONSQUEEZY_CHECKOUTS_URL = "https://api.lemonsqueezy.com/v1/checkouts"
+_JSON_API = "application/vnd.api+json"
 
-    base_url = (
-        f"https://{settings.lemonsqueezy_store_id}.lemonsqueezy.com"
-        f"/checkout/buy/{settings.lemonsqueezy_premium_variant_id}"
-    )
-    query = urlencode(
-        {
-            "checkout[email]": user_email,
-            "checkout[custom][user_id]": user_id,
+
+class CheckoutCreationError(RuntimeError):
+    """Lemon Squeezy no devolvió un enlace de pago usable (configuración o servicio)."""
+
+
+async def create_checkout_url(
+    user_id: str,
+    user_email: str,
+    client: httpx.AsyncClient | None = None,
+) -> str:
+    """Pide a la API de Lemon Squeezy un checkout para esta persona y devuelve su URL.
+
+    Armar el enlace a mano (subdominio de la tienda + código de compra) dejaba a la
+    persona en una página de error de Lemon si algún identificador no coincidía. Con la
+    API, una configuración incorrecta falla acá, donde la web puede avisar con claridad.
+    El `user_id` viaja como dato propio del checkout y vuelve en el webhook.
+    """
+    if not settings.lemonsqueezy_api_key:
+        raise CheckoutCreationError("Missing Lemon Squeezy API key.")
+    if not settings.lemonsqueezy_store_id:
+        raise CheckoutCreationError("Missing Lemon Squeezy store id.")
+    if not settings.lemonsqueezy_premium_variant_id:
+        raise CheckoutCreationError("Missing Lemon Squeezy premium variant id.")
+    if not user_email:
+        raise CheckoutCreationError("User email is required to create checkout.")
+
+    payload = {
+        "data": {
+            "type": "checkouts",
+            "attributes": {
+                "checkout_data": {
+                    "email": user_email,
+                    "custom": {"user_id": user_id},
+                }
+            },
+            "relationships": {
+                "store": {
+                    "data": {"type": "stores", "id": settings.lemonsqueezy_store_id}
+                },
+                "variant": {
+                    "data": {
+                        "type": "variants",
+                        "id": settings.lemonsqueezy_premium_variant_id,
+                    }
+                },
+            },
         }
-    )
-    return f"{base_url}?{query}"
+    }
+    headers = {
+        "Accept": _JSON_API,
+        "Content-Type": _JSON_API,
+        "Authorization": f"Bearer {settings.lemonsqueezy_api_key}",
+    }
+
+    owns_client = client is None
+    http = client or httpx.AsyncClient(timeout=10.0)
+    try:
+        response = await http.post(
+            LEMONSQUEEZY_CHECKOUTS_URL, json=payload, headers=headers
+        )
+    except httpx.HTTPError as exc:
+        raise CheckoutCreationError("Lemon Squeezy is not reachable.") from exc
+    finally:
+        if owns_client:
+            await http.aclose()
+
+    if response.status_code != httpx.codes.CREATED:
+        # Solo el código de estado: el cuerpo puede repetir datos de la persona.
+        raise CheckoutCreationError(
+            f"Lemon Squeezy answered {response.status_code} creating the checkout."
+        )
+
+    try:
+        url = response.json()["data"]["attributes"]["url"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise CheckoutCreationError("Lemon Squeezy sent no checkout URL.") from exc
+    if not isinstance(url, str) or not url.startswith("https://"):
+        raise CheckoutCreationError("Lemon Squeezy sent an invalid checkout URL.")
+    return url
 
 
 def verify_webhook_signature(raw_body: bytes, signature: str) -> bool:
