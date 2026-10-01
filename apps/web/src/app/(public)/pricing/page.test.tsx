@@ -33,6 +33,14 @@ describe("PricingPage", () => {
     expect(render(false)).not.toContain("Volver al dashboard");
   });
 
+  it("pins both plan buttons to the bottom of their cards so they line up", () => {
+    const html = render(false);
+
+    // Una vez por tarjeta (Free y Premium): si falta alguna, los botones vuelven a
+    // quedar a distinta altura porque Premium tiene un ítem más.
+    expect(html.match(/mt-auto/g)).toHaveLength(2);
+  });
+
   it("does not offer it while the session is being read", () => {
     expect(render(null)).not.toContain("Volver al dashboard");
   });
