@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { LanguageToggle } from "@/components/language-toggle";
+import { useHasSession } from "@/lib/auth/use-has-session";
 import { MatchScoreCard } from "@/components/match-score-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,7 @@ function RevealItem({
 
 export default function LandingPage() {
   const { t } = useI18n();
+  const hasSession = useHasSession();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -216,18 +218,32 @@ export default function LandingPage() {
 
           <div className="hidden items-center gap-3 md:flex">
             <LanguageToggle />
-            <Button
-              asChild
-              className={cn(
-                "h-10 rounded-lg bg-brand-green px-5 text-white shadow-sm hover:bg-[#006d52]",
-                primaryButtonClass
-              )}
-            >
-              <Link href="/register">{t("common.startFree")}</Link>
-            </Button>
-            <Button asChild className="h-10 px-3 font-semibold" variant="ghost">
-              <Link href="/login">{t("common.login")}</Link>
-            </Button>
+            {hasSession ? (
+              <Button
+                asChild
+                className={cn(
+                  "h-10 rounded-lg bg-brand-green px-5 text-white shadow-sm hover:bg-[#006d52]",
+                  primaryButtonClass
+                )}
+              >
+                <Link href="/dashboard">{t("common.goDashboard")}</Link>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  className={cn(
+                    "h-10 rounded-lg bg-brand-green px-5 text-white shadow-sm hover:bg-[#006d52]",
+                    primaryButtonClass
+                  )}
+                >
+                  <Link href="/register">{t("common.startFree")}</Link>
+                </Button>
+                <Button asChild className="h-10 px-3 font-semibold" variant="ghost">
+                  <Link href="/login">{t("common.login")}</Link>
+                </Button>
+              </>
+            )}
           </div>
 
           <button
@@ -254,18 +270,32 @@ export default function LandingPage() {
                 </Link>
               ))}
               <LanguageToggle className="w-fit" />
-              <Button asChild variant="ghost">
-                <Link href="/login">{t("common.login")}</Link>
-              </Button>
-              <Button
-                asChild
-                className={cn(
-                  "bg-brand-green text-white hover:bg-[#006d52]",
-                  primaryButtonClass
-                )}
-              >
-                <Link href="/register">{t("common.startFree")}</Link>
-              </Button>
+              {hasSession ? (
+                <Button
+                  asChild
+                  className={cn(
+                    "bg-brand-green text-white hover:bg-[#006d52]",
+                    primaryButtonClass
+                  )}
+                >
+                  <Link href="/dashboard">{t("common.goDashboard")}</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild variant="ghost">
+                    <Link href="/login">{t("common.login")}</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    className={cn(
+                      "bg-brand-green text-white hover:bg-[#006d52]",
+                      primaryButtonClass
+                    )}
+                  >
+                    <Link href="/register">{t("common.startFree")}</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         ) : null}
