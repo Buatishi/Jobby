@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 
 import { CheckoutUnavailableNotice } from "@/components/checkout-unavailable-notice";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -137,13 +137,15 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card className="flex flex-col">
             <CardHeader>
-              <CardTitle>{t("common.free")}</CardTitle>
+              <div className="flex h-6 items-center">
+                <CardTitle>{t("common.free")}</CardTitle>
+              </div>
               <p className="text-3xl font-semibold">$0</p>
               <CardDescription>{t("pricing.freeDescription")}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="flex flex-1 flex-col gap-4">
               {freeFeatures.map((item) => (
                 <div className="flex gap-3 text-sm" key={item}>
                   <Check
@@ -153,22 +155,29 @@ export default function PricingPage() {
                   <span>{t(item)}</span>
                 </div>
               ))}
-              <Button asChild className="mt-2 w-full" variant="secondary">
-                <Link href="/dashboard">{t("pricing.followFree")}</Link>
-              </Button>
+              {/* Los botones van al fondo de cada tarjeta: quedan a la misma altura aunque
+                  un plan tenga más ítems o muestre un aviso. */}
+              <div className="mt-auto pt-2">
+                <Button asChild className="w-full" variant="secondary">
+                  <Link href="/dashboard">{t("pricing.followFree")}</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2" style={{ borderColor: scoreColors.darkGreen }}>
+          <Card
+            className="flex flex-col border-2"
+            style={{ borderColor: scoreColors.darkGreen }}
+          >
             <CardHeader>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex h-6 items-center justify-between gap-3">
                 <CardTitle>{t("common.premium")}</CardTitle>
                 <Badge>{t("common.premium")}</Badge>
               </div>
               <p className="text-3xl font-semibold">{premiumPrice}</p>
               <CardDescription>{t("pricing.premiumDescription")}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="flex flex-1 flex-col gap-4">
               {premiumFeatures.map((item) => (
                 <div className="flex gap-3 text-sm" key={item}>
                   <Check
@@ -178,27 +187,23 @@ export default function PricingPage() {
                   <span>{t(item)}</span>
                 </div>
               ))}
-              {checkoutUnavailable ? <CheckoutUnavailableNotice /> : null}
-              {error ? (
-                <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-                  {error}
-                </p>
-              ) : null}
-              <Button
-                className="mt-2 w-full"
-                disabled={isRedirecting}
-                onClick={() => void handleUpgrade()}
-                type="button"
-              >
-                {isRedirecting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("pricing.redirecting")}
-                  </>
-                ) : (
-                  t("common.upgrade")
-                )}
-              </Button>
+              <div className="mt-auto flex flex-col gap-4 pt-2">
+                {checkoutUnavailable ? <CheckoutUnavailableNotice /> : null}
+                {error ? (
+                  <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                    {error}
+                  </p>
+                ) : null}
+                <Button
+                  aria-busy={isRedirecting}
+                  className="w-full"
+                  isLoading={isRedirecting}
+                  onClick={() => void handleUpgrade()}
+                  type="button"
+                >
+                  {isRedirecting ? t("pricing.redirecting") : t("common.upgrade")}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
