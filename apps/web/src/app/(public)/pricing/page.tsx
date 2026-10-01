@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 
+import { CheckoutUnavailableNotice } from "@/components/checkout-unavailable-notice";
 import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,8 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
-import { useHasSession } from "@/lib/auth/use-has-session";
+import { useHasSession } from "@/lib/auth/use-has-session";
+import { isCheckoutUnavailable } from "@/lib/billing/checkout-error";
 import { useI18n } from "@/lib/i18n/provider";
 import { scoreColors } from "@/lib/utils/score-colors";
 
@@ -46,6 +48,7 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutUnavailable, setCheckoutUnavailable] = useState(false);
   const monthlyPrice = process.env.NEXT_PUBLIC_PRICE_MONTHLY ?? "[MONTHLY_PRICE]";
   const yearlyPrice = process.env.NEXT_PUBLIC_PRICE_YEARLY ?? "[YEARLY_PRICE]";
 
@@ -59,6 +62,7 @@ export default function PricingPage() {
 
   async function handleUpgrade() {
     setError(null);
+    setCheckoutUnavailable(false);
     setIsRedirecting(true);
     try {
       const response = await apiClient<CheckoutResponse>(
@@ -68,11 +72,17 @@ export default function PricingPage() {
       window.location.href = response.checkout_url;
     } catch (requestError) {
       setIsRedirecting(false);
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : t("pricing.checkoutFail")
-      );
+      if (isCheckoutUnavailable(requestError)) {
+        // Falla del checkout (Lemon, configuración, red): un aviso claro en vez de dejar a
+        // la persona en una página de error de otro sitio.
+        setCheckoutUnavailable(true);
+      } else {
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : t("pricing.checkoutFail")
+        );
+      }
     }
   }
 
@@ -168,6 +178,7 @@ export default function PricingPage() {
                   <span>{t(item)}</span>
                 </div>
               ))}
+              {checkoutUnavailable ? <CheckoutUnavailableNotice /> : null}
               {error ? (
                 <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
                   {error}
