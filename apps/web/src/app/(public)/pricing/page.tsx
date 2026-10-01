@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
 
 import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import { useHasSession } from "@/lib/auth/use-has-session";
 import { useI18n } from "@/lib/i18n/provider";
 import { scoreColors } from "@/lib/utils/score-colors";
 
@@ -41,6 +42,7 @@ const premiumFeatures = [
 
 export default function PricingPage() {
   const { t } = useI18n();
+  const hasSession = useHasSession();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +83,17 @@ export default function PricingPage() {
           <Link className="text-xl font-black" href="/">
             Jobby
           </Link>
-          <LanguageToggle />
+          <div className="flex items-center gap-3">
+            {hasSession ? (
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/dashboard">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {t("common.backToDashboard")}
+                </Link>
+              </Button>
+            ) : null}
+            <LanguageToggle />
+          </div>
         </div>
 
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
