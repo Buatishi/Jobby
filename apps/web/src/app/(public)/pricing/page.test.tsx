@@ -6,6 +6,7 @@ import { I18nProvider } from "@/lib/i18n/provider";
 const session = vi.hoisted(() => ({ hasSession: null as boolean | null }));
 
 vi.mock("@/lib/api/client", () => ({ apiClient: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/auth/use-has-session", () => ({
   useHasSession: () => session.hasSession
 }));

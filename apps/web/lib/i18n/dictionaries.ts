@@ -259,9 +259,11 @@ export const dictionaries: Record<Language, TranslationTree> = {
       followFree: "Seguir gratis",
       redirecting: "Redirigiendo al checkout...",
       checkoutFail: "No se pudo iniciar el checkout.",
-      unavailableTitle: "Los pagos todavía no están disponibles",
+      unavailableTitle: "Estamos trabajando en esto",
       unavailableBody:
-        "Estamos terminando de configurarlos. Mientras tanto podés seguir usando Jobby con el plan gratis.",
+        "Los pagos de Jobby todavía no están disponibles. Mientras tanto podés seguir usando Jobby con el plan gratis.",
+      unavailableAlt: "Un CV con cara triste",
+      backToPlans: "Volver a los planes",
       successTitle: "¡Listo! Tu cuenta ya es Premium",
       successBody:
         "El estado final se refleja cuando Lemon Squeezy confirma el pago por webhook y el dashboard vuelve a cargar tus datos.",
@@ -524,9 +526,11 @@ export const dictionaries: Record<Language, TranslationTree> = {
       followFree: "Stay free",
       redirecting: "Redirecting to checkout...",
       checkoutFail: "Could not start checkout.",
-      unavailableTitle: "Payments are not available yet",
+      unavailableTitle: "We are working on this",
       unavailableBody:
-        "We are still setting them up. In the meantime you can keep using Jobby on the free plan.",
+        "Jobby payments are not available yet. In the meantime you can keep using Jobby on the free plan.",
+      unavailableAlt: "A résumé with a sad face",
+      backToPlans: "Back to plans",
       successTitle: "Done! Your account is now Premium",
       successBody:
         "The final status updates when Lemon Squeezy confirms payment by webhook and the dashboard reloads your data.",
