@@ -23,6 +23,11 @@ class CheckoutCreationError(RuntimeError):
     """Lemon Squeezy no devolvió un enlace de pago usable (configuración o servicio)."""
 
 
+def _clean(value: str) -> str:
+    """Quita espacios, saltos de línea y comillas de una variable pegada a mano."""
+    return value.strip().strip("\"'").strip()
+
+
 def _error_sources(response: httpx.Response) -> str:
     """Qué campo rechazó Lemon, por ejemplo la tienda o la variante.
 
@@ -53,11 +58,14 @@ async def create_checkout_url(
     API, una configuración incorrecta falla acá, donde la web puede avisar con claridad.
     El `user_id` viaja como dato propio del checkout y vuelve en el webhook.
     """
-    if not settings.lemonsqueezy_api_key:
+    api_key = _clean(settings.lemonsqueezy_api_key)
+    store_id = _clean(settings.lemonsqueezy_store_id)
+    variant_id = _clean(settings.lemonsqueezy_premium_variant_id)
+    if not api_key:
         raise CheckoutCreationError("Missing Lemon Squeezy API key.")
-    if not settings.lemonsqueezy_store_id:
+    if not store_id:
         raise CheckoutCreationError("Missing Lemon Squeezy store id.")
-    if not settings.lemonsqueezy_premium_variant_id:
+    if not variant_id:
         raise CheckoutCreationError("Missing Lemon Squeezy premium variant id.")
     if not user_email:
         raise CheckoutCreationError("User email is required to create checkout.")
@@ -72,14 +80,9 @@ async def create_checkout_url(
                 }
             },
             "relationships": {
-                "store": {
-                    "data": {"type": "stores", "id": settings.lemonsqueezy_store_id}
-                },
+                "store": {"data": {"type": "stores", "id": store_id}},
                 "variant": {
-                    "data": {
-                        "type": "variants",
-                        "id": settings.lemonsqueezy_premium_variant_id,
-                    }
+                    "data": {"type": "variants", "id": variant_id}
                 },
             },
         }
@@ -87,7 +90,7 @@ async def create_checkout_url(
     headers = {
         "Accept": _JSON_API,
         "Content-Type": _JSON_API,
-        "Authorization": f"Bearer {settings.lemonsqueezy_api_key}",
+        "Authorization": f"Bearer {api_key}",
     }
 
     owns_client = client is None
