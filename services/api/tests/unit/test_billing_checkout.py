@@ -65,6 +65,31 @@ async def test_a_lemon_error_is_not_turned_into_a_link(status_code: int) -> None
         await create_checkout_url("user-1", "person@example.com", _client(handler))
 
 
+async def test_the_error_names_the_rejected_field_but_not_the_email() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            404,
+            json={
+                "errors": [
+                    {
+                        "status": "404",
+                        "title": "Not Found",
+                        "detail": "No variant for person@example.com",
+                        "source": {"pointer": "/data/relationships/variant"},
+                    }
+                ]
+            },
+        )
+
+    with pytest.raises(CheckoutCreationError) as raised:
+        await create_checkout_url("user-1", "person@example.com", _client(handler))
+
+    message = str(raised.value)
+    assert "404" in message
+    assert "/data/relationships/variant" in message
+    assert "person@example.com" not in message
+
+
 @pytest.mark.parametrize(
     "body",
     [{}, {"data": {"attributes": {}}}, {"data": {"attributes": {"url": "http://x"}}}],

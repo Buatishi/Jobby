@@ -23,6 +23,24 @@ class CheckoutCreationError(RuntimeError):
     """Lemon Squeezy no devolvió un enlace de pago usable (configuración o servicio)."""
 
 
+def _error_sources(response: httpx.Response) -> str:
+    """Qué campo rechazó Lemon, por ejemplo la tienda o la variante.
+
+    Solo `title` y `source.pointer` de cada error: el `detail` puede repetir valores
+    enviados (el email), así que no se registra.
+    """
+    try:
+        errors = response.json().get("errors", [])
+        found = [
+            f"{error.get('title')} at {error.get('source', {}).get('pointer')}"
+            for error in errors[:3]
+            if isinstance(error, dict)
+        ]
+    except (ValueError, AttributeError):
+        return ""
+    return f" ({'; '.join(found)})"[:300] if found else ""
+
+
 async def create_checkout_url(
     user_id: str,
     user_email: str,
@@ -85,9 +103,9 @@ async def create_checkout_url(
             await http.aclose()
 
     if response.status_code != httpx.codes.CREATED:
-        # Solo el código de estado: el cuerpo puede repetir datos de la persona.
         raise CheckoutCreationError(
-            f"Lemon Squeezy answered {response.status_code} creating the checkout."
+            f"Lemon Squeezy answered {response.status_code} creating the checkout"
+            f"{_error_sources(response)}."
         )
 
     try:
