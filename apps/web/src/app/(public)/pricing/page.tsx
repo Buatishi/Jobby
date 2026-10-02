@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
 
-import { CheckoutUnavailableNotice } from "@/components/checkout-unavailable-notice";
+
 import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,8 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
-import { useHasSession } from "@/lib/auth/use-has-session";
+import { useHasSession } from "@/lib/auth/use-has-session";
+
 import { isCheckoutUnavailable } from "@/lib/billing/checkout-error";
 import { useI18n } from "@/lib/i18n/provider";
 import { scoreColors } from "@/lib/utils/score-colors";
@@ -44,11 +46,11 @@ const premiumFeatures = [
 
 export default function PricingPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const hasSession = useHasSession();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checkoutUnavailable, setCheckoutUnavailable] = useState(false);
   const monthlyPrice = process.env.NEXT_PUBLIC_PRICE_MONTHLY ?? "[MONTHLY_PRICE]";
   const yearlyPrice = process.env.NEXT_PUBLIC_PRICE_YEARLY ?? "[YEARLY_PRICE]";
 
@@ -62,7 +64,6 @@ export default function PricingPage() {
 
   async function handleUpgrade() {
     setError(null);
-    setCheckoutUnavailable(false);
     setIsRedirecting(true);
     try {
       const response = await apiClient<CheckoutResponse>(
@@ -71,18 +72,19 @@ export default function PricingPage() {
       );
       window.location.href = response.checkout_url;
     } catch (requestError) {
-      setIsRedirecting(false);
       if (isCheckoutUnavailable(requestError)) {
-        // Falla del checkout (Lemon, configuración, red): un aviso claro en vez de dejar a
-        // la persona en una página de error de otro sitio.
-        setCheckoutUnavailable(true);
-      } else {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : t("pricing.checkoutFail")
-        );
+        // Falla del checkout (Lemon, configuración, red): una página nuestra que lo explica,
+        // en vez de dejar a la persona en una página de error de otro sitio. El botón sigue
+        // en «Redirigiendo…» hasta que cambia la página.
+        router.push("/pricing/unavailable");
+        return;
       }
+      setIsRedirecting(false);
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t("pricing.checkoutFail")
+      );
     }
   }
 
@@ -188,7 +190,6 @@ export default function PricingPage() {
                 </div>
               ))}
               <div className="mt-auto flex flex-col gap-4 pt-2">
-                {checkoutUnavailable ? <CheckoutUnavailableNotice /> : null}
                 {error ? (
                   <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
                     {error}
