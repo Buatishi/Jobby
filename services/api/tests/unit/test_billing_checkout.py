@@ -56,6 +56,29 @@ async def test_asks_lemon_for_a_checkout_and_returns_its_url() -> None:
     }
 
 
+async def test_pasted_settings_are_trimmed_before_calling_lemon(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Un espacio, un salto de línea o comillas de más al pegar la variable en Render
+    # hacían que Lemon respondiera «Not Found» para una tienda que sí existe.
+    monkeypatch.setattr(settings, "lemonsqueezy_api_key", ' "test-api-key"\n')
+    monkeypatch.setattr(settings, "lemonsqueezy_store_id", " 11111\n")
+    monkeypatch.setattr(settings, "lemonsqueezy_premium_variant_id", "'22222' ")
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return _created(request)
+
+    await create_checkout_url("user-1", "person@example.com", _client(handler))
+
+    request = seen[0]
+    assert request.headers["authorization"] == "Bearer test-api-key"
+    body = json.loads(request.content)["data"]["relationships"]
+    assert body["store"]["data"]["id"] == "11111"
+    assert body["variant"]["data"]["id"] == "22222"
+
+
 @pytest.mark.parametrize("status_code", [401, 404, 422, 500])
 async def test_a_lemon_error_is_not_turned_into_a_link(status_code: int) -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
