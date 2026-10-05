@@ -33,6 +33,7 @@ rectangle "Jobby" {
     usecase "Cargar CV" as CU05
     usecase "Estructurar CV con IA" as CU06
     usecase "Confirmar perfil" as CU07
+    usecase "Descargar CV" as CU27
   }
   rectangle "Puestos y compatibilidad" {
     usecase "Analizar puesto" as CU08
@@ -78,6 +79,7 @@ CU04 .> CU02 : <<extend>>
 
 U --> CU05
 U --> CU07
+U --> CU27
 U --> CU08
 U --> CU25
 U --> CU26

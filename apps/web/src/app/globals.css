@@ -54,3 +54,22 @@
     }
   }
 }
+
+/* CV descargable: en pantalla solo se ve la vista previa; al imprimir, solo el CV. */
+.printable-cv {
+  display: none;
+}
+
+@media print {
+  body > *:not(.printable-cv) {
+    display: none !important;
+  }
+
+  .printable-cv {
+    display: block;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}

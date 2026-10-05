@@ -2,6 +2,7 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 
+import { DownloadCVPanel } from "@/components/cv/download-cv-panel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +36,9 @@ export default function ProfilePage() {
         <p className="mt-2 text-muted-foreground">
           Revisá la base que usa Jobby para calcular compatibilidad.
         </p>
+        <div className="mt-4">
+          <DownloadCVPanel />
+        </div>
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

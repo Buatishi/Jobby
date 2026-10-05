@@ -30,6 +30,7 @@ usecase "2.5\nFusionar y guardar\nel perfil del CV" as P25 #D6E2F3
 usecase "2.6\nConfirmar habilidades\ny completar el perfil" as P26 #D6E2F3
 usecase "2.7\nRecalcular el %\nde perfil completo" as P27 #D6E2F3
 usecase "2.8\nInformar el estado\nde la tarea" as P28 #D6E2F3
+usecase "2.9\nArmar el CV\ndescargable" as P29 #D6E2F3
 
 database "D2\nPerfil maestro" as D2 #E3F1EC
 database "D3\nDocumentos de CV" as D3 #E3F1EC
@@ -69,6 +70,10 @@ P27 --> D2 : Porcentaje de perfil completo
 
 D8 --> P28 : Estado de la tarea
 P28 --> U : F15.2 Estado de la tarea
+
+D2 --> P29 : Perfil confirmado
+D3 --> P29 : Datos de contacto del CV
+P29 --> U : F11 Perfil estructurado\nen un CV para descargar
 
 legend right
   |<#D5EBE3>      | Entidad externa: persona usuaria |

@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { DownloadCVPanel } from "@/components/cv/download-cv-panel";
 import { apiClient } from "@/lib/api/client";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
@@ -279,6 +280,11 @@ export default function ATSReportPage() {
             ) : null}
 
             {optimized ? <OptimizedCVResult optimized={optimized} /> : null}
+            {optimized && optimized.sections.length > 0 ? (
+              <div className="mt-5">
+                <DownloadCVPanel sections={optimized.sections} />
+              </div>
+            ) : null}
           </div>
         </details>
       </section>

@@ -70,6 +70,7 @@ la persona o por un evento de LemonSqueezy.
 | CU24 | Cerrar sesión | Persona usuaria | Botón «Cerrar sesión» de la barra lateral (Supabase Auth) |
 | CU25 | Editar puesto | Persona usuaria | `PATCH /jobs/{id}`; botón «Editar» de la pantalla Jobs |
 | CU26 | Eliminar puesto | Persona usuaria | `DELETE /jobs/{id}` (409 si tiene comparaciones o kits); botón «Eliminar» de la pantalla Jobs |
+| CU27 | Descargar CV | Persona usuaria | `GET /profiles/cv`; botón «Descargar CV en PDF» del perfil y del reporte ATS (con las secciones optimizadas que la persona elige) |
 
 ## 3. Narrativas de los tres casos de uso principales
 
