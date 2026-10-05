@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
+from app.models.ats import OptimizedCVSection
 from app.models.auth import CurrentUser
 from app.services.ats_analyzer.keyword_matcher import (
     ATSKeywordResult,
@@ -244,15 +245,15 @@ def test_ats_optimize_returns_rewritten_sections(
     async def fake_optimize(
         *_args: object,
         **_kwargs: object,
-    ) -> list[dict[str, object]]:
+    ) -> list[OptimizedCVSection]:
         return [
-            {
-                "section_name": "skills",
-                "original_excerpt": "Python",
-                "rewritten_text": "Python, FastAPI",
-                "added_keywords": ["FastAPI"],
-                "rationale": "Cubre keyword faltante.",
-            }
+            OptimizedCVSection(
+                section_name="skills",
+                original_excerpt="Python",
+                rewritten_text="Python, FastAPI",
+                added_keywords=["FastAPI"],
+                rationale="Cubre keyword faltante.",
+            )
         ]
 
     async def fake_analyze_keywords(
@@ -278,7 +279,11 @@ def test_ats_optimize_returns_rewritten_sections(
     response = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"})
 
     assert response.status_code == 200
-    assert response.json()["sections"][0]["rewritten_text"] == "Python, FastAPI"
+    body = response.json()
+    assert body["sections"][0]["rewritten_text"] == "Python, FastAPI"
+    # FastAPI estaba ausente en el CV: mencionarlo no sube el puntaje verificado.
+    assert body["ats_score_before"] == 0
+    assert body["ats_score_after"] == 0
 
 
 def test_a_semantic_match_counts_half_of_a_literal_one() -> None:

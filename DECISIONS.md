@@ -815,3 +815,33 @@ la Decisión 19 (sin caché del lado del servidor) no cambia.
 **Alternativas descartadas:** (a) SWR o TanStack Query: una dependencia nueva para lo que resuelve un hook propio de unas 100
 líneas; (b) guardar las respuestas en `localStorage`: dejaría datos del CV en el navegador después
 de cerrar la pestaña.
+
+## Decisión 24 — El CV optimizado se verifica contra el reporte ATS
+
+**Estado:** Aprobada por el autor (2026-10-04).
+
+**Problema:** lo único que impedía que la IA inventara al reescribir el CV era una instrucción en
+el prompt, que depende de qué tan obediente sea el modelo. Si escribía «Kubernetes» sin que la
+persona lo tuviera, la web lo mostraba igual que una mejora real.
+
+**Elegido:** después de la respuesta de la IA, `verify_sections` cruza el texto nuevo con el reporte
+ATS ya calculado. Una palabra clave con estado literal o semántico tiene respaldo en el CV y queda
+como agregada; una ausente, aunque la IA la haya escrito sin declararla, pasa a
+`unverified_keywords` y la web avisa que solo se use si es cierta. Una palabra que la IA declaró
+pero no escribió se descarta, y una que no es del puesto necesita aparecer en el CV. La búsqueda
+respeta los límites de palabra («R» no está dentro de «React»). La respuesta suma
+`ats_score_before` y `ats_score_after`: el segundo cuenta como literal solo una palabra semántica
+que el texto nuevo nombra; las ausentes siguen ausentes.
+
+**Costo:** ninguna llamada extra a la IA ni a los vectores; un test lo comprueba contando los
+pedidos (`test_cv_optimizer_verification.py`).
+
+**Alternativas evaluadas:** (a) una segunda llamada a la IA que revise a la primera — descartada:
+duplica el costo y sigue dependiendo de un modelo; (b) volver a pedir vectores del texto nuevo para
+recalcular el puntaje completo — descartada: cuesta tokens y la cobertura verificada se obtiene con
+los estados que ya existen; (c) borrar del texto las palabras sin respaldo — descartada: cortar
+frases generadas deja texto roto; se avisa y decide la persona.
+
+**Origen de la idea:** se comparó con AIHawk, un generador de CV de código abierto (AGPL-3.0), que
+reescribe el CV entero sin ninguna verificación. No se tomó código ni prompts de ese proyecto: su
+licencia obligaría a publicar Jobby completo.

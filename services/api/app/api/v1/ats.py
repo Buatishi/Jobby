@@ -12,7 +12,10 @@ from app.models.ats import (
     ATSReport,
 )
 from app.models.auth import CurrentUser
-from app.services.ats_analyzer.cv_optimizer import optimize_cv_sections
+from app.services.ats_analyzer.cv_optimizer import (
+    optimize_cv_sections,
+    score_after_optimization,
+)
 from app.services.ats_analyzer.format_checker import check_cv_format
 from app.services.ats_analyzer.keyword_matcher import analyze_keywords
 from app.services.ats_analyzer.scoring import compute_ats_score
@@ -154,4 +157,14 @@ async def optimize_ats_cv(
         job,
         ats_report.keyword_matches,
     )
-    return ATSOptimizeResponse(job_id=payload.job_id, sections=sections)
+    penalty = sum(issue.penalty for issue in ats_report.format_issues)
+    return ATSOptimizeResponse(
+        job_id=payload.job_id,
+        sections=sections,
+        ats_score_before=ats_report.ats_score,
+        ats_score_after=score_after_optimization(
+            sections,
+            ats_report.keyword_matches,
+            penalty,
+        ),
+    )

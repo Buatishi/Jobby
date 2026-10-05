@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ATSKeywordMatch(BaseModel):
@@ -32,8 +32,13 @@ class OptimizedCVSection(BaseModel):
     rewritten_text: str
     added_keywords: list[str]
     rationale: str
+    # Keywords que el texto nuevo menciona sin respaldo en el CV:
+    # la persona las confirma antes de usarlas.
+    unverified_keywords: list[str] = Field(default_factory=list)
 
 
 class ATSOptimizeResponse(BaseModel):
     job_id: str
     sections: list[OptimizedCVSection]
+    ats_score_before: int | None = None
+    ats_score_after: int | None = None
