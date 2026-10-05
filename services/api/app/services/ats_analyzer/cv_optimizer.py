@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError
 
 from app.models.ats import ATSKeywordMatch, OptimizedCVSection
-from app.services.ai_gateway import AIGateway
+from app.services.ai_gateway import AIGateway, UserTier
 from app.services.ats_analyzer.scoring import score_keyword_coverage
 from app.services.match_engine.common import normalize_text
 
@@ -146,6 +146,7 @@ async def optimize_cv_sections(
     primary_cv: dict[str, Any],
     job: dict[str, Any],
     matches: list[ATSKeywordMatch],
+    user_tier: UserTier,
     gateway: AIGateway | None = None,
 ) -> list[OptimizedCVSection]:
     missing_or_semantic = _low_coverage_keywords(matches)
@@ -155,7 +156,7 @@ async def optimize_cv_sections(
     ai_gateway = gateway or AIGateway()
     content = await ai_gateway.generate(
         "cv_optimization",
-        "premium",
+        user_tier,
         _prompt(primary_cv, job, matches),
         system=(
             "Actuas como especialista ATS y editor de CV. Respondes en espanol "

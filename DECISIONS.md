@@ -845,3 +845,28 @@ frases generadas deja texto roto; se avisa y decide la persona.
 **Origen de la idea:** se comparó con AIHawk, un generador de CV de código abierto (AGPL-3.0), que
 reescribe el CV entero sin ninguna verificación. No se tomó código ni prompts de ese proyecto: su
 licencia obligaría a publicar Jobby completo.
+
+## Decisión 25 — El optimizador de CV también en el plan gratuito
+
+**Estado:** Aprobada por el autor (2026-10-04). Cambia lo que incluye cada plan: hasta ahora el
+optimizador era exclusivo de premium.
+
+**Elegido:** el optimizador está en los dos planes, con un límite mensual en Redis
+(`RateLimitKind.CV_OPTIMIZATION`): **3 por mes** en el gratuito, que usa DeepSeek, y **30 por
+mes** en premium, que usa Claude. El contador se descuenta antes de llamar a la IA, como en los
+puestos, y al pasarlo la API responde 429 `CV_OPTIMIZATION_RATE_LIMIT_EXCEEDED` con el límite y
+la fecha en que se renueva. El Interview Kit sigue siendo solo premium.
+
+**Fundamento:** la verificación de la Decisión 24 no depende del modelo, así que el modelo barato
+tampoco puede presentar una palabra inventada como respaldada. Mostrar el CV mejorado en el plan
+gratuito deja ver el valor completo del producto; premium vende más usos, un modelo mejor y la
+preparación de entrevistas.
+
+**Costo:** cada optimización del plan gratuito es una llamada a DeepSeek más el reporte ATS que
+ya existía. El límite de 3 por persona y por mes acota el gasto dentro del presupuesto de USD 20
+por mes del proyecto.
+
+**Alternativas evaluadas:** (a) dejarlo solo en premium — descartada por el autor: el plan
+gratuito no mostraba la mejora del CV; (b) 1 por mes en el gratuito — descartada: no alcanza para
+comparar dos puestos; (c) pasar también premium a DeepSeek — descartada: `AGENTS.md` define a
+Claude como la ampliación premium y hoy no hay uso premium que justifique cambiarlo.

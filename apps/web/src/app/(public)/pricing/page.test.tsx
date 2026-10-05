@@ -38,8 +38,15 @@ describe("PricingPage", () => {
     const html = render(false);
 
     // Una vez por tarjeta (Free y Premium): si falta alguna, los botones vuelven a
-    // quedar a distinta altura porque Premium tiene un ítem más.
+    // quedar a distinta altura cuando las listas no tienen el mismo largo.
     expect(html.match(/mt-auto/g)).toHaveLength(2);
+  });
+
+  it("offers the CV optimizer in both plans with their monthly limits", () => {
+    const html = render(false);
+
+    expect(html).toContain("CV Optimizer: 3 por mes");
+    expect(html).toContain("CV Optimizer con IA avanzada: 30 por mes");
   });
 
   it("does not offer it while the session is being read", () => {

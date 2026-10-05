@@ -103,28 +103,26 @@ async def test_reality_gap_routes_by_tier() -> None:
 
 
 @pytest.mark.asyncio
-async def test_premium_only_tasks_use_claude_for_premium() -> None:
+async def test_cv_optimization_routes_by_tier() -> None:
     gateway = AIGateway(
         deepseek=MockProvider("deepseek"),
         claude=MockProvider("claude"),
         embeddings=MockEmbeddingsProvider(),
     )
 
+    assert await gateway.generate("cv_optimization", "free", "optimize") == "deepseek"
     assert await gateway.generate("cv_optimization", "premium", "optimize") == "claude"
-    assert await gateway.generate("interview_kit", "premium", "kit") == "claude"
 
 
 @pytest.mark.asyncio
-async def test_premium_only_tasks_reject_free_tier() -> None:
+async def test_interview_kits_use_claude_and_only_for_premium() -> None:
     gateway = AIGateway(
         deepseek=MockProvider("deepseek"),
         claude=MockProvider("claude"),
         embeddings=MockEmbeddingsProvider(),
     )
 
-    with pytest.raises(PremiumRequiredError):
-        await gateway.generate("cv_optimization", "free", "optimize")
-
+    assert await gateway.generate("interview_kit", "premium", "kit") == "claude"
     with pytest.raises(PremiumRequiredError):
         await gateway.generate("interview_kit", "free", "kit")
 

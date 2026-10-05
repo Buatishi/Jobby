@@ -200,19 +200,60 @@ def test_reality_gap_endpoint_returns_lowest_coherence_first(
     assert response.json()["skills"][0]["coherence_score"] == 20
 
 
-def test_ats_optimize_requires_premium(client: TestClient) -> None:
+def _optimizer_supabase() -> FakeSupabase:
     fake_supabase = FakeSupabase()
+    fake_supabase.tables["job_descriptions"].append(
+        {"id": "job-1", "user_id": "user-1", "required_skills": ["FastAPI"]}
+    )
+    fake_supabase.tables["uploaded_documents"].append(
+        {
+            "id": "doc-1",
+            "user_id": "user-1",
+            "type": "cv",
+            "is_primary": True,
+            "parsed_data": {"skills": [{"name": "Python"}], "format_flags": {}},
+        }
+    )
+    return fake_supabase
+
+
+def test_the_free_plan_optimizes_three_cvs_a_month_with_its_own_model(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = _optimizer_supabase()
+    tiers: list[object] = []
 
     async def fake_client() -> FakeSupabase:
         return fake_supabase
 
+    async def fake_optimize(*args: object, **_kwargs: object) -> list[object]:
+        tiers.append(args[3])
+        return []
+
+    async def fake_analyze_keywords(
+        *_args: object,
+        **_kwargs: object,
+    ) -> ATSKeywordResult:
+        return ATSKeywordResult(keywords=[], matches=[])
+
     app.dependency_overrides[get_current_user] = _fake_current_user
     app.dependency_overrides[get_supabase_client] = fake_client
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
+    monkeypatch.setattr("app.api.v1.ats.analyze_keywords", fake_analyze_keywords)
 
-    response = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"})
+    statuses = [
+        client.post("/api/v1/ats/optimize", json={"job_id": "job-1"}).status_code
+        for _ in range(3)
+    ]
+    blocked = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"})
 
-    assert response.status_code == 403
-    assert response.json()["code"] == "PREMIUM_REQUIRED"
+    assert statuses == [200, 200, 200]
+    assert blocked.status_code == 429
+    assert blocked.json()["code"] == "CV_OPTIMIZATION_RATE_LIMIT_EXCEEDED"
+    assert blocked.json()["details"]["limit"] == 3
+    # El plan sale de la sesión y decide el modelo: el gratis usa DeepSeek.
+    assert tiers == ["free", "free", "free"]
 
 
 def test_ats_optimize_returns_rewritten_sections(

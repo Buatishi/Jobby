@@ -92,7 +92,8 @@ const freeFeatures = [
   "landing.freeFeatures.one",
   "landing.freeFeatures.two",
   "landing.freeFeatures.three",
-  "landing.freeFeatures.four"
+  "landing.freeFeatures.four",
+  "landing.freeFeatures.five"
 ];
 
 const premiumFeatures = [

@@ -28,7 +28,7 @@ usecase "4.2\nExplicar el resultado\ncon IA y guardarlo" as P42 #D6E2F3
 usecase "4.3\nEntregar el reporte\ny registrar la valoración" as P43 #D6E2F3
 usecase "4.4\nArmar el\nreporte ATS" as P44 #D6E2F3
 usecase "4.5\nAnalizar la brecha\nde realidad" as P45 #D6E2F3
-usecase "4.6\nOptimizar el CV con IA\n(solo premium)" as P46 #EDE7F6
+usecase "4.6\nOptimizar el CV con IA\n(límite por plan)" as P46 #D6E2F3
 usecase "4.7\nArmar el resumen\ndel panel" as P47 #D6E2F3
 usecase "4.8\nInformar el estado\nde la tarea" as P48 #D6E2F3
 
@@ -73,6 +73,7 @@ U --> P46 : F8 Solicitud de\nCV optimizado
 D1 --> P46 : Plan de la persona
 D3 --> P46 : Secciones del CV
 D4 --> P46 : Puesto y palabras clave
+P46 --> D8 : Contador de CV\noptimizados del mes
 P46 --> IA : F24.4 Instrucciones con las\nsecciones a reescribir
 IA --> P46 : F26.4 Secciones reescritas
 P46 --> U : F13 CV optimizado
@@ -88,7 +89,6 @@ legend right
   |<#D5EBE3>      | Entidad externa: persona usuaria |
   |<#FFE9AE>      | Entidad externa: sistema de terceros |
   |<#D6E2F3>      | Subproceso del proceso 4 |
-  |<#EDE7F6>      | Subproceso exclusivo del plan premium |
   |<#F1F1F1>      | Proceso vecino del nivel 1 |
   |<#E3F1EC>      | Almacén en Supabase |
   |<#EDEFF2>      | Almacén en Redis |

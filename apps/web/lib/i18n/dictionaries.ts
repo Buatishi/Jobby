@@ -107,11 +107,12 @@ export const dictionaries: Record<Language, TranslationTree> = {
         one: "10 análisis de puestos por mes",
         two: "Match Score completo",
         three: "ATS Analyzer básico",
-        four: "Historial de últimos 10 puestos"
+        four: "Historial de últimos 10 puestos",
+        five: "CV Optimizer: 3 por mes"
       },
       premiumFeatures: {
         one: "Análisis ilimitados",
-        two: "CV Optimizer con IA",
+        two: "CV Optimizer con IA avanzada: 30 por mes",
         three: "Interview Kit premium",
         four: "Historial completo",
         five: "Recomendaciones priorizadas"
@@ -380,11 +381,12 @@ export const dictionaries: Record<Language, TranslationTree> = {
         one: "10 job analyses per month",
         two: "Complete Match Score",
         three: "Basic ATS Analyzer",
-        four: "Last 10 jobs history"
+        four: "Last 10 jobs history",
+        five: "CV Optimizer: 3 per month"
       },
       premiumFeatures: {
         one: "Unlimited analyses",
-        two: "AI CV Optimizer",
+        two: "Advanced AI CV Optimizer: 30 per month",
         three: "Premium Interview Kit",
         four: "Full history",
         five: "Prioritized recommendations"

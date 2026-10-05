@@ -162,6 +162,7 @@ async def test_the_optimizer_returns_verified_sections_with_a_single_ai_call() -
         primary_cv,
         {"job_title": "Analista de datos"},
         MATCHES,
+        "free",
         gateway,  # type: ignore[arg-type]
     )
 

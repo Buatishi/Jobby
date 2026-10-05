@@ -9,8 +9,9 @@
 Jobby es una plataforma de empleabilidad. El candidato sube su CV; la IA lo estructura
 en un perfil maestro que el candidato confirma; carga puestos (texto o URL) y obtiene un
 MatchScore explicable (fórmula ponderada de skills, seniority, educación, idiomas,
-habilidades blandas y empresa), un reporte ATS y la brecha de realidad. El plan premium
-suma optimización de CV para ATS y Interview Kit. El administrador ve solo métricas
+habilidades blandas y empresa), un reporte ATS y la brecha de realidad. La optimización de CV para ATS está en los dos
+planes (3 por mes con DeepSeek en el gratuito, 30 con Claude en premium; Decisión 25), y el
+premium suma el Interview Kit. El administrador ve solo métricas
 agregadas, nunca datos personales ni CVs.
 
 ## 2. Arquitectura objetivo

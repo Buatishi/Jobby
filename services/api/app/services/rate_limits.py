@@ -12,6 +12,7 @@ class RateLimitKind(StrEnum):
     JOBS = "jobs"
     ATS = "ats"
     KITS = "kits"
+    CV_OPTIMIZATION = "cv_optimization"
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,8 @@ def _rule(kind: RateLimitKind, tier: str) -> RateLimitRule:
         return RateLimitRule(limit=None if premium else 10, period="month")
     if kind == RateLimitKind.ATS:
         return RateLimitRule(limit=50 if premium else 5, period="day")
+    if kind == RateLimitKind.CV_OPTIMIZATION:
+        return RateLimitRule(limit=30 if premium else 3, period="month")
     return RateLimitRule(limit=10 if premium else 0, period="month")
 
 

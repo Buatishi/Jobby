@@ -42,12 +42,12 @@ rectangle "Jobby" {
     usecase "Estructurar puesto con IA" as CU10
     usecase "Calcular Match Score" as CU11
     usecase "Consultar reporte ATS" as CU12
+    usecase "Optimizar CV" as CU14
     usecase "Ver Reality Gap" as CU13
     usecase "Ver resumen del panel" as CU17
     usecase "Valorar resultado" as CU18
   }
   rectangle "Plan premium" {
-    usecase "Optimizar CV" as CU14
     usecase "Generar kit de entrevista" as CU15
     usecase "Verificar plan premium" as CU16
     usecase "Suscribirse al plan premium" as CU19
@@ -88,7 +88,7 @@ U --> CU18
 U --> CU19
 U --> CU22
 U --> CU24
-P --> CU14
+U --> CU14
 P --> CU15
 
 CU05 ..> CU06 : <<include>>
@@ -96,7 +96,6 @@ CU08 ..> CU10 : <<include>>
 CU08 ..> CU11 : <<include>>
 CU09 .> CU08 : <<extend>>
 CU14 .> CU12 : <<extend>>
-CU14 ..> CU16 : <<include>>
 CU15 ..> CU16 : <<include>>
 CU21 .> CU20 : <<extend>>
 
