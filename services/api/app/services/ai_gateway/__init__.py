@@ -32,12 +32,14 @@ class AIGateway:
         if task_type == "cv_parsing":
             return self.deepseek
 
-        if task_type in {"cv_optimization", "interview_kit"}:
+        if task_type == "interview_kit":
             if user_tier != "premium":
                 raise PremiumRequiredError(task_type)
             return self.claude
 
-        if task_type in {"match_reasoning", "reality_gap"}:
+        # El plan gratis optimiza con DeepSeek: la verificación (Decisión 24) no
+        # depende del modelo, así que el texto barato tampoco puede inventar sin aviso.
+        if task_type in {"match_reasoning", "reality_gap", "cv_optimization"}:
             return self.claude if user_tier == "premium" else self.deepseek
 
         raise ValueError(f"Unsupported task_type: {task_type}")

@@ -250,7 +250,7 @@ export default function ATSReportPage() {
                 experiencia.
               </p>
             </div>
-            <Badge variant="outline">Premium</Badge>
+            <Badge variant="outline">3 por mes gratis · 30 en Premium</Badge>
           </summary>
           <div className="border-t border-border p-6">
             <Button

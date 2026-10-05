@@ -74,7 +74,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-4.pdf](pdf/laminas
 | 4.3 | Entregar el reporte y registrar la valoración | Devuelve el reporte de compatibilidad y guarda la valoración de 1 a 5 de la persona. | `GET /matches/{id}`; `PATCH /matches/{id}/rating` |
 | 4.4 | Armar el reporte ATS | Extrae las palabras clave del puesto, las compara con el CV (exacta, por significado desde 0,75 o faltante), revisa el formato y calcula el puntaje. Antes verifica el límite del plan (5 por día en el gratuito). No guarda el reporte. | `GET /ats/{job_id}`; `services/ats_analyzer/` |
 | 4.5 | Analizar la brecha de realidad | Compara lo que la persona confirmó con lo que el CV puede demostrar y lo ordena de menor a mayor coherencia. | `GET /profiles/reality-gap`; `services/reality_gap/` |
-| 4.6 | Optimizar el CV con IA (solo premium) | Reescribe solo las secciones con baja cobertura ATS, sin inventar experiencia, y devuelve el texto original, el nuevo, las palabras agregadas y el motivo. Después verifica cada palabra contra el reporte ATS: las que el CV no respalda se marcan para que la persona las confirme, y calcula el puntaje antes y después contando solo lo verificado (Decisión 24). | `POST /ats/optimize`; `ats_analyzer/cv_optimizer.py` |
+| 4.6 | Optimizar el CV con IA | Antes verifica el límite del plan (3 por mes con DeepSeek en el gratuito, 30 con Claude en premium; Decisión 25). Reescribe solo las secciones con baja cobertura ATS, sin inventar experiencia, y devuelve el texto original, el nuevo, las palabras agregadas y el motivo. Después verifica cada palabra contra el reporte ATS: las que el CV no respalda se marcan para que la persona las confirme, y calcula el puntaje antes y después contando solo lo verificado (Decisión 24). | `POST /ats/optimize`; `ats_analyzer/cv_optimizer.py` |
 | 4.7 | Armar el resumen del panel | Junta el porcentaje de perfil, un consejo y los últimos resultados para la pantalla principal. | `GET /dashboard/summary` |
 | 4.8 | Informar el estado de la tarea | Entrega el estado de la comparación mientras corre. | `GET /tasks/{id}/stream` |
 
@@ -98,7 +98,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-4.pdf](pdf/laminas
 | Texto del CV principal (D3 → 4) | D3 → 4.1, 4.4, 4.5 y 4.6 |
 | Puesto estructurado (D4 → 4) | D4 → 4.1, 4.3, 4.4 y 4.6 |
 | Resultados de compatibilidad (4 ↔ D5) | 4.2 y 4.3 → D5; D5 → 4.3 y 4.7 |
-| Estado de la tarea (4 ↔ D8) | 4.1 y 4.4 → D8; D8 → 4.8 |
+| Estado de la tarea (4 ↔ D8) | 4.1, 4.4 y 4.6 → D8; D8 → 4.8 |
 
 ## 4. Corrección del nivel 1
 

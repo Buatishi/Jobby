@@ -139,23 +139,33 @@ async def optimize_ats_cv(
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> ATSOptimizeResponse:
     user_tier = current_user.tier
-    if user_tier != "premium":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "CV Optimizer requiere plan premium",
-                "code": "PREMIUM_REQUIRED",
-                "details": {},
-            },
-        )
-
     job = await _fetch_job(supabase, payload.job_id, current_user.id)
     primary_cv = await _fetch_primary_cv(supabase, current_user.id)
+    try:
+        await increment_rate_limit(
+            current_user.id,
+            user_tier,
+            RateLimitKind.CV_OPTIMIZATION,
+        )
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "Límite mensual de CV optimizados alcanzado",
+                "code": "CV_OPTIMIZATION_RATE_LIMIT_EXCEEDED",
+                "details": {
+                    "limit": exc.limit,
+                    "reset_at": exc.reset_at.isoformat(),
+                },
+            },
+        ) from exc
+
     ats_report = await _build_ats_report(payload.job_id, job, primary_cv)
     sections = await optimize_cv_sections(
         primary_cv,
         job,
         ats_report.keyword_matches,
+        "premium" if user_tier == "premium" else "free",
     )
     penalty = sum(issue.penalty for issue in ats_report.format_issues)
     return ATSOptimizeResponse(

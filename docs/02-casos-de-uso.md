@@ -16,7 +16,7 @@ lámina A3 en [pdf/laminas/casos-de-uso.pdf](pdf/laminas/casos-de-uso.pdf).
 |---|---|---|
 | Visitante | Humano | Persona sin cuenta o sin sesión iniciada |
 | Persona usuaria | Humano | Persona con cuenta y plan gratuito |
-| Persona usuaria premium | Humano | Hereda todo lo de la persona usuaria y suma el optimizador de CV y el kit de entrevista |
+| Persona usuaria premium | Humano | Hereda todo lo de la persona usuaria y suma el kit de entrevista, más usos del optimizador de CV (30 por mes en lugar de 3) con un modelo de IA mejor |
 | Administrador | Humano | Hereda todo lo de la persona usuaria y suma la consulta de métricas agregadas, sin acceso a CV ni a datos personales de otras personas. Es un rol guardado en la base con el permiso `metrics:read` (Decisión 21) |
 | Supabase Auth con Google | Sistema | Verifica la identidad y emite la sesión |
 | Proveedores de IA | Sistema | DeepSeek, Anthropic y OpenAI (solo vectores) |
@@ -35,8 +35,8 @@ la persona o por un evento de LemonSqueezy.
 | Analizar puesto `include` Estructurar puesto con IA | Siempre ocurre al analizar |
 | Analizar puesto `include` Calcular Match Score | El match se calcula siempre al terminar el análisis |
 | Leer página del puesto `extend` Analizar puesto | Solo cuando el puesto se indica con una URL |
-| Optimizar CV `extend` Consultar reporte ATS | Opcional y solo premium, se ofrece desde el reporte |
-| Optimizar CV y Generar kit de entrevista `include` Verificar plan premium | Ambos comprueban el plan antes de ejecutarse |
+| Optimizar CV `extend` Consultar reporte ATS | Opcional, se ofrece desde el reporte; cuenta contra el límite mensual del plan (3 en el gratuito, 30 en premium) |
+| Generar kit de entrevista `include` Verificar plan premium | Comprueba el plan antes de ejecutarse |
 | Autenticar con Google `extend` Registrar cuenta e Iniciar sesión | Alternativa opcional al correo y la contraseña |
 | Enviar aviso de suscripción `extend` Procesar evento de suscripción | Solo en pagos fallidos y vencimientos |
 
@@ -57,7 +57,7 @@ la persona o por un evento de LemonSqueezy.
 | CU11 | Calcular Match Score | Sistema | Tarea `match`; `GET /matches/{id}` |
 | CU12 | Consultar reporte ATS | Persona usuaria | `GET /ats/{job_id}`; pantalla ATS |
 | CU13 | Ver Reality Gap | Persona usuaria | `GET /profiles/reality-gap` |
-| CU14 | Optimizar CV | Persona usuaria premium | `POST /ats/optimize` |
+| CU14 | Optimizar CV | Persona usuaria | `POST /ats/optimize` |
 | CU15 | Generar kit de entrevista | Persona usuaria premium | `/interview-kits` |
 | CU16 | Verificar plan premium | Sistema | Comprobación del plan en los casos premium |
 | CU17 | Ver resumen del panel | Persona usuaria | `GET /dashboard/summary` |
@@ -167,7 +167,7 @@ guardado y el contador del límite mensual queda actualizado.
 6. LemonSqueezy envía el evento `subscription_created` firmado a `POST /webhooks/lemonsqueezy`.
 7. La API verifica la firma, comprueba que el evento no se haya procesado ya y actualiza el
    plan, el estado y la fecha de fin del período.
-8. La persona pasa a tener disponibles el optimizador de CV y el kit de entrevista.
+8. La persona pasa a tener disponible el kit de entrevista y 30 CV optimizados por mes en lugar de 3.
 
 **Flujos alternativos**
 

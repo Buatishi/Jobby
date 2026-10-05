@@ -122,7 +122,6 @@ def test_job_analysis_counts_against_the_session_plan(
 @pytest.mark.parametrize(
     ("path", "body"),
     [
-        ("/api/v1/ats/optimize", {"job_id": "job-00"}),
         ("/api/v1/interview-kits", {"job_id": "job-00"}),
         ("/api/v1/interview-kits/kit-1/regenerate", None),
     ],

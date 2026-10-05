@@ -49,6 +49,31 @@ async def test_interview_kits_are_blocked_on_the_free_plan(
 
 
 @pytest.mark.asyncio
+async def test_the_free_plan_optimizes_three_cvs_a_month_and_premium_thirty(
+    fake_redis: FakeRedis,
+) -> None:
+    for _ in range(3):
+        await increment_rate_limit("user-1", "free", RateLimitKind.CV_OPTIMIZATION)
+    with pytest.raises(RateLimitExceededError) as free_exceeded:
+        await increment_rate_limit("user-1", "free", RateLimitKind.CV_OPTIMIZATION)
+
+    for _ in range(30):
+        await increment_rate_limit("user-2", "premium", RateLimitKind.CV_OPTIMIZATION)
+    with pytest.raises(RateLimitExceededError) as premium_exceeded:
+        await increment_rate_limit("user-2", "premium", RateLimitKind.CV_OPTIMIZATION)
+
+    assert free_exceeded.value.limit == 3
+    assert premium_exceeded.value.limit == 30
+    # Mensual, como los puestos: el contador dura hasta fin de mes, no un día.
+    key = next(
+        key
+        for key in fake_redis.values
+        if key.startswith("rate:cv_optimization:user-1:")
+    )
+    assert fake_redis.ttls[key] > 0
+
+
+@pytest.mark.asyncio
 async def test_each_person_has_its_own_counter(fake_redis: FakeRedis) -> None:
     await increment_rate_limit("user-1", "free", RateLimitKind.JOBS)
     await increment_rate_limit("user-2", "free", RateLimitKind.JOBS)
