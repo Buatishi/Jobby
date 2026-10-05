@@ -34,12 +34,13 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-2.pdf](pdf/laminas
 |---|---|---|---|
 | 2.1 | Registrar el CV y encolar el análisis | Recibe el PDF ya subido al almacén privado, guarda el documento como «pendiente» con su ruta, encola la tarea y devuelve su identificador. | `wizard/step-2`; `POST /profiles/documents` |
 | 2.2 | Extraer el texto del PDF | Descarga el archivo y extrae el texto; si el PDF no tiene texto seleccionable, marca «fallido» con un mensaje apto para mostrar. | `tasks/parsing.py`; `cv_parser/pdf_extractor.py` |
-| 2.3 | Estructurar el CV con IA | Pide a DeepSeek que ordene el texto en habilidades, experiencia, estudios, idiomas y certificaciones, y valida el JSON recibido. | `cv_parser/ai_structurer.py` |
+| 2.3 | Estructurar el CV con IA | Pide a DeepSeek que ordene el texto en datos de contacto, habilidades, experiencia, estudios, idiomas y certificaciones, y valida el JSON recibido. | `cv_parser/ai_structurer.py` |
 | 2.4 | Generar los vectores de las habilidades | Convierte cada habilidad en un vector de significado de 1536 números con OpenAI. | `ai_gateway/openai_embeddings.py` |
 | 2.5 | Fusionar y guardar el perfil del CV | Combina lo detectado con lo que la persona ya había confirmado (sin duplicar ni perder confirmaciones), guarda el perfil y cierra el documento como «hecho». | `cv_parser/merge_logic.py`; `tasks/parsing.py` |
 | 2.6 | Confirmar habilidades y completar el perfil | La persona confirma o rechaza cada habilidad y agrega experiencia, estudios e idiomas; también le devuelve el perfil estructurado. | `wizard/step-3` y `step-4`; `POST /profiles/skills`, `/rejected-skills`, `/experiences`, `/educations`, `/languages`; `GET` y `PATCH /profiles/me` |
 | 2.7 | Recalcular el porcentaje de perfil completo | Recalcula el 0 a 100 que habilita el análisis de puestos (umbral del 60 %), tras el análisis del CV y tras cada cambio manual. | Función `compute_completeness` (migraciones 014 y 020) |
 | 2.8 | Informar el estado de la tarea | Entrega el estado mientras corre: pendiente, procesando, hecho o fallido. | `GET /tasks/{id}/stream` (SSE); `task-poller.tsx` |
+| 2.9 | Armar el CV descargable | Junta el perfil confirmado (o lo que leyó el CV, si una sección está vacía) con los datos de contacto del CV principal, para imprimirlo como PDF en una columna. La persona puede corregir el contacto antes de descargar, sin que se guarde (Decisión 26). | `GET /profiles/cv`; `services/printable_cv.py`; `components/cv/` |
 
 ### Consistencia con el nivel 1
 
@@ -47,14 +48,14 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-2.pdf](pdf/laminas
 |---|---|
 | F2 CV en PDF (persona → 2) | Persona → 2.1 |
 | F3 Datos del perfil (persona → 2) | Persona → 2.6 |
-| F11 Perfil estructurado del CV (2 → persona) | 2.6 → persona |
+| F11 Perfil estructurado del CV (2 → persona) | 2.6 y 2.9 → persona |
 | F15.2 Estado de la tarea (2 → persona) | 2.1 → persona (identificador) y 2.8 → persona (estado) |
 | F24.2 Instrucciones con el texto del CV (2 → IA) | 2.3 → IA |
 | F26.2 Datos estructurados (IA → 2) | IA → 2.3 |
 | F25.2 Textos a vectorizar (2 → IA) | 2.4 → IA |
 | F27.2 Vectores de significado (IA → 2) | IA → 2.4 |
-| CV y estado de procesamiento (2 ↔ D3) | 2.1, 2.2 y 2.5 → D3; D3 → 2.2 |
-| Perfil estructurado (2 ↔ D2) | 2.5, 2.6 y 2.7 → D2; D2 → 2.5, 2.6 y 2.7 |
+| CV y estado de procesamiento (2 ↔ D3) | 2.1, 2.2 y 2.5 → D3; D3 → 2.2 y 2.9 |
+| Perfil estructurado (2 ↔ D2) | 2.5, 2.6 y 2.7 → D2; D2 → 2.5, 2.6, 2.7 y 2.9 |
 | Estado de la tarea (2 ↔ D8) | 2.1 → D8; D8 → 2.8 |
 
 Los 8 flujos externos que el nivel 1 asigna al proceso 2 aparecen los 8, con el mismo origen y

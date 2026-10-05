@@ -40,9 +40,19 @@ class ParsedCertification(BaseModel):
     issuer: str | None = None
 
 
+class ParsedContact(BaseModel):
+    # Encabezado del CV descargable: solo lo que figura en el CV, nunca inventado.
+    full_name: str = ""
+    email: str = ""
+    phone: str = ""
+    location: str = ""
+    linkedin_url: str = ""
+
+
 class CVStructuredData(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    contact: ParsedContact = Field(default_factory=ParsedContact)
     skills: list[ParsedSkill] = Field(default_factory=list)
     experiences: list[ParsedExperience] = Field(default_factory=list)
     educations: list[ParsedEducation] = Field(default_factory=list)
@@ -58,7 +68,7 @@ def _system_prompt() -> str:
     return (
         "You are a bilingual CV parser for Spanish and English resumes. "
         "Extract only facts explicitly present in the CV. Return strict JSON "
-        "with this shape: skills, experiences, educations, languages, "
+        "with this shape: contact, skills, experiences, educations, languages, "
         "certifications. Do not include markdown, comments, or extra keys. "
         "Use lowercase categories and levels when possible."
     )
@@ -75,8 +85,10 @@ def _user_prompt(cv_text: str, correction_hint: str | None = None) -> str:
     return (
         f"{correction}\nExtract structured data from this CV/resume text. "
         "The CV may be in Spanish, English, or both.\n\n"
-        "Rules: return only one JSON object. Each top-level key must be an "
-        "array. Use empty strings for unknown text values, never null. "
+        "Rules: return only one JSON object. contact must be an object with "
+        "full_name, email, phone, location and linkedin_url, copied exactly as "
+        "they appear in the CV. Every other top-level key must be an array. "
+        "Use empty strings for unknown text values, never null. "
         "achievements must always be an array of strings.\n\n"
         f"{cv_text}"
     )
@@ -117,6 +129,16 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         if isinstance(wrapped, dict):
             parsed = wrapped
             break
+
+    raw_contact = parsed.get("contact")
+    contact_item = raw_contact if isinstance(raw_contact, dict) else {}
+    contact = {
+        "full_name": _pick(contact_item, "full_name", "name"),
+        "email": _pick(contact_item, "email", "mail"),
+        "phone": _pick(contact_item, "phone", "telephone", "mobile"),
+        "location": _pick(contact_item, "location", "city", "address"),
+        "linkedin_url": _pick(contact_item, "linkedin_url", "linkedin"),
+    }
 
     skills = []
     for item in _normalize_items(parsed.get("skills")):
@@ -192,6 +214,7 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
+        "contact": contact,
         "skills": skills,
         "experiences": experiences,
         "educations": educations,

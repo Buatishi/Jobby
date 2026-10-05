@@ -45,7 +45,10 @@ def _prompt(
         "Reescribi solamente las secciones del CV con baja cobertura ATS. "
         "No inventes experiencia, empresas, titulos, fechas ni tecnologias. "
         "Usa evidencia existente del CV y agrega keywords solo cuando sean "
-        "defendibles por la experiencia del candidato.\n\n"
+        "defendibles por la experiencia del candidato. "
+        "section_name tiene que ser una de estas claves: summary, skills, "
+        "experiences, educations o certifications. original_excerpt copia "
+        "textual el fragmento del CV que se reemplaza.\n\n"
         "Devolve JSON valido con esta forma exacta:\n"
         '{"sections":[{"section_name":"string","original_excerpt":"string",'
         '"rewritten_text":"string","added_keywords":["string"],'

@@ -97,3 +97,48 @@ class EducationCreate(BaseModel):
 class LanguageCreate(BaseModel):
     name: str
     level: str | None = None
+
+
+class PrintableCVContact(BaseModel):
+    full_name: str = ""
+    email: str = ""
+    phone: str = ""
+    location: str = ""
+    linkedin_url: str = ""
+
+
+class PrintableCVExperience(BaseModel):
+    company: str = ""
+    title: str = ""
+    started_at: str | None = None
+    ended_at: str | None = None
+    is_current: bool = False
+    description: str | None = None
+    achievements: list[str] = Field(default_factory=list)
+
+
+class PrintableCVEducation(BaseModel):
+    institution: str = ""
+    field_of_study: str | None = None
+    degree_level: str | None = None
+
+
+class PrintableCVLanguage(BaseModel):
+    name: str = ""
+    level: str | None = None
+
+
+class PrintableCVCertification(BaseModel):
+    name: str = ""
+    issuer: str | None = None
+
+
+class PrintableCV(BaseModel):
+    contact: PrintableCVContact
+    headline: str | None = None
+    summary: str | None = None
+    skills: list[str] = Field(default_factory=list)
+    experiences: list[PrintableCVExperience] = Field(default_factory=list)
+    educations: list[PrintableCVEducation] = Field(default_factory=list)
+    languages: list[PrintableCVLanguage] = Field(default_factory=list)
+    certifications: list[PrintableCVCertification] = Field(default_factory=list)

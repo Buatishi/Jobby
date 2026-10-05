@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,12 +12,14 @@ from app.models.profiles import (
     LanguageCreate,
     MasterProfile,
     MasterProfileUpdate,
+    PrintableCV,
     RejectedSkillCreate,
     SkillCreate,
     UploadedDocument,
     UploadedDocumentCreate,
 )
 from app.models.reality_gap import RealityGapReport, RealityGapSkill
+from app.services.printable_cv import build_printable_cv
 from app.services.reality_gap import score_reality_gap
 from app.tasks import parsing as parsing_tasks
 
@@ -165,6 +168,83 @@ async def get_my_profile(
 ) -> MasterProfile:
     profile = await _fetch_profile(supabase, current_user.id)
     return MasterProfile.model_validate(profile)
+
+
+async def _profile_rows(
+    supabase: Any,
+    table_name: str,
+    columns: str,
+    profile_id: str,
+) -> list[dict[str, Any]]:
+    response = (
+        await supabase.table(table_name)
+        .select(columns)
+        .eq("profile_id", profile_id)
+        .execute()
+    )
+    data = getattr(response, "data", None)
+    if not isinstance(data, list):
+        return []
+    return [row for row in data if isinstance(row, dict)]
+
+
+async def _primary_cv(supabase: Any, user_id: str) -> dict[str, Any] | None:
+    response = (
+        await supabase.table("uploaded_documents")
+        .select("parsed_data")
+        .eq("user_id", user_id)
+        .eq("type", "cv")
+        .eq("is_primary", True)
+        .maybe_single()
+        .execute()
+    )
+    data = getattr(response, "data", None)
+    return data if isinstance(data, dict) else None
+
+
+@router.get("/cv", response_model=PrintableCV)
+async def get_printable_cv(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> PrintableCV:
+    """Datos del CV descargable: perfil confirmado y encabezado leído del CV."""
+    profile = await _fetch_profile(supabase, current_user.id)
+    profile_id = str(profile["id"])
+    (
+        primary_cv,
+        skills,
+        experiences,
+        educations,
+        languages,
+        certifications,
+    ) = await asyncio.gather(
+        _primary_cv(supabase, current_user.id),
+        _profile_rows(supabase, "skills", "name", profile_id),
+        _profile_rows(
+            supabase,
+            "experiences",
+            "company,title,started_at,ended_at,is_current,description,achievements",
+            profile_id,
+        ),
+        _profile_rows(
+            supabase,
+            "educations",
+            "institution,field_of_study,degree_level",
+            profile_id,
+        ),
+        _profile_rows(supabase, "languages", "name,proficiency", profile_id),
+        _profile_rows(supabase, "certifications", "name,issuer", profile_id),
+    )
+    return build_printable_cv(
+        profile=profile,
+        primary_cv=primary_cv,
+        account_email=current_user.email or "",
+        skills=skills,
+        experiences=experiences,
+        educations=educations,
+        languages=languages,
+        certifications=certifications,
+    )
 
 
 @router.patch("/me", response_model=MasterProfile)

@@ -870,3 +870,30 @@ por mes del proyecto.
 gratuito no mostraba la mejora del CV; (b) 1 por mes en el gratuito — descartada: no alcanza para
 comparar dos puestos; (c) pasar también premium a DeepSeek — descartada: `AGENTS.md` define a
 Claude como la ampliación premium y hoy no hay uso premium que justifique cambiarlo.
+
+## Decisión 26 — CV descargable en PDF
+
+**Estado:** Aprobada por el autor (2026-10-04), que eligió sacar los datos de contacto del CV con
+IA.
+
+**Elegido:** `GET /profiles/cv` arma el CV con el perfil que la persona confirmó; si una sección
+está vacía (por ejemplo, si salteó el último paso del asistente), usa lo que leyó el CV principal.
+El encabezado (nombre, email, teléfono, ciudad y LinkedIn) lo extrae el lector de CV
+(`contact` en `parsed_data`, sin migración: es parte del JSON del documento); si falta, se usan el
+email de la cuenta y el LinkedIn del perfil. La web lo muestra en una columna con títulos
+estándar, que es el formato que mejor leen los filtros ATS, y lo descarga con «Guardar como PDF»
+del navegador. Antes de descargar, la persona puede corregir el contacto: esa corrección vive solo
+en la pestaña y no se guarda. Desde el reporte ATS se pueden sumar las secciones optimizadas:
+entran por defecto las que el CV respalda (Decisión 24); una sección cuyo fragmento original no
+aparece en el CV no se aplica y se avisa, salvo el resumen y las habilidades, que se reemplazan
+enteros. El prompt del optimizador fija los nombres de las secciones para poder ubicarlas.
+
+**Datos personales:** el contacto queda en el documento del CV, que la persona ya había subido y
+que el borrado de cuenta elimina en cascada. No llega al optimizador ni a las métricas del
+administrador. Los CV subidos antes de este cambio no tienen contacto: se completa en la pantalla
+o volviendo a subir el CV.
+
+**Alternativas evaluadas:** (a) que la persona escriba el contacto en cada descarga — descartada
+por el autor; (b) campos nuevos en el perfil maestro — descartada: exige migración y otra pantalla
+para cargarlos; (c) generar el PDF en el servidor — descartada: suma una dependencia pesada a la
+API (512 MB de RAM en Render) para lo que el navegador ya hace bien.
