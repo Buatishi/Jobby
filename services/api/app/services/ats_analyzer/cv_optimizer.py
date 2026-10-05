@@ -1,10 +1,13 @@
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
 from app.models.ats import ATSKeywordMatch, OptimizedCVSection
 from app.services.ai_gateway import AIGateway
+from app.services.ats_analyzer.scoring import score_keyword_coverage
+from app.services.match_engine.common import normalize_text
 
 
 class _OptimizedPayload(BaseModel):
@@ -64,6 +67,81 @@ def _parse_response(content: str) -> list[OptimizedCVSection]:
         raise ValueError("CV optimizer JSON failed validation.") from exc
 
 
+def _mentions(text: str, keyword: str) -> bool:
+    # Límite de palabra: la keyword "R" no debe encontrarse dentro de "React".
+    needle = normalize_text(keyword)
+    if not needle:
+        return False
+    pattern = rf"(?<!\w){re.escape(needle)}(?!\w)"
+    return re.search(pattern, normalize_text(text)) is not None
+
+
+def verify_sections(
+    sections: list[OptimizedCVSection],
+    matches: list[ATSKeywordMatch],
+    cv_text: str,
+) -> list[OptimizedCVSection]:
+    """Separa las keywords con respaldo en el CV de las que la IA agregó sin él.
+
+    Usa el reporte ATS ya calculado (literal y semántico tienen evidencia en el CV;
+    ausente no), así que no hace llamadas a la IA ni pide vectores.
+    """
+    status_by_keyword = {
+        normalize_text(match.keyword): match.status for match in matches
+    }
+    missing = [match.keyword for match in matches if match.status == "missing"]
+
+    verified: list[OptimizedCVSection] = []
+    for section in sections:
+        text = section.rewritten_text
+        unverified = {
+            normalize_text(keyword): keyword
+            for keyword in missing
+            if _mentions(text, keyword)
+        }
+        added: list[str] = []
+        for keyword in section.added_keywords:
+            key = normalize_text(keyword)
+            if key in unverified or not _mentions(text, keyword):
+                # Ya marcada sin respaldo, o la IA la declaró pero no la escribió.
+                continue
+            status = status_by_keyword.get(key)
+            backed_by_cv = _mentions(cv_text, keyword)
+            if status == "missing" or (status is None and not backed_by_cv):
+                unverified[key] = keyword
+                continue
+            added.append(keyword)
+        verified.append(
+            section.model_copy(
+                update={
+                    "added_keywords": added,
+                    "unverified_keywords": list(unverified.values()),
+                }
+            )
+        )
+    return verified
+
+
+def score_after_optimization(
+    sections: list[OptimizedCVSection],
+    matches: list[ATSKeywordMatch],
+    penalty: int,
+) -> int:
+    """Puntaje ATS si se usan las secciones nuevas, contando solo lo verificado.
+
+    Una keyword semántica que el texto nuevo nombra pasa a literal. Las ausentes
+    siguen ausentes aunque el texto las mencione: no tienen respaldo en el CV.
+    """
+    rewritten = "\n".join(section.rewritten_text for section in sections)
+    updated = [
+        match.model_copy(update={"status": "literal"})
+        if match.status == "semantic" and _mentions(rewritten, match.keyword)
+        else match
+        for match in matches
+    ]
+    return score_keyword_coverage(updated, penalty)
+
+
 async def optimize_cv_sections(
     primary_cv: dict[str, Any],
     job: dict[str, Any],
@@ -85,4 +163,5 @@ async def optimize_cv_sections(
         ),
         json_mode=True,
     )
-    return _parse_response(content)
+    cv_text = json.dumps(_cv_sections(primary_cv), ensure_ascii=False)
+    return verify_sections(_parse_response(content), matches, cv_text)

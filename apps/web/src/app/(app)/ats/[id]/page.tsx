@@ -16,6 +16,11 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
+import {
+  OptimizedCVResult,
+  type ATSOptimizeResponse
+} from "./optimized-cv-result";
+
 type KeywordStatus = "literal" | "semantic" | "missing";
 
 type ATSReport = {
@@ -30,17 +35,6 @@ type ATSReport = {
     code: string;
     message: string;
     penalty: number;
-  }>;
-};
-
-type ATSOptimizeResponse = {
-  job_id: string;
-  sections: Array<{
-    section_name: string;
-    original_excerpt: string;
-    rewritten_text: string;
-    added_keywords: string[];
-    rationale: string;
   }>;
 };
 
@@ -284,46 +278,7 @@ export default function ATSReportPage() {
               </div>
             ) : null}
 
-            {optimized ? (
-              <div className="mt-5 space-y-4">
-                {optimized.sections.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No detectamos secciones con baja cobertura para reescribir.
-                  </p>
-                ) : (
-                  optimized.sections.map((section) => (
-                    <div
-                      className="rounded-md border border-border p-4"
-                      key={section.section_name}
-                    >
-                      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                        <div>
-                          <h3 className="font-medium">{section.section_name}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {section.rationale}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {section.added_keywords.map((keyword) => (
-                            <Badge key={keyword} variant="outline">
-                              {keyword}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <div className="rounded-md bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
-                          {section.original_excerpt}
-                        </div>
-                        <div className="rounded-md border border-[#1D9E75] p-3 text-sm leading-6">
-                          {section.rewritten_text}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            ) : null}
+            {optimized ? <OptimizedCVResult optimized={optimized} /> : null}
           </div>
         </details>
       </section>
