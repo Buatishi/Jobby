@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,7 +51,7 @@ export default function RealityGapPage() {
   // Si falla la actualización pero hay un reporte anterior, se muestra con el error arriba.
   if (error && !report) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-destructive">
             {error}
@@ -61,17 +62,15 @@ export default function RealityGapPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-muted-foreground">Reality Gap</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-          Coherencia entre CV, LinkedIn y perfil
-        </h1>
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        eyebrow="Reality Gap"
+        title="Coherencia entre CV, LinkedIn y perfil"
+      />
 
-      {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="mt-5 text-sm text-destructive">{error}</p> : null}
 
-      <Card>
+      <Card className="mt-5">
         <CardHeader>
           <CardTitle>Skills por coherencia</CardTitle>
           <CardDescription>
@@ -97,7 +96,7 @@ export default function RealityGapPage() {
               const color = getScoreColor(skill.coherence_score);
               return (
                 <div
-                  className="rounded-md border border-border p-4"
+                  className="rounded-2xl border border-border p-4"
                   key={skill.skill_id ?? skill.name}
                 >
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">

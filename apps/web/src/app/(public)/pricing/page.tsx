@@ -93,7 +93,7 @@ export default function PricingPage() {
     <main className="min-h-screen bg-background">
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
         <div className="mb-8 flex items-center justify-between gap-4">
-          <Link className="text-xl font-black" href="/">
+          <Link className="text-xl font-bold" href="/">
             Jobby
           </Link>
           <div className="flex items-center gap-3">

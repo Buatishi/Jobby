@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Check, Loader2, Lock, Wand2, X } from "lucide-react";
 
+import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,7 +106,7 @@ export default function ATSReportPage() {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-destructive">
             {error}
@@ -117,7 +118,7 @@ export default function ATSReportPage() {
 
   if (!report) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             Cargando ATS report...
@@ -128,16 +129,17 @@ export default function ATSReportPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">ATS Report</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-            Compatibilidad con filtros ATS
-          </h1>
-        </div>
-        <Badge variant="outline">{missingCount} keywords faltantes</Badge>
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        actions={
+          <Badge className="border-white/30 text-white" variant="outline">
+            {missingCount} keywords faltantes
+          </Badge>
+        }
+        className="mb-5"
+        eyebrow="ATS Report"
+        title="Compatibilidad con filtros ATS"
+      />
 
       <section className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr]">
         <Card>
@@ -150,7 +152,7 @@ export default function ATSReportPage() {
           <CardContent>
             <div className="flex items-end gap-3">
               <span
-                className="text-8xl font-semibold leading-none"
+                className="text-8xl font-semibold italic leading-none tracking-[-0.04em]"
                 style={{ color: scoreColor }}
               >
                 {report.ats_score}

@@ -28,7 +28,7 @@ export function ColdStartNotice() {
   return (
     <div
       aria-live="polite"
-      className="fixed inset-x-0 bottom-4 z-50 mx-auto w-[min(92vw,28rem)] rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground shadow-lg"
+      className="fixed inset-x-0 bottom-4 z-50 mx-auto w-[min(92vw,28rem)] rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground shadow-card"
       role="status"
     >
       <p className="font-semibold">{t("common.coldStartTitle")}</p>

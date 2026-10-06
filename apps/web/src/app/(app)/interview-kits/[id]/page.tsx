@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
+import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -205,7 +206,7 @@ export default function InterviewKitDetailPage() {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-destructive">
             {error}
@@ -217,7 +218,7 @@ export default function InterviewKitDetailPage() {
 
   if (!kit) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             Cargando kit...
@@ -228,26 +229,21 @@ export default function InterviewKitDetailPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-muted-foreground">
-          Interview Kit
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-          {kit.title ?? "Kit de entrevista"}
-        </h1>
-        {kit.error_msg ? (
-          <p className="mt-3 text-sm text-destructive">{kit.error_msg}</p>
-        ) : null}
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        className="mb-5"
+        eyebrow="Interview Kit"
+        note={kit.error_msg ?? undefined}
+        title={kit.title ?? "Kit de entrevista"}
+      />
 
       <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
         {tabs.map((tab) => (
           <button
             className={cn(
-              "h-10 shrink-0 rounded-md border border-border px-3 text-sm font-medium transition-colors",
+              "h-10 shrink-0 rounded-full border border-border px-4 text-sm font-semibold transition-colors",
               activeTab === tab.key
-                ? "bg-primary text-primary-foreground"
+                ? "border-transparent bg-brand-bright text-brand-ink"
                 : "bg-background hover:bg-muted"
             )}
             key={tab.key}

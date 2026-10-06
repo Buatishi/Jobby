@@ -38,10 +38,10 @@ export function WizardProgress({
   const current = steps.find((step) => step.id === currentStep) ?? steps[0];
 
   return (
-    <section className="mb-8 rounded-lg border border-border bg-background p-4 shadow-sm">
+    <section className="mb-8 rounded-card border border-border bg-background p-5 shadow-card">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-[#0F6E56]">
+          <p className="text-sm font-semibold text-brand-green">
             Onboarding guiado
           </p>
           <h1 className="text-2xl font-semibold">{current.label}</h1>
@@ -52,9 +52,9 @@ export function WizardProgress({
         <p className="text-sm font-medium">{completionPercent}% completo</p>
       </div>
 
-      <div className="mb-5 h-2 overflow-hidden rounded-full bg-muted">
+      <div className="mb-5 h-2 overflow-hidden rounded-full bg-brand-mint">
         <div
-          className="h-full rounded-full bg-[#0F6E56] transition-all"
+          className="h-full rounded-full bg-brand-green transition-all"
           style={{ width: `${completionPercent}%` }}
         />
       </div>
@@ -70,10 +70,10 @@ export function WizardProgress({
               <div className="flex items-center gap-2">
                 <div
                   className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-sm font-medium",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
                     isComplete &&
-                      "border-secondary bg-secondary text-secondary-foreground",
-                    isCurrent && "border-primary bg-primary text-primary-foreground",
+                      "border-transparent bg-brand-green text-white",
+                    isCurrent && "border-transparent bg-brand-bright text-brand-ink",
                     !isComplete && !isCurrent && "border-border bg-background"
                   )}
                 >

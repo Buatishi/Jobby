@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 
 import { ProgressSteps } from "@/components/progress-steps";
 import { TaskPoller } from "@/components/task-poller";
+import { PageBanner } from "@/components/page-banner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -188,15 +189,12 @@ export default function NewInterviewKitPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-muted-foreground">
-          Nuevo Interview Kit
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-          Generá tu preparación personalizada
-        </h1>
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        className="mb-5"
+        eyebrow="Nuevo Interview Kit"
+        title="Generá tu preparación personalizada"
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>
