@@ -15,14 +15,33 @@ const config: Config = {
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)"
+        sm: "calc(var(--radius) - 4px)",
+        card: "20px",
+        panel: "24px"
+      },
+      boxShadow: {
+        card: "0 12px 40px rgba(29, 29, 27, 0.08)",
+        glow: "0 0 28px rgba(43, 212, 138, 0.6)"
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"]
+        sans: ["var(--font-sans-brand)", "ui-sans-serif", "system-ui", "sans-serif"]
+      },
+      keyframes: {
+        marquee: {
+          to: { transform: "translateX(-50%)" }
+        }
+      },
+      animation: {
+        marquee: "marquee 48s linear infinite"
       },
       colors: {
         "brand-green": "#0F6E56",
-        "brand-green-light": "#E0F0F0",
+        "brand-green-light": "#DEF7EC",
+        "brand-mint": "#CBEADD",
+        "brand-bright": "#2BD48A",
+        "brand-forest": "#06231B",
+        "brand-ink": "#1D1D1B",
+        "brand-line": "#DCE9E4",
         "brand-accent": "#00A884",
         "bg-dashboard": "#F8FAFA",
         background: "hsl(var(--background))",

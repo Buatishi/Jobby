@@ -53,7 +53,7 @@ export function ActivityChart({
                   {/* El área de la columna entera es el blanco: más grande que la barra. */}
                   <div
                     aria-label={label}
-                    className="group relative flex h-full min-w-0 flex-1 items-end justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[#007a5e]/40"
+                    className="group relative flex h-full min-w-0 flex-1 items-end justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40"
                     role="img"
                     tabIndex={0}
                   >
@@ -66,7 +66,7 @@ export function ActivityChart({
                       </span>
                     ) : null}
                     <div
-                      className="w-full max-w-6 rounded-t-[4px] bg-[#007a5e] transition-opacity group-hover:opacity-75 group-focus-visible:opacity-75"
+                      className="w-full max-w-6 rounded-t-[4px] bg-brand-green transition-opacity group-hover:opacity-75 group-focus-visible:opacity-75"
                       style={{ height: `${bar.heightPercent}%` }}
                     />
                   </div>

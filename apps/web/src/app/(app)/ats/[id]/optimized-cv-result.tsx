@@ -24,7 +24,7 @@ export function OptimizedCVResult({
     <div className="mt-5 space-y-4">
       {typeof optimized.ats_score_before === "number" &&
       typeof optimized.ats_score_after === "number" ? (
-        <div className="rounded-md border border-border p-4">
+        <div className="rounded-2xl border border-border p-4">
           <p className="text-sm text-muted-foreground">
             Puntaje ATS con las secciones nuevas
           </p>
@@ -53,7 +53,7 @@ export function OptimizedCVResult({
       ) : (
         optimized.sections.map((section) => (
           <div
-            className="rounded-md border border-border p-4"
+            className="rounded-2xl border border-border p-4"
             key={section.section_name}
           >
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
@@ -74,7 +74,7 @@ export function OptimizedCVResult({
             {section.unverified_keywords &&
             section.unverified_keywords.length > 0 ? (
               <div
-                className="mt-4 rounded-md border p-3 text-sm"
+                className="mt-4 rounded-2xl border p-3 text-sm"
                 style={{ borderColor: getScoreColor(40) }}
               >
                 <p className="font-medium">
@@ -87,10 +87,10 @@ export function OptimizedCVResult({
               </div>
             ) : null}
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-md bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+              <div className="rounded-2xl bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
                 {section.original_excerpt}
               </div>
-              <div className="rounded-md border border-[#1D9E75] p-3 text-sm leading-6">
+              <div className="rounded-2xl border border-[#1D9E75] p-3 text-sm leading-6">
                 {section.rewritten_text}
               </div>
             </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Check, Loader2, Lock, Wand2, X } from "lucide-react";
 
+import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,7 +106,7 @@ export default function ATSReportPage() {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-destructive">
             {error}
@@ -117,7 +118,7 @@ export default function ATSReportPage() {
 
   if (!report) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             Cargando ATS report...
@@ -128,16 +129,17 @@ export default function ATSReportPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">ATS Report</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-            Compatibilidad con filtros ATS
-          </h1>
-        </div>
-        <Badge variant="outline">{missingCount} keywords faltantes</Badge>
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        actions={
+          <Badge className="border-white/30 text-white" variant="outline">
+            {missingCount} keywords faltantes
+          </Badge>
+        }
+        className="mb-5"
+        eyebrow="ATS Report"
+        title="Compatibilidad con filtros ATS"
+      />
 
       <section className="grid gap-4 lg:grid-cols-[0.75fr_1.25fr]">
         <Card>
@@ -150,7 +152,7 @@ export default function ATSReportPage() {
           <CardContent>
             <div className="flex items-end gap-3">
               <span
-                className="text-8xl font-semibold leading-none"
+                className="text-8xl font-semibold italic leading-none tracking-[-0.04em]"
                 style={{ color: scoreColor }}
               >
                 {report.ats_score}
@@ -170,7 +172,7 @@ export default function ATSReportPage() {
             <CardTitle>Keyword map</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto rounded-md border border-border">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full min-w-[560px] text-sm">
                 <thead className="bg-muted/50 text-left">
                   <tr>
@@ -220,7 +222,7 @@ export default function ATSReportPage() {
               <div className="space-y-3">
                 {report.format_issues.map((issue) => (
                   <div
-                    className="flex items-center justify-between rounded-md border border-border p-4"
+                    className="flex items-center justify-between rounded-2xl border border-border p-4"
                     key={issue.code}
                   >
                     <div className="flex items-center gap-3">
@@ -232,7 +234,7 @@ export default function ATSReportPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex items-center gap-3 rounded-md border border-border p-4">
+              <div className="flex items-center gap-3 rounded-2xl border border-border p-4">
                 <Check className="h-5 w-5 text-secondary" />
                 <p className="font-medium">No detectamos problemas de formato.</p>
               </div>
@@ -242,7 +244,7 @@ export default function ATSReportPage() {
       </section>
 
       <section className="mt-4">
-        <details className="rounded-lg border border-border bg-background">
+        <details className="rounded-card border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-6">
             <div>
               <h2 className="text-lg font-semibold">CV Optimizado</h2>
@@ -273,7 +275,7 @@ export default function ATSReportPage() {
             </Button>
 
             {optimizerError ? (
-              <div className="mt-4 flex items-start gap-3 rounded-md border border-border p-4 text-sm text-muted-foreground">
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border p-4 text-sm text-muted-foreground">
                 <Lock className="mt-0.5 h-4 w-4" />
                 <p>{optimizerError}</p>
               </div>

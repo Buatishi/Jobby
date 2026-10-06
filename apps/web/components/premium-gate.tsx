@@ -15,13 +15,13 @@ export function PremiumGate({ className, compact = false }: PremiumGateProps) {
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-3 rounded-card border border-brand-mint bg-brand-green-light p-4 sm:flex-row sm:items-center sm:justify-between",
         className
       )}
     >
       <div className="flex items-start gap-3">
         <span
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-ink text-brand-bright"
           title="Disponible para usuarios Premium"
         >
           <Lock className="h-4 w-4" />

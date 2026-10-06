@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 
 import { ProgressSteps } from "@/components/progress-steps";
 import { TaskPoller } from "@/components/task-poller";
+import { PageBanner } from "@/components/page-banner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -188,15 +189,12 @@ export default function NewInterviewKitPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6">
-        <p className="text-sm font-medium text-muted-foreground">
-          Nuevo Interview Kit
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-          Generá tu preparación personalizada
-        </h1>
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        className="mb-5"
+        eyebrow="Nuevo Interview Kit"
+        title="Generá tu preparación personalizada"
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>
@@ -212,7 +210,7 @@ export default function NewInterviewKitPage() {
               <label className="block text-sm font-medium">
                 Job del historial
                 <select
-                  className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="mt-2 h-10 w-full rounded-full border border-input bg-background px-5 text-sm"
                   onChange={(event) => setSelectedJobId(event.target.value)}
                   value={selectedJobId}
                 >
@@ -229,7 +227,7 @@ export default function NewInterviewKitPage() {
               <label className="block text-sm font-medium">
                 URL nueva del puesto
                 <input
-                  className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+                  className="mt-2 h-10 w-full rounded-full border border-input bg-background px-5 text-sm disabled:opacity-50"
                   disabled={Boolean(selectedJobId)}
                   onChange={(event) => setNewJobUrl(event.target.value)}
                   placeholder="https://..."
@@ -241,7 +239,7 @@ export default function NewInterviewKitPage() {
               <label className="block text-sm font-medium">
                 LinkedIn de la empresa
                 <input
-                  className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="mt-2 h-10 w-full rounded-full border border-input bg-background px-5 text-sm"
                   onChange={(event) =>
                     setCompanyLinkedInUrl(event.target.value)
                   }
@@ -255,7 +253,7 @@ export default function NewInterviewKitPage() {
               <label className="block text-sm font-medium">
                 LinkedIn del entrevistador
                 <input
-                  className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="mt-2 h-10 w-full rounded-full border border-input bg-background px-5 text-sm"
                   onChange={(event) =>
                     setInterviewerLinkedInUrl(event.target.value)
                   }
@@ -269,7 +267,7 @@ export default function NewInterviewKitPage() {
               <label className="block text-sm font-medium">
                 Notas adicionales
                 <textarea
-                  className="mt-2 min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="mt-2 min-h-28 w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm"
                   onChange={(event) => setNotes(event.target.value)}
                   placeholder="Contexto, foco de la entrevista, dudas o señales que querés preparar."
                   value={notes}
@@ -277,7 +275,7 @@ export default function NewInterviewKitPage() {
               </label>
 
               {error ? (
-                <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                <p className="rounded-2xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
                   {error}
                 </p>
               ) : null}

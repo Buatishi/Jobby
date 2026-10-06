@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarDays, Plus } from "lucide-react";
 
 import { PremiumGate } from "@/components/premium-gate";
+import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +55,7 @@ function statusLabel(status: KitStatus) {
 
 function statusClassName(status: KitStatus) {
   return cn(
-    status === "done" && "border-[#0F6E56] text-[#0F6E56]",
+    status === "done" && "border-brand-green text-brand-green",
     status === "processing" && "border-[#F0A500] text-[#8A5F00]",
     status === "pending" && "text-muted-foreground",
     status === "failed" && "border-[#E24B4A] text-[#E24B4A]"
@@ -82,28 +83,23 @@ export default function InterviewKitsPage() {
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">
-            Interview Kits
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-normal">
-            Preparación por entrevista
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Guardá kits personalizados por puesto, empresa y entrevistador.
-          </p>
-        </div>
-        {plan === "premium" ? (
-          <Button asChild>
-            <Link href="/interview-kits/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Kit
-            </Link>
-          </Button>
-        ) : null}
-      </div>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        actions={
+          plan === "premium" ? (
+            <Button asChild>
+              <Link href="/interview-kits/new">
+                <Plus className="h-4 w-4" />
+                Nuevo Kit
+              </Link>
+            </Button>
+          ) : null
+        }
+        className="mb-5"
+        description="Guardá kits personalizados por puesto, empresa y entrevistador."
+        eyebrow="Interview Kits"
+        title="Preparación por entrevista"
+      />
 
       {plan === "free" ? <PremiumGate className="mb-6" /> : null}
 

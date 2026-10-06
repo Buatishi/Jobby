@@ -35,8 +35,8 @@ export function ProgressSteps({
         return (
           <li
             className={cn(
-              "flex items-center gap-3 rounded-md border border-border p-3 text-sm",
-              active && "border-primary bg-primary/5",
+              "flex items-center gap-3 rounded-2xl border border-border p-3 text-sm",
+              active && "border-brand-bright bg-brand-green-light",
               done && "bg-muted/40",
               isFailed && "border-destructive bg-destructive/5"
             )}
@@ -45,8 +45,8 @@ export function ProgressSteps({
             <span
               className={cn(
                 "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border",
-                done && "border-[#0F6E56] bg-[#0F6E56] text-white",
-                active && "border-primary text-primary",
+                done && "border-brand-green bg-brand-green text-white",
+                active && "border-brand-green text-brand-green",
                 isFailed && "border-destructive text-destructive"
               )}
             >

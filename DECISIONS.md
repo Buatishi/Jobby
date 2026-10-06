@@ -897,3 +897,36 @@ o volviendo a subir el CV.
 por el autor; (b) campos nuevos en el perfil maestro — descartada: exige migración y otra pantalla
 para cargarlos; (c) generar el PDF en el servidor — descartada: suma una dependencia pesada a la
 API (512 MB de RAM en Render) para lo que el navegador ya hace bien.
+
+## Decisión 27 — Estética v2 para toda la web
+
+**Estado:** Aprobada por el autor (2026-10-06), que eligió la versión v2 como la estética definitiva
+de Jobby.
+
+**Elegido:** una sola identidad visual para la landing, el acceso y el dashboard: Montserrat,
+paneles oscuros con brillo verde y suelo de rejilla, botones en píldora, tarjetas blancas con
+sombra suave y el anillo de match como pieza central (en el hero, la red de puestos, el
+dashboard y la lista de matches). Se tomó como referencia la estructura de un sitio de
+consultoría de talento (panel oscuro inset, lista que se despliega, frase que se pinta al
+scrollear, columnas escalonadas), sin copiar su logo, sus textos ni sus cifras. Los colores de
+estado siguen saliendo de `score-colors.ts`; sobre paneles oscuros las dos bandas verdes se
+muestran con el verde vivo porque el verde oscuro no contrasta.
+
+**Contenido:** todo número que no es de una persona real (hero, red de puestos, comparación,
+ejemplos de la lista de momentos) se rotula como dato de ejemplo. Las afirmaciones del producto
+salen de lo ya decidido: el optimizador va en los dos planes con 3 y 30 por mes (Decisión 25),
+el administrador solo ve métricas agregadas y el CV descargable es de una columna (Decisión 26).
+La página de precios y la landing siguen leyendo los límites reales de cada plan del diccionario.
+
+**Alternativas evaluadas:** (a) tres direcciones iniciales (editorial cálida, producto denso,
+oscura con acento lima) — descartadas por el autor por genéricas y poco juveniles; (b) tres
+nuevas (amigable, atrevida, bolsa de trabajo moderna) — el autor pidió partir de una referencia
+concreta; (c) librerías de animación (GSAP, Lottie, anime.js) y catálogos de estilos de
+terceros — descartadas: la v2 se resuelve con `framer-motion`, que ya está instalado, y no suma
+dependencias ni costo.
+
+**Consecuencias:** se retiraron de la landing la sección de problema, la demo con pestañas y los
+tres pasos; su contenido queda cubierto por la lista de momentos y la comparación requisito por
+requisito. Las pantallas internas (perfil, jobs, ATS, kits, admin) heredan botones, tarjetas,
+insignias y tipografía, y se retocan una por una en cambios aparte.
+

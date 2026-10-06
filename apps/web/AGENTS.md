@@ -22,6 +22,15 @@ Use Server Components by default. Add `"use client"` only when a component needs
 
 Use shadcn/ui for all base components. Do not add another UI component library. Semantic score colors must come from `lib/utils/score-colors.ts`; do not hardcode hex colors for match, warning, success, or failure states.
 
+## Visual System (v2)
+
+- Font: Montserrat through `next/font` (`--font-sans-brand`); big figures use the italic style. Do not add another family.
+- Tokens live in `tailwind.config.ts` and `src/app/globals.css`: `brand-bright` (action green), `brand-green` (text on mint), `brand-green-light`/`brand-mint` (mint surfaces), `brand-ink`, `brand-forest`, `brand-line`. Use the Tailwind tokens instead of repeating these hex values in class names.
+- Shared pieces: `components/dark-panel.tsx` (dark panels with green glow and optional grid floor), `components/score-ring.tsx` (match ring). `Button`, `Badge` and `Card` already carry the pill and card look; do not restyle them per screen.
+- Score and status colors still come only from `lib/utils/score-colors.ts`. On dark panels use `getScoreColorOnDark`; for "met / partial / missing" pills use `statusTones` through `StatusPill`.
+- Motion: respect reduced motion (`useReducedMotion`) and animate once per element. No continuous decorative motion except the roles marquee, which `motion-reduce` stops.
+- Landing and sample data: figures that are not real user data must be labeled as sample data. Copy goes in `lib/i18n/dictionaries.ts` in Spanish and English; `lib/i18n/landing-dictionary.test.ts` checks both languages have the same keys.
+
 ## Commands
 
 Run these from `apps/web/`:

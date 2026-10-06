@@ -1,31 +1,46 @@
 import { ImageResponse } from "next/og";
 
+import { scoreColorOnDarkGreen, statusTones } from "@/lib/utils/score-colors";
+
 export const runtime = "edge";
 
+const RING_RADIUS = 78;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+const SAMPLE_SCORE = 78;
+
+const sampleRows = [
+  ["Python", "Cumple", "ok"],
+  ["SQL", "Parcial", "mid"],
+  ["Docker", "Falta", "bad"]
+] as const;
+
+// Imagen para compartir el link: panel oscuro con brillo verde y el anillo de match de ejemplo.
 export function GET() {
   return new ImageResponse(
     (
       <div
         style={{
           alignItems: "center",
-          background: "#f8fafa",
+          background: "#ffffff",
           display: "flex",
           height: "100%",
           justifyContent: "center",
+          padding: 36,
           width: "100%"
         }}
       >
         <div
           style={{
             alignItems: "center",
-            background: "#ffffff",
-            border: "1px solid #e5eeee",
-            borderRadius: 32,
-            boxShadow: "0 24px 70px rgba(15, 23, 42, 0.12)",
+            backgroundColor: "#1D1D1B",
+            backgroundImage:
+              "radial-gradient(circle at 50% 125%, rgba(43, 212, 138, 0.5), rgba(29, 29, 27, 0) 60%)",
+            borderRadius: 44,
             display: "flex",
             gap: 56,
-            padding: 56,
-            width: 980
+            height: "100%",
+            padding: "0 64px",
+            width: "100%"
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -34,18 +49,18 @@ export function GET() {
                 alignItems: "center",
                 display: "flex",
                 gap: 14,
-                marginBottom: 28
+                marginBottom: 30
               }}
             >
               <div
                 style={{
                   alignItems: "center",
-                  background: "#0F6E56",
+                  background: "#2BD48A",
                   borderRadius: 16,
-                  color: "white",
+                  color: "#1D1D1B",
                   display: "flex",
                   fontSize: 34,
-                  fontWeight: 900,
+                  fontWeight: 700,
                   height: 56,
                   justifyContent: "center",
                   width: 56
@@ -53,89 +68,116 @@ export function GET() {
               >
                 J
               </div>
-              <div style={{ color: "#0a0a0a", fontSize: 42, fontWeight: 900 }}>
+              <div style={{ color: "#ffffff", display: "flex", fontSize: 42, fontWeight: 700 }}>
                 Jobby
               </div>
             </div>
             <div
               style={{
-                color: "#050505",
-                fontSize: 58,
-                fontWeight: 900,
-                letterSpacing: "-0.04em",
-                lineHeight: 1.02
+                color: "#ffffff",
+                display: "flex",
+                fontSize: 62,
+                fontWeight: 700,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.04
               }}
             >
               Sabé cuánto matcheás antes de aplicar
             </div>
             <div
               style={{
-                color: "#54615d",
+                color: "#D4D4CF",
+                display: "flex",
                 fontSize: 25,
                 lineHeight: 1.35,
-                marginTop: 22
+                marginTop: 24
               }}
             >
-              Match score, ATS y gaps reales con IA para preparar mejores
-              postulaciones.
+              Match score, ATS y gaps reales para preparar mejores postulaciones.
             </div>
           </div>
+
           <div
             style={{
-              background: "#ffffff",
-              border: "1px solid #dfe9e6",
-              borderRadius: 24,
-              boxShadow: "0 18px 40px rgba(15, 23, 42, 0.10)",
+              alignItems: "center",
+              background: "#272725",
+              border: "1px solid #3A3A37",
+              borderRadius: 28,
               display: "flex",
               flexDirection: "column",
-              padding: 30,
-              width: 320
+              padding: 28,
+              width: 330
             }}
           >
-            <div style={{ color: "#64716d", fontSize: 20 }}>Match Score</div>
-            <div style={{ color: "#050505", fontSize: 82, fontWeight: 900 }}>
-              87
+            <div style={{ display: "flex", height: 190, position: "relative", width: 190 }}>
+              <svg height="190" viewBox="0 0 190 190" width="190">
+                <circle
+                  cx="95"
+                  cy="95"
+                  fill="none"
+                  r={RING_RADIUS}
+                  stroke="#3A3A37"
+                  strokeWidth="16"
+                />
+                <circle
+                  cx="95"
+                  cy="95"
+                  fill="none"
+                  r={RING_RADIUS}
+                  stroke={scoreColorOnDarkGreen}
+                  strokeDasharray={`${(RING_LENGTH * SAMPLE_SCORE) / 100} ${RING_LENGTH}`}
+                  strokeLinecap="round"
+                  strokeWidth="16"
+                  transform="rotate(-90 95 95)"
+                />
+              </svg>
+              <div
+                style={{
+                  alignItems: "center",
+                  color: "#ffffff",
+                  display: "flex",
+                  fontSize: 64,
+                  fontWeight: 700,
+                  height: 190,
+                  justifyContent: "center",
+                  left: 0,
+                  position: "absolute",
+                  top: 0,
+                  width: 190
+                }}
+              >
+                {SAMPLE_SCORE}
+              </div>
             </div>
-            {[
-              ["Skills técnicas", "92%", "#0F6E56"],
-              ["Seniority", "84%", "#1D9E75"],
-              ["ATS", "76%", "#F0A500"],
-              ["Brechas críticas", "18%", "#E24B4A"]
-            ].map(([label, value, color]) => (
+            {sampleRows.map(([label, status, tone]) => (
               <div
                 key={label}
-                style={{ display: "flex", flexDirection: "column", marginTop: 16 }}
+                style={{
+                  alignItems: "center",
+                  background: "#1F1F1D",
+                  borderRadius: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: 12,
+                  padding: "10px 16px",
+                  width: "100%"
+                }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    color: "#111",
-                    fontSize: 16,
-                    fontWeight: 700
-                  }}
-                >
-                  <span>{label}</span>
-                  <span>{value}</span>
+                <div style={{ color: "#ffffff", display: "flex", fontSize: 20, fontWeight: 600 }}>
+                  {label}
                 </div>
                 <div
                   style={{
-                    background: "#edf2f1",
+                    background: statusTones.dark[tone].background,
                     borderRadius: 999,
+                    color: statusTones.dark[tone].color,
                     display: "flex",
-                    height: 9,
-                    marginTop: 8,
-                    overflow: "hidden"
+                    fontSize: 16,
+                    fontWeight: 700,
+                    padding: "4px 14px"
                   }}
                 >
-                  <div
-                    style={{
-                      background: color,
-                      borderRadius: 999,
-                      height: 9,
-                      width: value
-                    }}
-                  />
+                  {status}
                 </div>
               </div>
             ))}

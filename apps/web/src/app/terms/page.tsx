@@ -97,7 +97,7 @@ export default function TermsPage() {
       <div className="mx-auto max-w-3xl px-6 py-12 sm:py-16">
         <div className="flex items-center justify-between gap-4">
           <Link
-            className="text-xl font-black tracking-tight text-brand-green"
+            className="text-xl font-bold tracking-tight text-brand-green"
             href="/"
           >
             Jobby
@@ -106,10 +106,10 @@ export default function TermsPage() {
         </div>
 
         <div className="mt-10">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-green">
+          <p className="text-sm font-semibold text-brand-green">
             {copy.eyebrow}
           </p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight">
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight">
             {copy.title}
           </h1>
           <p className="mt-4 text-sm leading-7 text-muted-foreground">

@@ -15,7 +15,7 @@ import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
 import { PasswordInput } from "@/src/components/auth/PasswordInput";
 
 const inputClassName =
-  "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
+  "h-12 w-full rounded-full border border-brand-line bg-white px-5 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-brand-green focus-visible:ring-2 focus-visible:ring-brand-green/25";
 
 function getAuthErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -110,10 +110,10 @@ export default function RegisterPage() {
   return (
     <AuthLayout headline={t("auth.registerHeadline")}>
       <div className="space-y-2">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
+        <p className="text-sm font-semibold text-brand-green">
           {t("auth.registerEyebrow")}
         </p>
-        <h1 className="text-3xl font-black tracking-tight">
+        <h1 className="text-3xl font-semibold tracking-tight">
           {t("auth.registerTitle")}
         </h1>
         <p className="text-sm leading-6 text-muted-foreground">
@@ -171,7 +171,7 @@ export default function RegisterPage() {
         <label className="flex items-start gap-3 rounded-2xl border border-black/5 bg-[#fbfcfb] p-3 text-sm leading-6 transition-colors hover:bg-brand-green-light/40">
           <input
             checked={acceptedTos}
-            className="mt-1 h-4 w-4 rounded border-input accent-[#0F6E56]"
+            className="mt-1 h-4 w-4 rounded border-input accent-brand-green"
             onChange={(event) => setAcceptedTos(event.target.checked)}
             required
             type="checkbox"
@@ -179,7 +179,7 @@ export default function RegisterPage() {
           <span>
             Acepto los{" "}
             <Link
-              className="font-semibold text-[#0F6E56] underline-offset-4 hover:underline"
+              className="font-semibold text-brand-green underline-offset-4 hover:underline"
               href="/terms"
               target="_blank"
             >
@@ -187,7 +187,7 @@ export default function RegisterPage() {
             </Link>
             , la{" "}
             <Link
-              className="font-semibold text-[#0F6E56] underline-offset-4 hover:underline"
+              className="font-semibold text-brand-green underline-offset-4 hover:underline"
               href="/privacy"
               target="_blank"
             >
@@ -237,7 +237,7 @@ export default function RegisterPage() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         {t("auth.hasAccount")}{" "}
         <Link
-          className="font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
+          className="font-semibold text-foreground transition-colors hover:text-brand-green"
           href="/login"
         >
           {t("common.login")}

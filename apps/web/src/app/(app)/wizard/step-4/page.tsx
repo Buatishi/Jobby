@@ -124,9 +124,9 @@ export default function WizardStepFourPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-5 rounded-md border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm">
+          <div className="mb-5 rounded-2xl border border-brand-green/20 bg-brand-green-light p-4 text-sm">
             <div className="flex gap-3">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#0F6E56]" />
+              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
               <p className="text-muted-foreground">
                 Ya podés usar el dashboard. Estos datos solo ayudan a que el
                 sistema entienda mejor experiencia, educación e idiomas.
@@ -141,7 +141,7 @@ export default function WizardStepFourPage() {
                   Empresa reciente
                 </label>
                 <input
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="company"
                   onChange={(event) => setCompany(event.target.value)}
                   placeholder="Acme"
@@ -153,7 +153,7 @@ export default function WizardStepFourPage() {
                   Cargo
                 </label>
                 <input
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="title"
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder="Software Engineer"
@@ -167,7 +167,7 @@ export default function WizardStepFourPage() {
                 Educación
               </label>
               <input
-                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="education"
                 onChange={(event) => setEducation(event.target.value)}
                 placeholder="Universidad, bootcamp o certificación principal"
@@ -180,7 +180,7 @@ export default function WizardStepFourPage() {
                 Idioma adicional
               </label>
               <input
-                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="language"
                 onChange={(event) => setLanguage(event.target.value)}
                 placeholder="Inglés"
@@ -188,7 +188,7 @@ export default function WizardStepFourPage() {
               />
             </div>
 
-            <Card className="border-[#0F6E56]/15 bg-[#0F6E56]/5 shadow-none">
+            <Card className="border-brand-green/20 bg-brand-green-light shadow-none">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">
                   Así va a ver tu perfil la IA
@@ -212,7 +212,7 @@ export default function WizardStepFourPage() {
                   {visibleSkills.length > 0 ? (
                     visibleSkills.map((skill) => (
                       <Badge
-                        className="rounded-full bg-white text-[#0F6E56]"
+                        className="rounded-full bg-white text-brand-green"
                         key={skill.id}
                         variant="outline"
                       >
@@ -226,7 +226,7 @@ export default function WizardStepFourPage() {
                   )}
                 </div>
 
-                <Badge className="bg-[#0F6E56] text-white">
+                <Badge className="bg-brand-green text-white">
                   Completeness actual: {profile?.completeness_pct ?? 0}%
                 </Badge>
               </CardContent>

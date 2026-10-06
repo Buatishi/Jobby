@@ -1,5 +1,6 @@
 "use client";
 
+import { useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 type CountUpProps = {
@@ -11,6 +12,7 @@ export function CountUp({ value, durationMs = 800 }: CountUpProps) {
   const elementRef = useRef<HTMLSpanElement | null>(null);
   const [displayValue, setDisplayValue] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const element = elementRef.current;
@@ -35,6 +37,12 @@ export function CountUp({ value, durationMs = 800 }: CountUpProps) {
   }, []);
 
   useEffect(() => {
+    // Con "reducir movimiento" se muestra el valor final sin animar el conteo.
+    if (reduceMotion) {
+      setDisplayValue(value);
+      return;
+    }
+
     if (!isVisible) {
       return;
     }
@@ -54,7 +62,7 @@ export function CountUp({ value, durationMs = 800 }: CountUpProps) {
     animationFrame = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(animationFrame);
-  }, [durationMs, isVisible, value]);
+  }, [durationMs, isVisible, reduceMotion, value]);
 
   return <span ref={elementRef}>{displayValue}</span>;
 }

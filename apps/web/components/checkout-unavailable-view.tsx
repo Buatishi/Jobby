@@ -79,11 +79,11 @@ export function CheckoutUnavailableView() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-4 py-16 text-center">
-      <Link className="mb-8 text-xl font-black" href="/">
+      <Link className="mb-8 text-xl font-bold" href="/">
         Jobby
       </Link>
       <SadCv label={t("pricing.unavailableAlt")} />
-      <p className="mt-6 text-6xl font-black tracking-tight text-primary">404</p>
+      <p className="mt-6 text-6xl font-semibold tracking-tight text-primary">404</p>
       <h1 className="mt-2 text-2xl font-semibold">{t("pricing.unavailableTitle")}</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
         {t("pricing.unavailableBody")}

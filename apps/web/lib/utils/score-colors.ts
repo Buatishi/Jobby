@@ -44,3 +44,33 @@ export function getScoreLabel(score: number): string {
 
   return "Excelente";
 }
+
+// Sobre paneles oscuros el verde oscuro casi no contrasta: las dos bandas verdes
+// se muestran con el verde vivo de la marca. Rojo y amarillo ya se leen bien.
+export const scoreColorOnDarkGreen = "#2BD48A";
+
+export function getScoreColorOnDark(score: number): string {
+  const color = getScoreColor(score);
+
+  if (color === scoreColors.lightGreen || color === scoreColors.darkGreen) {
+    return scoreColorOnDarkGreen;
+  }
+
+  return color;
+}
+
+export type StatusTone = "ok" | "mid" | "bad";
+
+// Colores de los estados "cumple / parcial / falta" para píldoras, en superficie clara y oscura.
+export const statusTones = {
+  light: {
+    ok: { background: "#CBEADD", color: "#0F6E56" },
+    mid: { background: "#FFF1D6", color: "#8A5300" },
+    bad: { background: "#FCE4E2", color: "#8E2B26" }
+  },
+  dark: {
+    ok: { background: "rgba(43, 212, 138, 0.16)", color: "#7FE9BD" },
+    mid: { background: "rgba(224, 138, 0, 0.18)", color: "#FFC46B" },
+    bad: { background: "rgba(201, 74, 68, 0.2)", color: "#FF9A94" }
+  }
+} as const;

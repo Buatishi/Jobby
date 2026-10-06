@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { ActivityChart } from "@/components/admin/activity-chart";
+import { PageBanner } from "@/components/page-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { type AdminMetrics, formatDay } from "@/lib/admin/metrics";
@@ -26,9 +27,9 @@ function StatTile({
   details: string[];
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+    <div className="rounded-card border border-brand-line bg-white p-4 shadow-card">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-3xl font-black tracking-tight text-black">{value}</p>
+      <p className="mt-1 text-3xl font-semibold italic tracking-[-0.04em] text-brand-green">{value}</p>
       <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
         {details.map((detail) => (
           <li key={detail}>{detail}</li>
@@ -65,7 +66,7 @@ export default function AdminPage() {
 
   if (state.status === "loading") {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <p className="text-sm text-muted-foreground">{t("admin.loading")}</p>
       </main>
     );
@@ -73,7 +74,7 @@ export default function AdminPage() {
 
   if (state.status === "forbidden" || state.status === "error") {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="min-h-screen bg-white p-4 pb-14">
         <Card>
           <CardContent className="space-y-4 pt-6">
             <p className="text-sm text-black">
@@ -92,21 +93,18 @@ export default function AdminPage() {
   const days = metrics.daily_activity;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-black tracking-tight text-black">
-          {t("admin.title")}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("admin.subtitle")}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("admin.updated", {
-            time: new Intl.DateTimeFormat(locale, {
-              dateStyle: "medium",
-              timeStyle: "short"
-            }).format(new Date(metrics.generated_at))
-          })}
-        </p>
-      </header>
+    <main className="min-h-screen bg-white p-4 pb-14">
+      <PageBanner
+        className="mb-5"
+        description={t("admin.subtitle")}
+        note={t("admin.updated", {
+          time: new Intl.DateTimeFormat(locale, {
+            dateStyle: "medium",
+            timeStyle: "short"
+          }).format(new Date(metrics.generated_at))
+        })}
+        title={t("admin.title")}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatTile
