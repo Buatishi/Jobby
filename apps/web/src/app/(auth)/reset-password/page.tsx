@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
           Nueva contraseña
         </p>
-        <h1 className="text-3xl font-black tracking-tight">
+        <h1 className="text-3xl font-semibold tracking-tight">
           Restablecer acceso
         </h1>
         <p className="text-sm leading-6 text-muted-foreground">

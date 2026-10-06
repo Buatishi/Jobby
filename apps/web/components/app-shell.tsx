@@ -13,13 +13,13 @@ export function AppShell({
   userName
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-[#f9fafb] lg:grid lg:grid-cols-[15rem_1fr]">
+    <div className="min-h-screen bg-white lg:grid lg:grid-cols-[15rem_1fr]">
       <WizardRedirectGuard />
       <AppSidebar
         pendingAnalysesCount={pendingAnalysesCount}
         userName={userName}
       />
-      <div className="min-w-0 bg-[#f9fafb]">{children}</div>
+      <div className="min-w-0 bg-white">{children}</div>
     </div>
   );
 }
