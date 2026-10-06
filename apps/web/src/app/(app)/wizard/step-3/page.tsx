@@ -101,9 +101,9 @@ export default function WizardStepThreePage() {
         </CardHeader>
         <CardContent>
           {skills.length === 0 ? (
-            <div className="rounded-md border border-border bg-muted/30 p-5 text-sm">
+            <div className="rounded-2xl border border-border bg-muted/30 p-5 text-sm">
               <div className="flex gap-3">
-                <Info className="mt-0.5 h-4 w-4 flex-none text-[#0F6E56]" />
+                <Info className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
                 <div>
                   <p className="font-medium">No hay skills para revisar todavía.</p>
                   <p className="mt-1 text-muted-foreground">
@@ -114,7 +114,7 @@ export default function WizardStepThreePage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-md border border-border">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-muted/50 text-left">
                   <tr>
@@ -129,7 +129,7 @@ export default function WizardStepThreePage() {
                     <tr className="border-t border-border" key={skill.id}>
                       <td className="px-4 py-3">
                         <input
-                          className="h-10 w-full rounded-md border border-input bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="h-10 w-full rounded-full border border-input bg-background px-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onChange={(event) =>
                             updateSkill(skill.id, { name: event.target.value })
                           }
@@ -138,7 +138,7 @@ export default function WizardStepThreePage() {
                       </td>
                       <td className="px-4 py-3">
                         <input
-                          className="h-10 w-full rounded-md border border-input bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="h-10 w-full rounded-full border border-input bg-background px-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onChange={(event) =>
                             updateSkill(skill.id, { level: event.target.value })
                           }

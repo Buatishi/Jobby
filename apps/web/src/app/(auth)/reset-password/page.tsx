@@ -11,7 +11,7 @@ import { AuthLayout } from "@/src/components/auth/AuthLayout";
 import { PasswordInput } from "@/src/components/auth/PasswordInput";
 
 const inputClassName =
-  "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
+  "h-12 w-full rounded-full border border-brand-line bg-white px-5 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-brand-green focus-visible:ring-2 focus-visible:ring-brand-green/25";
 
 function getAuthErrorMessage(error: unknown) {
   return error instanceof Error
@@ -97,7 +97,7 @@ export default function ResetPasswordPage() {
   return (
     <AuthLayout headline="Elegí tu nueva contraseña">
       <div className="space-y-2">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
+        <p className="text-sm font-semibold text-brand-green">
           Nueva contraseña
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">
@@ -164,7 +164,7 @@ export default function ResetPasswordPage() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         <Link
-          className="inline-flex items-center gap-2 font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
+          className="inline-flex items-center gap-2 font-semibold text-foreground transition-colors hover:text-brand-green"
           href="/login"
         >
           <ArrowLeft className="h-4 w-4" />

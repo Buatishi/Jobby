@@ -160,7 +160,7 @@ export default function MatchReportPage() {
       />
 
       {profileConfidence === "medium" ? (
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm text-[#0F6E56]">
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-brand-green/20 bg-brand-green-light p-4 text-sm text-brand-green">
           <Info className="mt-0.5 h-4 w-4 flex-none" />
           <p>
             Tu análisis puede mejorar completando tu perfil.{" "}
@@ -225,9 +225,9 @@ export default function MatchReportPage() {
                     </span>
                     <span>{score}</span>
                   </div>
-                  <div className="h-3 rounded-md bg-muted">
+                  <div className="h-3 rounded-full bg-muted">
                     <div
-                      className="h-3 rounded-md"
+                      className="h-3 rounded-full"
                       style={{
                         width: `${score}%`,
                         backgroundColor: getScoreColor(score)
@@ -250,7 +250,7 @@ export default function MatchReportPage() {
             <div className="space-y-3">
               {(report.recommendations ?? []).map((recommendation, index) => (
                 <div
-                  className="rounded-md border border-border p-4"
+                  className="rounded-2xl border border-border p-4"
                   key={`${recommendation.title}-${index}`}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -287,7 +287,7 @@ export default function MatchReportPage() {
               {[1, 2, 3, 4, 5].map((value) => (
                 <button
                   aria-label={`Rating ${value}`}
-                  className="rounded-md p-1 hover:bg-muted"
+                  className="rounded-full p-1 hover:bg-muted"
                   key={value}
                   onClick={() => void submitRating(value)}
                   type="button"

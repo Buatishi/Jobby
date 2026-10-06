@@ -125,7 +125,7 @@ export function JobInputForm() {
             <div className="relative">
               <Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-black/45" />
               <input
-                className="h-12 w-full rounded-2xl border border-neutral-100 bg-white pl-12 pr-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#0F6E56]"
+                className="h-12 w-full rounded-full border border-brand-line bg-white pl-12 pr-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#0F6E56]"
                 onChange={(event) => setUrl(event.target.value)}
                 placeholder="https://empresa.com/jobs/backend-engineer"
                 required
@@ -134,13 +134,13 @@ export function JobInputForm() {
               />
             </div>
             <div className="flex gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 p-3 text-sm font-medium text-black/60">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#0F6E56]" />
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand-green" />
               {t("app.scrapingWarning")}
             </div>
           </div>
         ) : (
           <textarea
-            className="min-h-36 w-full resize-none rounded-2xl border border-neutral-100 bg-white p-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#0F6E56]"
+            className="min-h-36 w-full resize-none rounded-2xl border border-brand-line bg-white p-4 text-sm font-medium outline-none ring-offset-background placeholder:text-black/40 focus-visible:ring-2 focus-visible:ring-[#0F6E56]"
             onChange={(event) => setRawText(event.target.value)}
             placeholder={t("app.pasteJobDescription")}
             required

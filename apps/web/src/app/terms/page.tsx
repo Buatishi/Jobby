@@ -106,7 +106,7 @@ export default function TermsPage() {
         </div>
 
         <div className="mt-10">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-green">
+          <p className="text-sm font-semibold text-brand-green">
             {copy.eyebrow}
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight">

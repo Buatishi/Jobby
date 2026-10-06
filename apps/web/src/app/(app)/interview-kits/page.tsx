@@ -55,7 +55,7 @@ function statusLabel(status: KitStatus) {
 
 function statusClassName(status: KitStatus) {
   return cn(
-    status === "done" && "border-[#0F6E56] text-[#0F6E56]",
+    status === "done" && "border-brand-green text-brand-green",
     status === "processing" && "border-[#F0A500] text-[#8A5F00]",
     status === "pending" && "text-muted-foreground",
     status === "failed" && "border-[#E24B4A] text-[#E24B4A]"

@@ -257,7 +257,7 @@ export default function InterviewKitDetailPage() {
 
       {activeTab === "fit" ? (
         <section className="space-y-4">
-          <div className="rounded-md border-l-4 border-[#0F6E56] bg-muted/30 p-5">
+          <div className="rounded-2xl border-l-4 border-brand-green bg-muted/30 p-5">
             <p className="leading-7">
               {asText(
                 notes.overall_summary,
@@ -286,9 +286,9 @@ export default function InterviewKitDetailPage() {
                       <span>Compatibilidad</span>
                       <strong>{area.score}</strong>
                     </div>
-                    <div className="h-3 rounded-md bg-muted">
+                    <div className="h-3 rounded-full bg-muted">
                       <div
-                        className="h-3 rounded-md"
+                        className="h-3 rounded-full"
                         style={{
                           width: `${area.score}%`,
                           backgroundColor: meta.color
@@ -312,7 +312,7 @@ export default function InterviewKitDetailPage() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm leading-6">
                 <p>{strength.evidence || strength.body}</p>
-                <p className="rounded-md bg-muted p-3">
+                <p className="rounded-2xl bg-muted p-3">
                   {strength.talkingPoint || "Conectalo con una experiencia concreta del CV."}
                 </p>
               </CardContent>
@@ -369,7 +369,7 @@ export default function InterviewKitDetailPage() {
         <section className="space-y-3">
           {modelAnswers.map((answer, index) => (
             <details
-              className="rounded-lg border border-border bg-background p-4"
+              className="rounded-card border border-border bg-background p-4"
               key={`${answer.question}-${index}`}
             >
               <summary className="cursor-pointer font-medium">
@@ -377,7 +377,7 @@ export default function InterviewKitDetailPage() {
               </summary>
               <p className="mt-4 text-sm leading-6">{answer.answer}</p>
               {answer.tips ? (
-                <p className="mt-3 rounded-md bg-muted p-3 text-sm">
+                <p className="mt-3 rounded-2xl bg-muted p-3 text-sm">
                   {answer.tips}
                 </p>
               ) : null}

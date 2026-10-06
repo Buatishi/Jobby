@@ -139,11 +139,11 @@ export default function WizardStepOnePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-5 rounded-md border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm">
+          <div className="mb-5 rounded-2xl border border-brand-green/20 bg-brand-green-light p-4 text-sm">
             <div className="flex gap-3">
-              <Lightbulb className="mt-0.5 h-4 w-4 flex-none text-[#0F6E56]" />
+              <Lightbulb className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
               <div>
-                <p className="font-medium text-[#0F6E56]">
+                <p className="font-medium text-brand-green">
                   ¿Por qué pedimos esto?
                 </p>
                 <p className="mt-1 text-muted-foreground">
@@ -161,7 +161,7 @@ export default function WizardStepOnePage() {
                 Headline
               </label>
               <input
-                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="headline"
                 onChange={(event) => setHeadline(event.target.value)}
                 placeholder="Backend Engineer"
@@ -178,7 +178,7 @@ export default function WizardStepOnePage() {
                 Bio
               </label>
               <textarea
-                className="min-h-28 w-full resize-none rounded-md border border-input bg-background p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-28 w-full resize-none rounded-2xl border border-input bg-background p-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="summary"
                 onChange={(event) => setSummary(event.target.value)}
                 placeholder="Contame en pocas líneas qué hacés y hacia dónde querés ir."
@@ -209,7 +209,7 @@ export default function WizardStepOnePage() {
                   </TooltipProvider>
                 </div>
                 <input
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="targetRole"
                   onChange={(event) => setTargetRole(event.target.value)}
                   placeholder="AI Product Engineer"
@@ -235,7 +235,7 @@ export default function WizardStepOnePage() {
                   </TooltipProvider>
                 </div>
                 <select
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="seniority"
                   onChange={(event) => setTargetSeniority(event.target.value)}
                   value={targetSeniority}
@@ -269,7 +269,7 @@ export default function WizardStepOnePage() {
               <div className="grid gap-3 sm:grid-cols-3">
                 {workModalities.map((option) => (
                   <label
-                    className="flex h-11 items-center gap-3 rounded-md border border-input px-3 text-sm"
+                    className="flex h-11 items-center gap-3 rounded-full border border-input px-4 text-sm"
                     key={option.value}
                   >
                     <input
@@ -293,7 +293,7 @@ export default function WizardStepOnePage() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
-                className="w-full bg-[#0F6E56] hover:bg-[#0b5b47] sm:w-auto"
+                className="w-full sm:w-auto"
                 disabled={isSubmitting}
                 type="submit"
               >

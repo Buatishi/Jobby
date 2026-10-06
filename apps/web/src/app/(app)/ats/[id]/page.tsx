@@ -172,7 +172,7 @@ export default function ATSReportPage() {
             <CardTitle>Keyword map</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto rounded-md border border-border">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="w-full min-w-[560px] text-sm">
                 <thead className="bg-muted/50 text-left">
                   <tr>
@@ -222,7 +222,7 @@ export default function ATSReportPage() {
               <div className="space-y-3">
                 {report.format_issues.map((issue) => (
                   <div
-                    className="flex items-center justify-between rounded-md border border-border p-4"
+                    className="flex items-center justify-between rounded-2xl border border-border p-4"
                     key={issue.code}
                   >
                     <div className="flex items-center gap-3">
@@ -234,7 +234,7 @@ export default function ATSReportPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex items-center gap-3 rounded-md border border-border p-4">
+              <div className="flex items-center gap-3 rounded-2xl border border-border p-4">
                 <Check className="h-5 w-5 text-secondary" />
                 <p className="font-medium">No detectamos problemas de formato.</p>
               </div>
@@ -244,7 +244,7 @@ export default function ATSReportPage() {
       </section>
 
       <section className="mt-4">
-        <details className="rounded-lg border border-border bg-background">
+        <details className="rounded-card border border-border bg-background">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-6">
             <div>
               <h2 className="text-lg font-semibold">CV Optimizado</h2>
@@ -275,7 +275,7 @@ export default function ATSReportPage() {
             </Button>
 
             {optimizerError ? (
-              <div className="mt-4 flex items-start gap-3 rounded-md border border-border p-4 text-sm text-muted-foreground">
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border p-4 text-sm text-muted-foreground">
                 <Lock className="mt-0.5 h-4 w-4" />
                 <p>{optimizerError}</p>
               </div>

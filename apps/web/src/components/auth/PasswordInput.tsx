@@ -67,7 +67,7 @@ export function PasswordInput({
           aria-controls={id}
           aria-label={visible ? t("auth.hidePassword") : t("auth.showPassword")}
           aria-pressed={visible}
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-black/45 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25 disabled:pointer-events-none disabled:opacity-50"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-black/45 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/25 disabled:pointer-events-none disabled:opacity-50"
           disabled={disabled}
           onClick={() => setVisible((current) => !current)}
           type="button"

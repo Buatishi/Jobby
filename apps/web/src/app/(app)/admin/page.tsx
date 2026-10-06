@@ -27,9 +27,9 @@ function StatTile({
   details: string[];
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+    <div className="rounded-card border border-brand-line bg-white p-4 shadow-card">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-3xl font-semibold tracking-tight text-black">{value}</p>
+      <p className="mt-1 text-3xl font-semibold italic tracking-[-0.04em] text-brand-green">{value}</p>
       <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
         {details.map((detail) => (
           <li key={detail}>{detail}</li>

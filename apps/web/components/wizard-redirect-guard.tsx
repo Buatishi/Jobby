@@ -28,9 +28,9 @@ export function WizardRedirectGuard() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 rounded-lg border border-[#0F6E56]/20 bg-background p-4 shadow-lg sm:left-auto sm:max-w-md">
+    <div className="fixed bottom-4 left-4 right-4 z-50 rounded-card border border-brand-green/20 bg-background p-4 shadow-lg sm:left-auto sm:max-w-md">
       <div className="flex gap-3">
-        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-[#0F6E56]/10 text-sm font-semibold text-[#0F6E56]">
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-green-light text-sm font-semibold text-brand-green">
           {progress.currentStep}
         </div>
         <div className="min-w-0 flex-1">
@@ -40,7 +40,7 @@ export function WizardRedirectGuard() {
             pendiente para mejorar tus reportes.
           </p>
           <Link
-            className="mt-3 inline-flex items-center text-sm font-medium text-[#0F6E56]"
+            className="mt-3 inline-flex items-center text-sm font-medium text-brand-green"
             href={wizardStepPath(progress.currentStep)}
           >
             Retomar onboarding
@@ -49,7 +49,7 @@ export function WizardRedirectGuard() {
         </div>
         <button
           aria-label="Ocultar aviso de onboarding"
-          className="flex h-8 w-8 flex-none items-center justify-center rounded-md hover:bg-muted"
+          className="flex h-8 w-8 flex-none items-center justify-center rounded-full hover:bg-muted"
           onClick={() => setDismissed(true)}
           type="button"
         >

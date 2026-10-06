@@ -16,7 +16,7 @@ import { GoogleIcon } from "@/src/components/auth/GoogleIcon";
 import { PasswordInput } from "@/src/components/auth/PasswordInput";
 
 const inputClassName =
-  "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
+  "h-12 w-full rounded-full border border-brand-line bg-white px-5 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-brand-green focus-visible:ring-2 focus-visible:ring-brand-green/25";
 
 function getAuthErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -101,7 +101,7 @@ export default function LoginPage() {
   return (
     <AuthLayout headline={t("auth.loginHeadline")}>
       <div className="space-y-2">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
+        <p className="text-sm font-semibold text-brand-green">
           {t("auth.loginEyebrow")}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">
@@ -113,14 +113,14 @@ export default function LoginPage() {
       </div>
 
       {resetSuccess ? (
-        <div className="mt-6 rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-3 text-sm font-medium text-[#0F6E56]">
+        <div className="mt-6 rounded-2xl border border-brand-green/20 bg-brand-green-light px-4 py-3 text-sm font-medium text-brand-green">
           {t("auth.passwordReset")}
         </div>
       ) : null}
 
       {signedOut ? (
         <div
-          className="mt-6 rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-3 text-sm font-medium text-[#0F6E56]"
+          className="mt-6 rounded-2xl border border-brand-green/20 bg-brand-green-light px-4 py-3 text-sm font-medium text-brand-green"
           role="status"
         >
           {t("auth.signedOut")}
@@ -149,7 +149,7 @@ export default function LoginPage() {
               {t("auth.password")}
             </label>
             <Link
-              className="text-xs font-semibold text-[#0F6E56] transition-colors hover:text-[#0d5c48]"
+              className="text-xs font-semibold text-brand-green transition-colors hover:text-brand-ink"
               href="/forgot-password"
             >
               {t("auth.forgotPassword")}
@@ -205,7 +205,7 @@ export default function LoginPage() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         {t("auth.noAccount")}{" "}
         <Link
-          className="font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
+          className="font-semibold text-foreground transition-colors hover:text-brand-green"
           href="/register"
         >
           {t("common.register")}
@@ -216,11 +216,11 @@ export default function LoginPage() {
         {t("auth.protectedBy")}
       </p>
       <p className="mt-3 text-center text-xs font-medium text-black/40">
-        <Link className="hover:text-[#0F6E56]" href="/terms">
+        <Link className="hover:text-brand-green" href="/terms">
           Términos
         </Link>
         <span className="px-2">·</span>
-        <Link className="hover:text-[#0F6E56]" href="/privacy">
+        <Link className="hover:text-brand-green" href="/privacy">
           Privacidad
         </Link>
       </p>

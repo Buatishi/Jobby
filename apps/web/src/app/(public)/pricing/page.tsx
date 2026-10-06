@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
 
 
+import { DarkPanel } from "@/components/dark-panel";
 import { LanguageToggle } from "@/components/language-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,13 @@ export default function PricingPage() {
     <main className="min-h-screen bg-background">
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
         <div className="mb-8 flex items-center justify-between gap-4">
-          <Link className="text-xl font-bold" href="/">
+          <Link className="flex items-center gap-2 text-xl font-bold" href="/">
+            <span
+              aria-hidden="true"
+              className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-brand-bright text-[17px]"
+            >
+              J
+            </span>
             Jobby
           </Link>
           <div className="flex items-center gap-3">
@@ -109,35 +116,37 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Jobby</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-normal">
-              {t("pricing.title")}
-            </h1>
-            <p className="mt-3 max-w-2xl text-muted-foreground">
-              {t("pricing.subtitle")}
-            </p>
+        <DarkPanel floor>
+          <div className="flex flex-col justify-between gap-6 px-6 pb-14 pt-8 sm:px-10 sm:pt-10 md:flex-row md:items-end">
+            <div>
+              <p className="text-sm font-semibold text-brand-bright">Jobby</p>
+              <h1 className="mt-2 text-[clamp(1.875rem,4vw,2.75rem)] font-semibold leading-[1.1] tracking-[-0.025em]">
+                {t("pricing.title")}
+              </h1>
+              <p className="mt-3 max-w-2xl text-[15px] font-medium text-neutral-300">
+                {t("pricing.subtitle")}
+              </p>
+            </div>
+            <div className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 p-1">
+              <button
+                className="rounded-full px-4 py-2 text-sm font-semibold text-white data-[active=true]:bg-brand-bright data-[active=true]:text-brand-ink"
+                data-active={billingCycle === "monthly"}
+                onClick={() => setBillingCycle("monthly")}
+                type="button"
+              >
+                {t("landing.monthly")}
+              </button>
+              <button
+                className="rounded-full px-4 py-2 text-sm font-semibold text-white data-[active=true]:bg-brand-bright data-[active=true]:text-brand-ink"
+                data-active={billingCycle === "yearly"}
+                onClick={() => setBillingCycle("yearly")}
+                type="button"
+              >
+                {t("landing.yearly")}
+              </button>
+            </div>
           </div>
-          <div className="inline-flex w-fit rounded-lg border border-border bg-background p-1">
-            <button
-              className="rounded-md px-4 py-2 text-sm font-medium data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
-              data-active={billingCycle === "monthly"}
-              onClick={() => setBillingCycle("monthly")}
-              type="button"
-            >
-              {t("landing.monthly")}
-            </button>
-            <button
-              className="rounded-md px-4 py-2 text-sm font-medium data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
-              data-active={billingCycle === "yearly"}
-              onClick={() => setBillingCycle("yearly")}
-              type="button"
-            >
-              {t("landing.yearly")}
-            </button>
-          </div>
-        </div>
+        </DarkPanel>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <Card className="flex flex-col">
@@ -192,7 +201,7 @@ export default function PricingPage() {
               ))}
               <div className="mt-auto flex flex-col gap-4 pt-2">
                 {error ? (
-                  <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                  <p className="rounded-2xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
                     {error}
                   </p>
                 ) : null}

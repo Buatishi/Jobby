@@ -183,9 +183,9 @@ export default function WizardStepTwoPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="rounded-md border border-[#0F6E56]/20 bg-[#0F6E56]/5 p-4 text-sm">
+          <div className="rounded-2xl border border-brand-green/20 bg-brand-green-light p-4 text-sm">
             <div className="flex gap-3">
-              <ShieldCheck className="mt-0.5 h-4 w-4 flex-none text-[#0F6E56]" />
+              <ShieldCheck className="mt-0.5 h-4 w-4 flex-none text-brand-green" />
               <p className="text-muted-foreground">
                 El CV ayuda a que Jobby detecte evidencia real. Si todavía no
                 lo tenés listo, podés avanzar y cargarlo después desde tu perfil.
@@ -193,7 +193,7 @@ export default function WizardStepTwoPage() {
             </div>
           </div>
 
-          <label className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center">
+          <label className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-card border border-dashed border-border bg-muted/30 p-6 text-center">
             <FileUp className="h-10 w-10 text-muted-foreground" />
             <span className="mt-3 font-medium">
               {selectedFile ? selectedFile.name : "Seleccionar PDF"}
@@ -212,7 +212,7 @@ export default function WizardStepTwoPage() {
             />
           </label>
 
-          <div className="rounded-md border border-border p-4 text-sm">
+          <div className="rounded-2xl border border-border p-4 text-sm">
             <p className="font-medium">{status}</p>
             {taskId ? (
               <p className="mt-1 text-muted-foreground">Task: {taskId}</p>
@@ -220,7 +220,7 @@ export default function WizardStepTwoPage() {
           </div>
 
           {error ? (
-            <div className="rounded-md border border-destructive/40 p-4 text-sm text-destructive">
+            <div className="rounded-2xl border border-destructive/40 p-4 text-sm text-destructive">
               <p>{error}</p>
               <Button
                 className="mt-3"

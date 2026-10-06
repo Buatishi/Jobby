@@ -26,7 +26,7 @@ const CONTACT_FIELDS: Array<{ key: keyof PrintableCVContact; label: string }> = 
 const NO_SECTIONS: OptimizedSection[] = [];
 
 const INPUT_CLASS =
-  "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-10 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 // Por defecto entra cada sección que el CV respalda; las que tienen palabras sin
 // respaldo las suma la persona a mano, sabiendo qué agrega.
@@ -99,7 +99,7 @@ export function DownloadCVPanel({
   }
 
   return (
-    <div className="space-y-4 rounded-md border border-border p-4">
+    <div className="space-y-4 rounded-2xl border border-border p-4">
       <div>
         <h3 className="font-medium">Tu CV listo para descargar</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -161,7 +161,7 @@ export function DownloadCVPanel({
         </fieldset>
       ) : null}
 
-      <div className="max-h-96 overflow-auto rounded-md border border-border bg-muted/30 p-2">
+      <div className="max-h-96 overflow-auto rounded-2xl border border-border bg-muted/30 p-2">
         <PrintableCVDocument cv={result.cv} />
       </div>
 

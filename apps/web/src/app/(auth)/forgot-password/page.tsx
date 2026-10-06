@@ -9,7 +9,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { AuthLayout } from "@/src/components/auth/AuthLayout";
 
 const inputClassName =
-  "h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-[#0F6E56] focus-visible:ring-2 focus-visible:ring-[#0F6E56]/25";
+  "h-12 w-full rounded-full border border-brand-line bg-white px-5 text-sm outline-none ring-offset-background transition-all duration-200 placeholder:text-black/35 hover:border-black/20 focus-visible:border-brand-green focus-visible:ring-2 focus-visible:ring-brand-green/25";
 
 function getAuthErrorMessage(error: unknown) {
   return error instanceof Error
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout headline="Recuperá el acceso a tu cuenta">
       <div className="space-y-2">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#0F6E56]">
+        <p className="text-sm font-semibold text-brand-green">
           Recuperación
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
 
       {isSent ? (
         <div className="mt-8 space-y-5">
-          <div className="rounded-2xl border border-[#0F6E56]/15 bg-[#0F6E56]/10 px-4 py-4 text-sm font-medium text-[#0F6E56]">
+          <div className="rounded-2xl border border-brand-green/20 bg-brand-green-light px-4 py-4 text-sm font-medium text-brand-green">
             Revisá tu email. Te enviamos un link para restablecer tu
             contraseña.
           </div>
@@ -118,7 +118,7 @@ export default function ForgotPasswordPage() {
         <p className="mt-6 text-center text-sm text-muted-foreground">
           ¿Ya te acordaste?{" "}
           <Link
-            className="font-semibold text-foreground transition-colors hover:text-[#0F6E56]"
+            className="font-semibold text-foreground transition-colors hover:text-brand-green"
             href="/login"
           >
             Volver a iniciar sesión

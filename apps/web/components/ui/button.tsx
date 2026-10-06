@@ -95,7 +95,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon
         )}
-        <span>{children}</span>
+        <span className="inline-flex items-center">{children}</span>
         {!isLoading ? rightIcon : null}
       </Comp>
     );
