@@ -19,14 +19,14 @@ export function LanguageToggle({ className, compact = false }: LanguageTogglePro
     <Button
       aria-label={`${t("common.language")}: ${language.toUpperCase()}`}
       className={cn(
-        "h-9 rounded-full border border-black/10 bg-white px-3 text-xs font-black text-black shadow-none transition hover:border-brand-green/30 hover:bg-brand-green-light hover:text-brand-green focus-visible:ring-2 focus-visible:ring-brand-green/30",
+        "h-9 shrink-0 border border-brand-line bg-white px-3.5 text-xs font-bold text-brand-ink shadow-none transition hover:border-brand-green/40 hover:bg-brand-green-light hover:text-brand-green focus-visible:ring-2 focus-visible:ring-brand-green/30",
         className
       )}
+      leftIcon={<Languages className="h-3.5 w-3.5" />}
       onClick={toggleLanguage}
       type="button"
       variant="ghost"
     >
-      <Languages className="mr-2 h-3.5 w-3.5" />
       {compact ? language.toUpperCase() : `${language.toUpperCase()} / ${nextLanguage}`}
     </Button>
   );

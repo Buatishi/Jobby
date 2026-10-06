@@ -1,13 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 
 import { ColdStartNotice } from "@/components/cold-start-notice";
 import { I18nProvider } from "@/lib/i18n/provider";
 
-const geistSans = Geist({
+// Fuente variable: cubre los pesos 400 a 700 y la cursiva de las cifras grandes.
+const montserrat = Montserrat({
   subsets: ["latin"],
-  variable: "--font-geist-sans"
+  style: ["normal", "italic"],
+  variable: "--font-sans-brand",
+  display: "swap"
 });
 
 export const metadata: Metadata = {
@@ -45,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html className="light" lang="es" suppressHydrationWarning>
-      <body className={`${geistSans.variable} font-sans`}>
+      <body className={`${montserrat.variable} font-sans`}>
         <I18nProvider>
           {children}
           <ColdStartNotice />

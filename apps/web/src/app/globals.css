@@ -20,8 +20,8 @@
     --secondary-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
+    --border: 157 25% 89%;
+    --input: 157 25% 89%;
     --ring: 164.84 76% 24.51%;
     --radius: 0.5rem;
   }
@@ -48,10 +48,57 @@
       --foreground: 240 10% 3.9%;
       --muted: 240 4.8% 95.9%;
       --muted-foreground: 240 3.8% 46.1%;
-      --border: 240 5.9% 90%;
-      --input: 240 5.9% 90%;
+      --border: 157 25% 89%;
+      --input: 157 25% 89%;
       --ring: 164.84 76% 24.51%;
     }
+  }
+}
+
+/* Paneles oscuros con brillo verde y suelo de rejilla en perspectiva (estética v2). */
+@layer components {
+  .panel-glow {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 118%, rgba(43, 212, 138, 0.42), transparent 70%),
+      #1d1d1b;
+  }
+
+  .panel-forest {
+    background:
+      radial-gradient(ellipse 90% 80% at 0% 100%, rgba(43, 212, 138, 0.22), transparent 60%),
+      linear-gradient(150deg, #0f6e56 0%, #06231b 70%);
+  }
+
+  .grid-floor {
+    position: absolute;
+    left: -10%;
+    right: -10%;
+    bottom: 0;
+    height: 50%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    perspective: 420px;
+  }
+
+  .grid-floor::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(43, 212, 138, 0.6) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(43, 212, 138, 0.6) 1px, transparent 1px);
+    background-size: 64px 64px;
+    transform: rotateX(64deg);
+    transform-origin: 50% 100%;
+    -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 85%);
+    mask-image: linear-gradient(to top, #000 0%, transparent 85%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 
