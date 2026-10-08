@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.models.ats import ATSKeywordMatch, OptimizedCVSection
 from app.services.ai_gateway import AIGateway, UserTier
+from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_ES
 from app.services.ats_analyzer.scoring import score_keyword_coverage
 from app.services.match_engine.common import normalize_text
 
@@ -42,6 +43,7 @@ def _prompt(
 ) -> str:
     low_coverage = _low_coverage_keywords(matches)
     return (
+        f"{UNTRUSTED_DATA_NOTICE_ES}\n\n"
         "Reescribi solamente las secciones del CV con baja cobertura ATS. "
         "No inventes experiencia, empresas, titulos, fechas ni tecnologias. "
         "Usa evidencia existente del CV y agrega keywords solo cuando sean "
