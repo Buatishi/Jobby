@@ -12,7 +12,7 @@ from packaging.version import Version
         # PyJWT valida el token de cada sesión; las 2.13 y anteriores tienen avisos de
         # seguridad (CVE-2026-102266 a 102273).
         ("PyJWT", "2.15"),
-        # urllib3 2.8 corrige el uso de memoria sin límite al leer respuestas por trozos.
+        # urllib3 2.8 corrige memoria sin límite al leer respuestas por trozos.
         ("urllib3", "2.8"),
     ],
 )
