@@ -930,3 +930,37 @@ tres pasos; su contenido queda cubierto por la lista de momentos y la comparaci�
 requisito. Las pantallas internas (perfil, jobs, ATS, kits, admin) heredan botones, tarjetas,
 insignias y tipografía, y se retocan una por una en cambios aparte.
 
+## Decisión 28 — Revisión de seguridad con herramientas propias y un workflow separado
+
+**Estado:** Aprobada por el autor (2026-10-08), que pidió seguir con todas las fases de la
+revisión.
+
+**Elegido:** revisar el código y las dependencias con herramientas abiertas y reproducibles, y
+dejar el escaneo automático en un workflow aparte (`.github/workflows/security.yml`) que no
+toca los hooks de despliegue. Las herramientas son gitleaks (secretos en todo el historial),
+Semgrep (análisis estático con las reglas de Python, TypeScript, React, OWASP Top 10, JWT y
+secretos) y Trivy (vulnerabilidades en `poetry.lock` y `pnpm-lock.yaml`, solo altas y críticas
+con versión corregida). Corre en cada PR hacia `main`, en cada push a `main` y una vez por
+semana. La revisión manual usó la skill `variant-analysis` de Trail of Bits para buscar otras
+apariciones del bug del PR #19.
+
+**Resultado de la primera revisión (2026-10-07):** ningún secreto en 176 commits y cero
+hallazgos de Semgrep. Se corrigieron: la variante del bug de pertenencia en `POST
+/interview-kits` (el puesto y el match del cuerpo ahora deben ser del usuario, y las tareas solo
+leen datos de quien las pidió), la validación del PDF (firma y 20 páginas como máximo), el
+aviso de «dato, no instrucción» en los prompts que reciben texto de terceros, PyJWT 2.15,
+urllib3 2.8, Next.js 15.5.27 y sharp 0.35.5, y se sumó una política de contenido en modo solo
+reporte y una política de permisos en la web.
+
+**Alternativas evaluadas:** (a) el servidor MCP de Semgrep — descartado: está archivado desde
+octubre de 2025, se usa la CLI; (b) skills de pentesting de terceros sin licencia y con pocas
+estrellas — descartadas por falta de respaldo; (c) agregar los escaneos al `ci.yml` que
+despliega — descartado: un aviso nuevo de una dependencia no debe frenar un despliegue ni
+mezclarse con el pipeline de cobro; (d) escaneo dinámico con ZAP o `nuclei` contra producción —
+descartado: solo se prueba en local o en `jobby-test`.
+
+**Pendiente a propósito:** pasar la política de contenido de la web a modo que bloquea (hace
+falta repasar la consola con una sesión iniciada y, después, usar nonces); correr la API como
+usuario sin privilegios y agregar un `HEALTHCHECK` en el `Dockerfile` (requiere probar la imagen
+en Render); `braces` y `postcss-selector-parser` 6.x solo corren al compilar y no tienen
+versión corregida compatible.
