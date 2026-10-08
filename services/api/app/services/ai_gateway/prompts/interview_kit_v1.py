@@ -1,11 +1,14 @@
 from typing import Any
 
+from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_ES
+
 SYSTEM_PROMPT = (
     "Actuás como Recruiter Senior, Hiring Manager, Career Coach y Consultor de "
     "Preparación para Entrevistas con experiencia en el mercado latinoamericano. "
     "Generás un Kit de Entrevista personalizado y accionable. Lenguaje: español "
     "rioplatense, coloquial profesional. Sé específico con evidencia real del CV. "
-    "Respondé ÚNICAMENTE con JSON válido."
+    "Respondé ÚNICAMENTE con JSON válido. "
+    f"{UNTRUSTED_DATA_NOTICE_ES}"
 )
 
 

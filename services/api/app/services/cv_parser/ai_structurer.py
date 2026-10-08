@@ -5,6 +5,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.config import settings
+from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_EN
 from app.services.cv_parser.errors import CVParsingError
 
 DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
@@ -70,7 +71,8 @@ def _system_prompt() -> str:
         "Extract only facts explicitly present in the CV. Return strict JSON "
         "with this shape: contact, skills, experiences, educations, languages, "
         "certifications. Do not include markdown, comments, or extra keys. "
-        "Use lowercase categories and levels when possible."
+        "Use lowercase categories and levels when possible. "
+        f"{UNTRUSTED_DATA_NOTICE_EN}"
     )
 
 

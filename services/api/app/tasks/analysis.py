@@ -18,6 +18,7 @@ from app.services.ai_gateway.prompts.interview_kit_v1 import (
     SYSTEM_PROMPT as INTERVIEW_KIT_SYSTEM_PROMPT,
 )
 from app.services.ai_gateway.prompts.interview_kit_v1 import build_user_prompt
+from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_EN
 from app.services.match_engine import MatchResult, compute_match_score
 from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
@@ -53,9 +54,14 @@ async def _fetch_user_tier(supabase: Any, user_id: str) -> Literal["free", "prem
     return "free"
 
 
-async def _fetch_job(supabase: Any, job_id: str) -> dict[str, Any]:
+async def _fetch_job(supabase: Any, job_id: str, user_id: str) -> dict[str, Any]:
+    # La tarea corre con la clave de servicio: solo lee puestos de quien la pidió.
     data = await _execute(
-        supabase.table("job_descriptions").select("*").eq("id", job_id).maybe_single()
+        supabase.table("job_descriptions")
+        .select("*")
+        .eq("id", job_id)
+        .eq("user_id", user_id)
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Job {job_id} not found.")
@@ -74,9 +80,15 @@ async def _fetch_profile(supabase: Any, profile_id: str) -> dict[str, Any]:
     return data
 
 
-async def _fetch_interview_kit(supabase: Any, kit_id: str) -> dict[str, Any]:
+async def _fetch_interview_kit(
+    supabase: Any, kit_id: str, user_id: str
+) -> dict[str, Any]:
     data = await _execute(
-        supabase.table("interview_kits").select("*").eq("id", kit_id).maybe_single()
+        supabase.table("interview_kits")
+        .select("*")
+        .eq("id", kit_id)
+        .eq("user_id", user_id)
+        .maybe_single()
     )
     if not isinstance(data, dict):
         raise ValueError(f"Interview kit {kit_id} not found.")
@@ -130,7 +142,8 @@ async def _assert_interview_kit_limit(supabase: Any, user_id: str) -> None:
 def _system_prompt() -> str:
     return (
         "You extract structured job descriptions from Spanish or English job posts. "
-        "Return strict JSON only. Do not include markdown or commentary."
+        "Return strict JSON only. Do not include markdown or commentary. "
+        f"{UNTRUSTED_DATA_NOTICE_EN}"
     )
 
 
@@ -224,7 +237,7 @@ async def run_match(
 ) -> dict[str, Any]:
     supabase_client = supabase or await get_supabase_client()
     ai_gateway = gateway or AIGateway()
-    job = await _fetch_job(supabase_client, job_id)
+    job = await _fetch_job(supabase_client, job_id, user_id)
     user_tier = await _fetch_user_tier(supabase_client, user_id)
     result = await compute_match_score(profile_id, job_id, supabase_client)
     reasoning = await ai_gateway.generate(
@@ -410,7 +423,7 @@ async def run_interview_kit(
         raise PremiumRequiredError("interview_kit")
 
     await _assert_interview_kit_limit(supabase_client, user_id)
-    kit = await _fetch_interview_kit(supabase_client, kit_id)
+    kit = await _fetch_interview_kit(supabase_client, kit_id, user_id)
     await _execute(
         supabase_client.table("interview_kits")
         .update({"status": "processing", "error_msg": None})
@@ -419,7 +432,7 @@ async def run_interview_kit(
 
     try:
         profile = await _fetch_profile(supabase_client, str(kit["profile_id"]))
-        job = await _fetch_job(supabase_client, str(kit["job_id"]))
+        job = await _fetch_job(supabase_client, str(kit["job_id"]), user_id)
         skills = await _fetch_profile_rows(
             supabase_client,
             "skills",

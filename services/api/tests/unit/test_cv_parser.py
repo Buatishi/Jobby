@@ -8,6 +8,7 @@ from app.services.cv_parser import (
     CVStructuredData,
     ai_structurer,
     extract_pdf_text,
+    pdf_extractor,
 )
 from app.services.cv_parser.ai_structurer import ParsedSkill
 from app.services.cv_parser.merge_logic import merge_parsed_skills
@@ -189,3 +190,41 @@ async def test_extract_pdf_text_rejects_files_over_ten_megabytes(
         await extract_pdf_text(pdf_path)
 
     assert error.value.code == "PDF_TOO_LARGE"
+
+
+@pytest.mark.asyncio
+async def test_extract_pdf_text_rejects_a_file_without_the_pdf_signature(
+    tmp_path: Path,
+) -> None:
+    # Un archivo cualquiera renombrado a .pdf no llega al lector de PDF.
+    pdf_path = tmp_path / "cv.pdf"
+    pdf_path.write_bytes(b"PK\x03\x04" + b"0" * 2048)
+
+    with pytest.raises(CVParsingError) as error:
+        await extract_pdf_text(pdf_path)
+
+    assert error.value.code == "PDF_READ_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_extract_pdf_text_rejects_pdfs_with_too_many_pages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pdf_path = tmp_path / "cv.pdf"
+    _write_minimal_pdf(pdf_path, "Python FastAPI Supabase")
+
+    class _ManyPages:
+        pages = [object()] * (pdf_extractor.MAX_PDF_PAGES + 1)
+
+        def __enter__(self) -> "_ManyPages":
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(pdf_extractor.pdfplumber, "open", lambda _path: _ManyPages())
+
+    with pytest.raises(CVParsingError) as error:
+        await extract_pdf_text(pdf_path)
+
+    assert error.value.code == "PDF_TOO_MANY_PAGES"

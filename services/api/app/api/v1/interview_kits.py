@@ -69,6 +69,33 @@ async def _fetch_kit(supabase: Any, kit_id: str, user_id: str) -> dict[str, Any]
     return data
 
 
+def _not_found(error: str, code: str) -> HTTPException:
+    # Un recurso ajeno responde igual que uno inexistente: no se revela que existe.
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={"error": error, "code": code, "details": {}},
+    )
+
+
+async def _ensure_owned(
+    supabase: Any,
+    table: str,
+    row_id: str,
+    user_id: str,
+    not_found: HTTPException,
+) -> None:
+    """La API usa la clave de servicio (sin RLS): el dueño se comprueba acá."""
+    data = await _execute(
+        supabase.table(table)
+        .select("id")
+        .eq("id", row_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+    )
+    if not isinstance(data, dict):
+        raise not_found
+
+
 def _premium_required() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -133,6 +160,21 @@ async def create_interview_kit(
             },
         )
     await _validate_linkedin_urls(payload)
+    await _ensure_owned(
+        supabase,
+        "job_descriptions",
+        payload.job_id,
+        current_user.id,
+        _not_found("Job no encontrado", "JOB_NOT_FOUND"),
+    )
+    if payload.match_id is not None:
+        await _ensure_owned(
+            supabase,
+            "job_matches",
+            payload.match_id,
+            current_user.id,
+            _not_found("Match no encontrado", "MATCH_NOT_FOUND"),
+        )
     try:
         await increment_rate_limit(current_user.id, user_tier, RateLimitKind.KITS)
     except RateLimitExceededError as exc:

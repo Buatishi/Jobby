@@ -6,6 +6,9 @@ import pdfplumber
 from app.services.cv_parser.errors import CVParsingError
 
 MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
+# Un CV real no pasa de unas pocas hojas: más páginas es abuso o no es un CV.
+MAX_PDF_PAGES = 20
+PDF_SIGNATURE = b"%PDF-"
 
 
 def _validate_pdf_path(file_path: Path) -> None:
@@ -18,13 +21,25 @@ def _validate_pdf_path(file_path: Path) -> None:
     if file_path.stat().st_size > MAX_PDF_SIZE_BYTES:
         raise CVParsingError("El PDF supera el límite de 10MB.", "PDF_TOO_LARGE")
 
+    # La extensión la elige quien sube el archivo: se comprueba también el contenido.
+    with file_path.open("rb") as handle:
+        if handle.read(len(PDF_SIGNATURE)) != PDF_SIGNATURE:
+            raise CVParsingError("No se pudo leer el PDF.", "PDF_READ_ERROR")
+
 
 def _extract_pdf_text_sync(file_path: Path) -> str:
     _validate_pdf_path(file_path)
 
     try:
         with pdfplumber.open(file_path) as pdf:
+            if len(pdf.pages) > MAX_PDF_PAGES:
+                raise CVParsingError(
+                    f"El PDF supera el límite de {MAX_PDF_PAGES} páginas.",
+                    "PDF_TOO_MANY_PAGES",
+                )
             page_text = [page.extract_text() or "" for page in pdf.pages]
+    except CVParsingError:
+        raise
     except Exception as exc:
         raise CVParsingError("No se pudo leer el PDF.", "PDF_READ_ERROR") from exc
 

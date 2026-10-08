@@ -227,3 +227,100 @@ def test_create_interview_kit_requires_a_complete_profile(
     assert response.status_code == status_code
     if status_code == 403:
         assert response.json()["code"] == "PROFILE_INCOMPLETE"
+
+
+def _create_kit_client(
+    monkeypatch: pytest.MonkeyPatch, fake_supabase: FakeSupabase
+) -> list[str]:
+    """Deja el entorno listo para crear un kit y devuelve la lista de kits encolados."""
+    queued: list[str] = []
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    def fake_enqueue(kit_id: str, _user_id: str) -> str:
+        queued.append(kit_id)
+        return "user-1.kit-test"
+
+    monkeypatch.setattr("app.api.v1.interview_kits.enqueue_interview_kit", fake_enqueue)
+    app.dependency_overrides[get_current_user] = _fake_premium_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+    return queued
+
+
+def test_create_interview_kit_rejects_a_job_of_another_person(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_supabase = FakeSupabase()
+    _seed_premium_kit(fake_supabase)
+    fake_supabase.tables["job_descriptions"].append(
+        {"id": "job-2", "user_id": "user-2", "job_title": "Puesto ajeno"}
+    )
+    kits_before = len(fake_supabase.tables["interview_kits"])
+    queued = _create_kit_client(monkeypatch, fake_supabase)
+
+    response = client.post("/api/v1/interview-kits", json={"job_id": "job-2"})
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "JOB_NOT_FOUND"
+    assert len(fake_supabase.tables["interview_kits"]) == kits_before
+    assert queued == []
+
+
+def test_create_interview_kit_rejects_a_match_of_another_person(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_supabase = FakeSupabase()
+    _seed_premium_kit(fake_supabase)
+    fake_supabase.tables["job_matches"].append(
+        {"id": "match-2", "user_id": "user-2", "job_id": "job-9"}
+    )
+    kits_before = len(fake_supabase.tables["interview_kits"])
+    queued = _create_kit_client(monkeypatch, fake_supabase)
+
+    response = client.post(
+        "/api/v1/interview-kits", json={"job_id": "job-1", "match_id": "match-2"}
+    )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "MATCH_NOT_FOUND"
+    assert len(fake_supabase.tables["interview_kits"]) == kits_before
+    assert queued == []
+
+
+def test_create_interview_kit_accepts_own_job_and_match(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_supabase = FakeSupabase()
+    _seed_premium_kit(fake_supabase)
+    fake_supabase.tables["job_matches"].append(
+        {"id": "match-1", "user_id": "user-1", "job_id": "job-1"}
+    )
+    queued = _create_kit_client(monkeypatch, fake_supabase)
+
+    response = client.post(
+        "/api/v1/interview-kits", json={"job_id": "job-1", "match_id": "match-1"}
+    )
+
+    assert response.status_code == 202
+    assert len(queued) == 1
+
+
+@pytest.mark.asyncio
+async def test_interview_kit_task_does_not_read_a_job_of_another_person() -> None:
+    fake_supabase = FakeSupabase()
+    _seed_premium_kit(fake_supabase)
+    fake_supabase.tables["job_descriptions"].append(
+        {"id": "job-2", "user_id": "user-2", "job_title": "Puesto ajeno"}
+    )
+    fake_supabase.tables["interview_kits"][0]["job_id"] = "job-2"
+
+    with pytest.raises(ValueError, match="job-2"):
+        await analysis.run_interview_kit(
+            "kit-1",
+            "user-1",
+            supabase=fake_supabase,
+            gateway=FakeInterviewGateway(),  # type: ignore[arg-type]
+        )
+
+    assert fake_supabase.tables["interview_kits"][0]["status"] == "failed"
