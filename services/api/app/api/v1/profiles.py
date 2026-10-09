@@ -2,6 +2,7 @@ import asyncio
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from postgrest.exceptions import APIError
 
 from app.database import get_supabase_client
 from app.dependencies import get_current_user
@@ -35,6 +36,21 @@ def _not_found() -> HTTPException:
             "details": {},
         },
     )
+
+
+def _document_not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            "error": "Documento no encontrado",
+            "code": "DOCUMENT_NOT_FOUND",
+            "details": {},
+        },
+    )
+
+
+# SQLSTATE de un RAISE EXCEPTION sin código propio en PL/pgSQL.
+RAISED_EXCEPTION = "P0001"
 
 
 def _ensure_own_storage_path(storage_path: str, supabase_uid: str) -> None:
@@ -90,14 +106,7 @@ async def _fetch_document(
     )
     data = getattr(response, "data", None)
     if not isinstance(data, dict):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "Documento no encontrado",
-                "code": "DOCUMENT_NOT_FOUND",
-                "details": {},
-            },
-        )
+        raise _document_not_found()
     return data
 
 
@@ -343,23 +352,24 @@ async def set_primary_profile_document(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> UploadedDocument:
-    response = await (
-        supabase.rpc(
-            "set_primary_uploaded_document",
-            {"p_user_id": current_user.id, "p_document_id": document_id},
+    try:
+        response = await (
+            supabase.rpc(
+                "set_primary_uploaded_document",
+                {"p_user_id": current_user.id, "p_document_id": document_id},
+            )
+            .execute()
         )
-        .execute()
-    )
+    except APIError as exc:
+        # La función SQL levanta una excepción si el documento no existe, no es un CV o
+        # es de otra persona: para quien pregunta es lo mismo, un 404. Cualquier otro
+        # error (por ejemplo un id mal formado) sigue su camino habitual.
+        if exc.code != RAISED_EXCEPTION:
+            raise
+        raise _document_not_found() from exc
     document = getattr(response, "data", None)
     if not isinstance(document, dict):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "Documento no encontrado",
-                "code": "DOCUMENT_NOT_FOUND",
-                "details": {},
-            },
-        )
+        raise _document_not_found()
 
     task_id = parsing_tasks.enqueue_parse_cv(document_id, current_user.id)
     document["task_id"] = task_id
