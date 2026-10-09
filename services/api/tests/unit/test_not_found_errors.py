@@ -20,7 +20,7 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
-from tests.fakes import FakeResponse, FakeSupabase, FakeTableQuery
+from tests.fakes import FakeResponse, FakeRpcQuery, FakeSupabase, FakeTableQuery
 
 
 async def _fake_current_user() -> CurrentUser:
@@ -53,6 +53,11 @@ def fake_supabase() -> Iterator[FakeSupabase]:
         ("get", "/api/v1/ats/no-existe", "JOB_NOT_FOUND"),
         ("get", "/api/v1/interview-kits/no-existe", "INTERVIEW_KIT_NOT_FOUND"),
         ("delete", "/api/v1/profiles/documents/no-existe", "DOCUMENT_NOT_FOUND"),
+        (
+            "patch",
+            "/api/v1/profiles/documents/no-existe/set-primary",
+            "DOCUMENT_NOT_FOUND",
+        ),
     ],
 )
 def test_unknown_resource_returns_404_with_error_format(
@@ -69,6 +74,38 @@ def test_unknown_resource_returns_404_with_error_format(
     body = response.json()
     assert body["code"] == code
     assert set(body) == {"error", "code", "details"}
+
+
+@pytest.mark.parametrize(
+    ("sqlstate", "status_code", "code"),
+    [
+        # Lo que la función SQL levanta cuando el documento no es de la persona: 404.
+        ("P0001", 404, "DOCUMENT_NOT_FOUND"),
+        # Un id mal formado sigue siendo un dato inválido del cliente.
+        ("22P02", 400, "VALIDATION_ERROR"),
+        # Cualquier otra falla de la base no se disfraza de 404.
+        ("XX000", 500, "INTERNAL_ERROR"),
+    ],
+)
+def test_set_primary_only_turns_the_raised_exception_into_a_404(
+    client: TestClient,
+    fake_supabase: FakeSupabase,
+    monkeypatch: pytest.MonkeyPatch,
+    sqlstate: str,
+    status_code: int,
+    code: str,
+) -> None:
+    error = APIError(
+        {"message": "falla", "code": sqlstate, "hint": None, "details": None}
+    )
+    monkeypatch.setattr(
+        fake_supabase, "rpc", lambda _name, _params: FakeRpcQuery(None, error=error)
+    )
+
+    response = client.patch("/api/v1/profiles/documents/doc-1/set-primary")
+
+    assert response.status_code == status_code
+    assert response.json()["code"] == code
 
 
 def test_match_report_is_found_by_job_id(

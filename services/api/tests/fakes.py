@@ -162,11 +162,21 @@ class FakeTableQuery:
         return FakeResponse(matching_rows)
 
 
+def _raised_exception(message: str) -> APIError:
+    """Error de PostgREST cuando una función SQL hace RAISE EXCEPTION (P0001)."""
+    return APIError(
+        {"message": message, "code": "P0001", "hint": None, "details": None}
+    )
+
+
 class FakeRpcQuery:
-    def __init__(self, data: Any) -> None:
+    def __init__(self, data: Any, error: APIError | None = None) -> None:
         self.data = data
+        self.error = error
 
     async def execute(self) -> FakeResponse:
+        if self.error is not None:
+            raise self.error
         return FakeResponse(self.data)
 
 
@@ -250,7 +260,10 @@ class FakeSupabase:
                 selected_document["is_primary"] = True
                 selected_document["status"] = "pending"
                 return FakeRpcQuery(selected_document.copy())
-            return FakeRpcQuery(None)
+            # La función real (migración 023) no devuelve vacío: levanta la excepción.
+            return FakeRpcQuery(
+                None, error=_raised_exception("Document not found or not a CV")
+            )
 
         if function_name != "compute_completeness":
             return FakeRpcQuery(None)
