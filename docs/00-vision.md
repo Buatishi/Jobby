@@ -91,8 +91,10 @@ sanitizados). La cola queda como ampliación posible si se paga un worker.
 - `tests/integration/`: peticiones HTTP contra un proyecto Supabase de pruebas
   (Decisión 4); fallan cerradas si faltan `TEST_SUPABASE_*`.
 - El orden de los tests cambia en cada corrida (`pytest-randomly`).
-- Errores deliberados: `python -m tests.deliberate_bugs` altera once reglas de a una y cada
-  alteración hace fallar alguna prueba (11 de 11 desde el 2026-09-24; eran 5).
+- Errores deliberados: `python -m tests.deliberate_bugs` altera diecisiete reglas de a una y
+  cada alteración hace fallar alguna prueba (17 de 17 desde el 2026-10-12; las once primeras
+  pasaron de 5 a 11 detectadas el 2026-09-24, y las seis nuevas quitan el filtro de dueño de
+  una consulta por identificador).
 - Acceso entre dos personas: `test_cross_user_access.py` pide cada ruta con un identificador
   como persona ajena (404 igual al de un recurso inexistente, sin datos ni cambios) y como
   dueña (control); un inventario por OpenAPI falla si aparece una ruta sin sesión o sin caso.

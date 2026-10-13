@@ -991,8 +991,10 @@ con OpenAPI falla si aparece una ruta sin sesión o sin caso: hoy hay 33 operaci
 firma. Se comprobó que la matriz detecta el fallo quitando a propósito el filtro de dueño de
 cada consulta (puestos, comparaciones, kits, ATS y documentos): cada vez se puso en rojo, salvo
 `PATCH /jobs/{id}`, cuyo `UPDATE` vuelve a filtrar por `user_id` y responde 404 igual (defensa en
-profundidad). Esa comprobación fue manual; sumarla a `tests/deliberate_bugs.py` queda como
-propuesta aparte.
+profundidad). Esa comprobación se hizo primero a mano y después se sumó a
+`tests/deliberate_bugs.py` como M12 a M17 (17 de 17 detectadas). Al hacerlo apareció un hueco de
+la propia matriz: nadie pedía una comparación por el id del puesto como persona ajena, así que
+quitar ese filtro (M14) no ponía nada en rojo. Ahora tiene sus casos.
 
 **Dependencia (#66).** `multidict` 6.7.1 pierde referencias al unir o restar vistas de items
 (alerta 82 de Dependabot). Llega por `yarl` a `postgrest`, `storage3` y `supabase`, o sea que
