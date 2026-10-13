@@ -165,10 +165,11 @@ repetir un orden, `poetry run pytest --randomly-seed=<semilla>`, con la semilla 
 principio de la salida.
 
 Prueba de errores deliberados (consigna 3.7.7): `poetry run python -m tests.deliberate_bugs`
-altera de a una once reglas de negocio (pesos del Match Score, límites por plan, dueño de las
-tareas, firma del webhook, guarda anti-SSRF y otras), corre las pruebas unitarias con cada una y
-restaura el código. Tarda unos tres minutos y cada alteración tiene que hacer fallar alguna
-prueba: hoy se detectan las once (el 2026-09-21 eran cinco).
+altera de a una diecisiete reglas (pesos del Match Score, límites por plan, dueño de las tareas y
+de cada recurso que se pide por identificador, firma del webhook, guarda anti-SSRF y otras),
+corre las pruebas unitarias con cada una y restaura el código. Tarda unos tres minutos y cada
+alteración tiene que hacer fallar alguna prueba: hoy se detectan las diecisiete (el 2026-09-21,
+de las once primeras, eran cinco).
 
 Tipos compartidos (desde `packages/shared-types`): `pnpm build`.
 

@@ -75,10 +75,13 @@ class AccessCase:
     # Solo cuando la dueña tampoco recibe un éxito: el código distingue su respuesta de
     # la de la persona ajena (en ATS, la dueña no tiene CV primario cargado).
     owner_code: str | None = None
+    # Distingue dos casos de la misma ruta (por ejemplo, otro identificador).
+    variant: str = ""
 
     @property
     def label(self) -> str:
-        return f"{self.method} {self.template}"
+        suffix = f" ({self.variant})" if self.variant else ""
+        return f"{self.method} {self.template}{suffix}"
 
 
 CASES = [
@@ -93,6 +96,12 @@ CASES = [
     AccessCase("PATCH", "/api/v1/matches/{match_id}/rating",
                "/api/v1/matches/match-2/rating", "MATCH_NOT_FOUND", 200,
                body={"rating": 1}),
+    # La comparación también se pide con el id del puesto (así lo hace la web).
+    AccessCase("GET", "/api/v1/matches/{match_id}", f"/api/v1/matches/{JOB_ID}",
+               "MATCH_NOT_FOUND", 200, variant="id del puesto"),
+    AccessCase("PATCH", "/api/v1/matches/{match_id}/rating",
+               f"/api/v1/matches/{JOB_ID}/rating", "MATCH_NOT_FOUND", 200,
+               body={"rating": 1}, variant="id del puesto"),
     AccessCase("GET", "/api/v1/interview-kits/{kit_id}", "/api/v1/interview-kits/kit-2",
                "INTERVIEW_KIT_NOT_FOUND", 200),
     AccessCase("PATCH", "/api/v1/interview-kits/{kit_id}/rating",

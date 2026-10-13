@@ -6,7 +6,10 @@ siempre, aunque la corrida se interrumpa. Uso, desde services/api:
 
     poetry run python -m tests.deliberate_bugs
 
-Son las once alteraciones de la prueba del 2026-09-21, que entonces detectó cinco.
+Las once primeras son las de la prueba del 2026-09-21, que entonces detectó cinco.
+De M12 a M17 (2026-10-12) cada una quita el filtro de dueño de una consulta por
+identificador: son las que la matriz de acceso entre dos personas
+(`tests/unit/test_cross_user_access.py`) tiene que detectar.
 """
 
 import subprocess
@@ -107,6 +110,56 @@ BUGS = (
         "app/services/scraper/url_guard.py",
         "_ALLOWED_PORTS = {None, 80, 443}",
         "_ALLOWED_PORTS = {None, 22, 80, 443}",
+    ),
+    DeliberateBug(
+        "M12",
+        "Dueño del puesto al consultarlo (se ve el de cualquiera)",
+        "app/api/v1/jobs.py",
+        '        .eq("id", job_id)\n'
+        '        .eq("user_id", user_id)\n'
+        "        .maybe_single()",
+        '        .eq("id", job_id)\n'
+        "        .maybe_single()",
+    ),
+    DeliberateBug(
+        "M13",
+        "Dueño de la comparación pedida por su id (se ve la de cualquiera)",
+        "app/api/v1/matches.py",
+        '        .eq("id", match_or_job_id)\n'
+        '        .eq("user_id", user_id)',
+        '        .eq("id", match_or_job_id)',
+    ),
+    DeliberateBug(
+        "M14",
+        "Dueño de la comparación pedida por el id del puesto (la de cualquiera)",
+        "app/api/v1/matches.py",
+        '        .eq("job_id", match_or_job_id)\n'
+        '        .eq("user_id", user_id)',
+        '        .eq("job_id", match_or_job_id)',
+    ),
+    DeliberateBug(
+        "M15",
+        "Dueño del kit de entrevista (se ve el de cualquiera)",
+        "app/api/v1/interview_kits.py",
+        '        .eq("id", kit_id)\n'
+        '        .eq("user_id", user_id)',
+        '        .eq("id", kit_id)',
+    ),
+    DeliberateBug(
+        "M16",
+        "Dueño del puesto en el reporte ATS (se analiza el de cualquiera)",
+        "app/api/v1/ats.py",
+        '        .eq("id", job_id)\n'
+        '        .eq("user_id", user_id)',
+        '        .eq("id", job_id)',
+    ),
+    DeliberateBug(
+        "M17",
+        "Dueño del documento al consultarlo (uno ajeno no da 404)",
+        "app/api/v1/profiles.py",
+        '        .eq("id", document_id)\n'
+        '        .eq("user_id", user_id)',
+        '        .eq("id", document_id)',
     ),
 )
 

@@ -60,8 +60,9 @@ La propuesta de la semana 1 ([00-propuesta.md](00-propuesta.md)) listó seis inc
 - **Errores y validación:** 404 para lo que no existe y 400 para los datos inválidos (#13), también
   cuando la base rechaza un id mal formado (#27, Decisión 8).
 - **Pruebas:** orden aleatorio en cada corrida y una prueba de errores deliberados que hoy detecta
-  las 11 alteraciones de reglas de negocio (eran 5) (#28). Las pruebas unitarias de la API pasaron de
-  unos 63 s a 3 s (#29). Al 2026-10-12 son 347 pruebas de la API (334 unitarias y 13 de
+  las 11 alteraciones de reglas de negocio (eran 5) (#28) y, desde el 2026-10-12, seis más de dueño del recurso.
+  Las pruebas unitarias de la API pasaron de
+  unos 63 s a 3 s (#29). Al 2026-10-12 son 351 pruebas de la API (338 unitarias y 13 de
   integración, cobertura del 85 %) y 185 de la web.
 - **Rendimiento y operación:** arranque en frío mitigado con precalentamiento y reintentos de lectura
   (#5, Decisión 14); tareas en proceso mientras no haya un worker pago (#6, Decisión 15); reporte ATS
