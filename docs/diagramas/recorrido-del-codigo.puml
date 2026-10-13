@@ -1,6 +1,7 @@
 @startuml
 ' Recorrido del código hasta producción. Verificado contra .github/workflows/ci.yml, render.yaml, apps/web/vercel.json,
 ' la protección de main, el historial de Actions y los despliegues de Render y Vercel (2026-09-24).
+' La nota 5e, contra security.yml y su historial de ejecuciones (2026-10-12).
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 13
@@ -41,6 +42,12 @@ Evento: push a main; <<#D6E2F3>>
 Web: typecheck, lint, tests y build
 API: mypy, ruff, tests y cobertura con corte del 65 %
 Tipos compartidos: build; <<#D6E2F3>>
+note right
+  **5e · Seguridad** (security.yml), aparte del CI
+  Evento: pull_request, push a main y los lunes
+  gitleaks, Semgrep y Trivy, sin secretos
+  No frena el despliegue ni es obligatorio para el merge
+end note
 if (¿Pasan los tres trabajos?) then (sí)
   :**5d · Despliegue** (mismo ci.yml)
   Depende (needs) de los tres trabajos
