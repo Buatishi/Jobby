@@ -14,6 +14,9 @@ from packaging.version import Version
         ("PyJWT", "2.15"),
         # urllib3 2.8 corrige memoria sin límite al leer respuestas por trozos.
         ("urllib3", "2.8"),
+        # multidict 6.9.1 corrige una fuga de referencias en la unión y la resta de las
+        # vistas de items (alerta de Dependabot 82); la pide yarl, no el código propio.
+        ("multidict", "6.9.1"),
     ],
 )
 def test_security_sensitive_dependencies_keep_their_minimum_version(
