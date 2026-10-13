@@ -964,3 +964,50 @@ falta repasar la consola con una sesión iniciada y, después, usar nonces); cor
 usuario sin privilegios y agregar un `HEALTHCHECK` en el `Dockerfile` (requiere probar la imagen
 en Render); `braces` y `postcss-selector-parser` 6.x solo corren al compilar y no tienen
 versión corregida compatible.
+
+## Actualización — Decisión 28 (2026-10-12)
+
+**Estado:** Ampliada, con aprobación del autor, que pidió seguir con todo lo que mejore la
+seguridad y la calidad mientras pueda defenderse.
+
+La segunda tanda de la revisión encontró un hueco, lo cerró y dejó una protección contra su
+regreso.
+
+**Hallazgo (#64).** `PATCH /profiles/documents/{id}/set-primary` delega la verificación de dueño
+en la función SQL `set_primary_uploaded_document`, que levanta una excepción (`P0001`) si el
+documento no existe, no es un CV o es de otra persona. La API no la atrapaba: respondía 500
+`INTERNAL_ERROR` y mandaba un evento a Sentry. No hubo fuga ni cambios, porque la función filtra
+por `user_id` y su permiso de ejecución está cerrado a `anon` y `authenticated`; pero la respuesta
+no seguía el contrato (un recurso ajeno responde igual que uno inexistente) y cada intento
+ensuciaba el registro de errores. Ninguna prueba lo veía porque el simulador devolvía vacío donde
+la función real levanta; ahora levanta igual. Solo `P0001` pasa a 404 `DOCUMENT_NOT_FOUND`: un id
+mal formado (`22P02`) sigue siendo 400 y cualquier otra falla de la base sigue siendo 500.
+
+**Matriz de acceso (#65).** `tests/unit/test_cross_user_access.py` pide las 12 rutas con
+identificador como persona ajena (404, sin datos, sin cambios, sin trabajo encolado y sin gastar
+cupo) y como dueña (control, para que el 404 no sea un error de la prueba). Un inventario hecho
+con OpenAPI falla si aparece una ruta sin sesión o sin caso: hoy hay 33 operaciones con sesión y
+3 públicas a propósito, los dos `/health` y el webhook de LemonSqueezy, que se autentica por
+firma. Se comprobó que la matriz detecta el fallo quitando a propósito el filtro de dueño de
+cada consulta (puestos, comparaciones, kits, ATS y documentos): cada vez se puso en rojo, salvo
+`PATCH /jobs/{id}`, cuyo `UPDATE` vuelve a filtrar por `user_id` y responde 404 igual (defensa en
+profundidad). Esa comprobación fue manual; sumarla a `tests/deliberate_bugs.py` queda como
+propuesta aparte.
+
+**Dependencia (#66).** `multidict` 6.7.1 pierde referencias al unir o restar vistas de items
+(alerta 82 de Dependabot). Llega por `yarl` a `postgrest`, `storage3` y `supabase`, o sea que
+está en cada consulta a la base. Poetry resolvía a la 7.0.0, una versión mayor publicada el
+2026-09-26 y sin revisar: se descartó y se fijó la 6.9.1, el parche mínimo, con el techo `<7` en
+`pyproject.toml` y un caso en `test_dependency_floor.py`. El techo se sube cuando se revise la 7.
+
+**Verificado en producción (solo metadatos, 2026-10-08).** Ninguna de las seis funciones de
+`public` es ejecutable por `anon` ni `authenticated`, como indican las migraciones. Los avisos de
+Supabase son dos: `roles` y `role_permissions` tienen RLS sin políticas, a propósito (cerradas a
+la clave pública, Decisión 20), y la protección contra contraseñas filtradas está desactivada.
+Esta última es un ajuste de Auth que decide el autor: según la documentación de Supabase está
+disponible desde el plan Pro, así que cuenta contra el tope de USD 20 por mes.
+
+**Alertas abiertas de Dependabot.** `braces` (alta) no tiene versión corregida y
+`postcss-selector-parser` 6.x solo tiene parche en la 7. Ambas llegan por `tailwindcss` 3.4.19
+(y `braces` también por `eslint-config-next`), herramientas de compilación y de lint que no se
+ejecutan al atender pedidos.
