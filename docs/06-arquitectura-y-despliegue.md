@@ -4,7 +4,7 @@ Estado: Etapa 1. Verificado del 2026-09-21 al 2026-09-24 contra `apps/web` (`nex
 `lib/api/client.ts`, `lib/supabase`), `services/api` (`main.py`, `config.py`, `Dockerfile`),
 `render.yaml`, `.github/workflows/`, `docker-compose.yml`, el README y comprobaciones de solo
 lectura sobre producción. De los paneles de Vercel, Render y Supabase se documentan solo los
-**nombres** de las variables, nunca sus valores.
+**nombres** de las variables, nunca sus valores. La etapa 5e se verificó el 2026-10-12.
 
 ## 1. Componentes y dónde corre cada uno
 
@@ -93,6 +93,7 @@ y llegan al navegador; por eso nunca contienen secretos.
 | 5b. Render | Deploy hook del paso 5d | Construye la imagen y despliega `jobmatch-api`. El servicio heredado sigue desplegando en cada push hasta que se suspenda. | Funciona desde el 2026-09-24: el despliegue automático está apagado y cada deploy figura como disparado por el hook |
 | 5c. Vercel | Deploy hook del paso 5d | Construye `main` como producción y lo publica en `jobbyweb.vercel.app`. `apps/web/vercel.json` apaga los builds automáticos de `main`; las otras ramas siguen generando vistas previas. | Funciona desde el 2026-09-24, con `main` como rama de producción |
 | 5d. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Funciona: el 2026-09-24 (PR #21) llamó a los dos después de los tres trabajos en verde |
+| 5e. Seguridad (`security.yml`) | `pull_request` y `push` a `main`, y los lunes (`schedule`) | Tres trabajos en paralelo: gitleaks (secretos en todo el historial), Semgrep (análisis estático del código de la API y de la web) y Trivy (vulnerabilidades altas y críticas con corrección en `poetry.lock` y `pnpm-lock.yaml`). Es un workflow aparte del CI: no usa secretos (`contents: read`), no llama a los deploy hooks y no frena un despliegue. | Funciona desde el 2026-10-08 (PR #63); la ejecución programada corrió el 2026-10-12. No es un chequeo obligatorio de la protección de `main`, que exige solo los tres trabajos del CI |
 | 6. Producción | — | Web y API por HTTPS. | Funciona |
 
 El circuito quedó cerrado el 2026-09-24 (Decisión 6): Render tiene el despliegue automático
@@ -100,6 +101,10 @@ apagado, Vercel toma `main` como rama de producción sin builds automáticos, y 
 solo cuando los llama el paso 5d, que corre únicamente si los tres trabajos del CI pasan. Un
 detalle de Vercel: si el dominio público se asigna a mano (por ejemplo en un rollback), la
 asignación automática queda apagada hasta que se promueve un deployment.
+
+El workflow «Security» (5e) no forma parte de ese circuito: un aviso nuevo de una dependencia
+no debe frenar un despliegue ni mezclarse con el pipeline de cobro (Decisión 28). Por eso sus
+resultados se ven en el pull request, pero no bloquean el merge.
 
 La evidencia de una ejecución fallida con su corrección ya está en el historial del pipeline
 (rama `ci/verificacion-del-corte`, 2026-09-22): se bajó a propósito el mínimo de perfil de
