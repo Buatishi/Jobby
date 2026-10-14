@@ -5,7 +5,10 @@ from app.services.match_engine.common import clamp
 from app.services.match_engine.s_company import compute_company_score
 from app.services.match_engine.s_education import compute_education_score
 from app.services.match_engine.s_languages import compute_languages_score
-from app.services.match_engine.s_relevance import compute_relevance
+from app.services.match_engine.s_relevance import (
+    build_profile_text,
+    compute_relevance,
+)
 from app.services.match_engine.s_seniority import compute_seniority_score
 from app.services.match_engine.s_skills import (
     compute_skills_score,
@@ -143,7 +146,12 @@ async def compute_match_score(profile_id: str, job_id: str, db: Any) -> MatchRes
     soft_result = compute_soft_score(profile, experiences, job)
     await _cache_soft_skills(db, profile_id, profile, soft_result["detected"])
 
-    relevance = compute_relevance(profile_skills, job, skills_result)
+    relevance = compute_relevance(
+        profile_skills,
+        job,
+        skills_result,
+        build_profile_text(profile, profile_skills, experiences),
+    )
 
     scores = {
         "skills": float(skills_result["score"]),

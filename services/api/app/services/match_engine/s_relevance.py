@@ -8,6 +8,11 @@ de chef sumaba ~52 puntos solo por «no pedir inglés» y por coincidir en la mo
 La relevancia mide cuánto del puesto cae en lo que la persona sabe hacer y multiplica
 el puntaje: sin ninguna coincidencia queda en `RELEVANCE_FLOOR`; con
 `FULL_RELEVANCE_AT` de las skills pedidas ya es del área y el puntaje no cambia.
+
+Una skill pedida cuenta si está en las filas de `skills` o si el perfil la nombra
+(headline, rol, bio, cargos y logros). Con solo las filas, quien tiene pocas skills
+cargadas pero las nombra en su bio parecía de otra área: un puesto de su propio rubro
+perdía la mitad del puntaje.
 """
 
 import re
@@ -27,6 +32,34 @@ FULL_RELEVANCE_AT = 0.4
 TEXT_MENTIONS_FOR_FULL = 4
 
 
+def build_profile_text(
+    profile: dict[str, Any],
+    profile_skills: list[dict[str, Any]],
+    experiences: list[dict[str, Any]],
+) -> str:
+    """Todo lo que la persona dice de sí misma, para buscar en él las skills pedidas."""
+    parts: list[Any] = [
+        profile.get("headline"),
+        profile.get("target_role"),
+        profile.get("summary"),
+    ]
+    parts.extend(skill.get("name") for skill in profile_skills)
+    for experience in experiences:
+        parts.append(experience.get("title"))
+        parts.append(experience.get("description"))
+        achievements = experience.get("achievements")
+        if isinstance(achievements, list):
+            parts.extend(achievements)
+    return fold(" ".join(str(part) for part in parts if part))
+
+
+def _mentions(text: str, term: str) -> bool:
+    """Palabra o frase completa: «sql» no cuenta dentro de «mysql»."""
+    if len(term) < 2:
+        return False
+    return re.search(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", text) is not None
+
+
 def _job_text(job: dict[str, Any]) -> str:
     parts = [
         job.get("job_title"),
@@ -40,22 +73,33 @@ def _mentioned_skills(profile_skills: list[dict[str, Any]], job_text: str) -> in
     mentioned: set[str] = set()
     for skill in profile_skills:
         name = fold(str(skill.get("name") or ""))
-        if len(name) < 2 or name in mentioned or not is_meaningful_name(name):
+        if name in mentioned or not is_meaningful_name(name):
             continue
-        # Palabra o frase completa: «sql» no cuenta dentro de «mysql».
-        if re.search(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])", job_text):
+        if _mentions(job_text, name):
             mentioned.add(name)
     return len(mentioned)
+
+
+def _named_required_skills(required: list[str], profile_text: str) -> float:
+    names = {fold(name) for name in required}
+    names.discard("")
+    if not names or not profile_text:
+        return 0.0
+    return sum(_mentions(profile_text, name) for name in names) / len(names)
 
 
 def compute_relevance(
     profile_skills: list[dict[str, Any]],
     job: dict[str, Any],
     skills_result: dict[str, Any],
+    profile_text: str = "",
 ) -> dict[str, Any]:
-    if required_skill_names(job):
-        evidence = float(skills_result["score"])
-        source = "skills"
+    required = required_skill_names(job)
+    if required:
+        from_rows = float(skills_result["score"])
+        from_text = _named_required_skills(required, profile_text)
+        evidence = max(from_rows, from_text)
+        source = "skills" if from_rows >= from_text else "profile_text"
     else:
         text = _job_text(job)
         if not normalize_text(text):
