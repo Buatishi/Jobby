@@ -1145,8 +1145,15 @@ otra persona no se ve afectada; los pedidos rechazados no crean claves; y premiu
 51.º da 429. Con Redis detenido o colgado (nombre que no resuelve, dirección que no responde, o
 un puerto que acepta y calla) la carga responde 201 con el aviso en el registro, en unos 4 a 5 s
 contra 0,3 s con Redis sano: es el tiempo límite por defecto de redis-py 8 (5 s) y una prueba
-avisa si una actualización lo cambia. En producción solo se comprobó que el deploy quedó `live`
-en ese commit, `/health` 200, las 7 rutas de escritura con 401 sin sesión y ningún error ni
-advertencia en los registros. El 429 y el 400 con una sesión real no se probaron allí: exige
-iniciar sesión y, para el 429, registrar 11 documentos reales en la cuenta, que reemplazan el CV
-y encolan parseos con IA.
+avisa si una actualización lo cambia. En producción se comprobó que el deploy quedó `live` en
+ese commit, `/health` 200, las 7 rutas de escritura con 401 sin sesión y ningún error ni
+advertencia en los registros.
+
+**Verificación en vivo del 400 (2026-10-14).** Con la sesión del autor abierta en el panel del
+navegador, el formulario del paso 4 del asistente envió un único `POST /profiles/experiences` con
+la empresa en 222 caracteres. Producción respondió 400 `VALIDATION_ERROR` con
+`string_too_long` en `body.company` y `max_length: 200`, la web mostró «Datos de entrada
+inválidos» y no se escribió nada. El 429 no se probó en vivo, a propósito: exige registrar 11
+documentos reales en la cuenta, que reemplazan el CV, encolan parseos con IA y la dejan sin poder
+cargar CV hasta las 00:00 UTC. Su comportamiento quedó verificado con la imagen del commit
+desplegado y un Redis real (arriba) y con las pruebas.
