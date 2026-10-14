@@ -1153,7 +1153,26 @@ advertencia en los registros.
 navegador, el formulario del paso 4 del asistente envió un único `POST /profiles/experiences` con
 la empresa en 222 caracteres. Producción respondió 400 `VALIDATION_ERROR` con
 `string_too_long` en `body.company` y `max_length: 200`, la web mostró «Datos de entrada
-inválidos» y no se escribió nada. El 429 no se probó en vivo, a propósito: exige registrar 11
-documentos reales en la cuenta, que reemplazan el CV, encolan parseos con IA y la dejan sin poder
-cargar CV hasta las 00:00 UTC. Su comportamiento quedó verificado con la imagen del commit
-desplegado y un Redis real (arriba) y con las pruebas.
+inválidos» y no se escribió nada. El 429 se intentó en vivo en un segundo paso, sin registrar
+documentos reales: ver el párrafo siguiente.
+
+**Verificación en vivo del tope: el Redis de producción no responde (2026-10-14).** Para probar el
+429 sin crear filas ni parseos con IA se enviaron 12 pedidos a `POST /profiles/documents` con un
+`file_size` fuera de rango (3 000 000 000) y la sesión del autor: pasan la ruta y el perfil, el
+contador sube y la base rechaza la inserción (`22003`, visible en el registro de Render), así que
+no se guardó ninguna fila. Los 12 respondieron 500 y ninguno 429. El registro de Render dice por
+qué: en cada pedido aparece `No se pudo comprobar el tope de cargas de documentos: Connection
+closed by server.`. Redis rechaza la conexión y el tope dejó pasar el pedido, como está diseñado
+(deja pasar y reporta), de modo que en producción el tope está desplegado pero no puede actuar
+mientras Redis no responda. Como no respondió, el contador no se movió y la cuenta no quedó
+bloqueada. La causa probable es ambiental: `REDIS_URL` apunta a Upstash (README y `docs/06`), y su
+plan gratuito archiva la base tras 30 días sin actividad (regla operativa de
+`docs/operacion/arranque-en-frio.md`). No se pudo confirmar: el valor de `REDIS_URL` es secreto y
+no hay ninguna instancia de Key Value en Render. El cliente es el mismo para los demás topes:
+puestos (plan free), ATS, kits y optimizador del CV llaman a `increment_rate_limit` sin tolerar la
+caída, así que es de esperar un 500 en esos pedidos (no se comprobó en vivo: todos exigen un puesto
+o un perfil completo y crearían datos). La redis-py es la misma 8.0.1 desde el 2026-06-28, así que
+no es un cambio de librería. Corregirlo es una acción del autor en Upstash (restaurar la base o
+crear otra) y, si cambia la URL, actualizar `REDIS_URL` en Render; no requiere código. Con Redis
+de vuelta se repite la misma prueba de 11 pedidos y el 11.º debe dar 429. Costo de la prueba: hasta
+24 eventos en Sentry (12 del aviso de Redis y 12 del rechazo de la base).
