@@ -24,6 +24,7 @@ from app.models.reality_gap import RealityGapReport, RealityGapSkill
 from app.services.account_deletion import capture_exception
 from app.services.cv_parser.merge_logic import normalize_skill_key
 from app.services.printable_cv import build_printable_cv
+from app.services.profile_completeness import refresh_completeness
 from app.services.rate_limits import (
     RateLimitExceededError,
     RateLimitKind,
@@ -150,8 +151,19 @@ async def _fetch_document(
     return data
 
 
-async def _update_completeness(supabase: Any, profile_id: str) -> None:
-    await supabase.rpc("compute_completeness", {"p_id": profile_id}).execute()
+async def _update_completeness(supabase: Any, profile_id: str) -> int | None:
+    """Recalcula y guarda el porcentaje del perfil.
+
+    Corre después de una escritura que ya se hizo: si el recálculo falla se reporta y se
+    sigue, y el valor se corrige en el próximo cambio. Antes el RPC devolvía el número y
+    nadie lo guardaba, así que el porcentaje solo se actualizaba al editar el perfil.
+    """
+    try:
+        return await refresh_completeness(supabase, profile_id)
+    except Exception as exc:
+        logger.warning("No se pudo recalcular el porcentaje del perfil: %s", exc)
+        capture_exception(exc)
+        return None
 
 
 async def _prepare_cv_slot_for_insert(
@@ -320,23 +332,9 @@ async def update_my_profile(
         else:
             profile = {**profile, **updates}
 
-    rpc_response = await supabase.rpc(
-        "compute_completeness",
-        {"p_id": profile["id"]},
-    ).execute()
-    completeness = getattr(rpc_response, "data", None)
-    if isinstance(completeness, int):
-        completion_response = (
-            await supabase.table("master_profiles")
-            .update({"completeness_pct": completeness})
-            .eq("id", profile["id"])
-            .execute()
-        )
-        completion_data = getattr(completion_response, "data", None)
-        if isinstance(completion_data, list) and completion_data:
-            profile = completion_data[0]
-        else:
-            profile = {**profile, "completeness_pct": completeness}
+    completeness = await _update_completeness(supabase, str(profile["id"]))
+    if completeness is not None:
+        profile = {**profile, "completeness_pct": completeness}
 
     return MasterProfile.model_validate(profile)
 

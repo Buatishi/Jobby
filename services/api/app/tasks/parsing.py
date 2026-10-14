@@ -7,12 +7,14 @@ from typing import Any
 from app.core.public_errors import public_error_message
 from app.core.task_ids import new_task_id
 from app.database import get_supabase_client
+from app.services.account_deletion import capture_exception
 from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
     extract_pdf_text,
     merge_parsed_skills,
     structure_cv_text,
 )
+from app.services.profile_completeness import refresh_completeness
 from app.tasks import celery_app
 from app.tasks.local_fallback import enqueue_local_task, is_local_mode
 
@@ -160,10 +162,13 @@ async def run_parse_cv(
             .update({"status": "done", "parsed_data": parsed_data, "error_msg": None})
             .eq("id", document_id)
         )
-        await supabase_client.rpc(
-            "compute_completeness",
-            {"p_id": document["profile_id"]},
-        ).execute()
+        try:
+            await refresh_completeness(supabase_client, str(document["profile_id"]))
+        except Exception as exc:
+            # El CV ya quedó leído y guardado: un fallo del recálculo no lo marca como
+            # fallido. El porcentaje se corrige en el próximo cambio del perfil.
+            logger.warning("No se pudo recalcular el porcentaje del perfil: %s", exc)
+            capture_exception(exc)
         return parsed_data
     except Exception as exc:
         logger.exception("CV parsing failed for document %s", document_id)

@@ -5,6 +5,7 @@ from app.services.match_engine.common import clamp
 from app.services.match_engine.s_company import compute_company_score
 from app.services.match_engine.s_education import compute_education_score
 from app.services.match_engine.s_languages import compute_languages_score
+from app.services.match_engine.s_relevance import compute_relevance
 from app.services.match_engine.s_seniority import compute_seniority_score
 from app.services.match_engine.s_skills import (
     compute_skills_score,
@@ -142,6 +143,8 @@ async def compute_match_score(profile_id: str, job_id: str, db: Any) -> MatchRes
     soft_result = compute_soft_score(profile, experiences, job)
     await _cache_soft_skills(db, profile_id, profile, soft_result["detected"])
 
+    relevance = compute_relevance(profile_skills, job, skills_result)
+
     scores = {
         "skills": float(skills_result["score"]),
         "seniority": seniority_score,
@@ -150,7 +153,9 @@ async def compute_match_score(profile_id: str, job_id: str, db: Any) -> MatchRes
         "company": company_result["score"],
         "soft": soft_result["score"],
     }
-    match_score = _weighted_score(scores)
+    # Un puesto de otra área no suma por «no pedir inglés» ni por la modalidad.
+    match_score = round(_weighted_score(scores) * relevance["score"])
+    # El potencial es «si cerraras la brecha de skills»: no se atenúa por área.
     potential_scores = {**scores, "skills": 1.0}
     potential_score = max(match_score, _weighted_score(potential_scores))
     representation_score = _representation_score(profile_skills, documents)
@@ -158,6 +163,7 @@ async def compute_match_score(profile_id: str, job_id: str, db: Any) -> MatchRes
 
     score_breakdown = {
         "sub_scores": scores,
+        "relevance": relevance,
         "skills": skills_result,
         "company": company_result,
         "soft": soft_result,

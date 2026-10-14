@@ -1,7 +1,12 @@
 import pytest
 
-from app.services.match_engine import compute_match_score
+from app.services.match_engine import MatchResult, compute_match_score
 from app.services.match_engine.formula import _weighted_score
+from app.services.match_engine.s_relevance import (
+    FULL_RELEVANCE_AT,
+    RELEVANCE_FLOOR,
+    compute_relevance,
+)
 from app.tasks.matching import run_match
 from tests.fakes import FakeSupabase
 
@@ -194,6 +199,193 @@ async def test_run_match_persists_full_score_breakdown() -> None:
     assert match["ai_model_used"] == "deepseek-chat"
     assert match["recommendations"]
     assert db.tables["job_matches"][0]["score_breakdown"]["sub_scores"]["skills"] == 1.0
+
+
+# --- relevancia del área: un CV de sistemas no sirve para un puesto de chef --------
+
+SYSTEMS_VECTOR = [0.0, 0.0, 1.0]
+COOKING_VECTOR = [0.0, 1.0, 0.0]
+
+
+def _systems_candidate(db: FakeSupabase) -> None:
+    """Perfil senior de sistemas: sin ningún componente genérico en contra."""
+    db.tables["master_profiles"] = [
+        {
+            "id": "p1",
+            "user_id": "u1",
+            "target_seniority": "senior",
+            "work_modality": "onsite",
+            "target_industry": [],
+            "inferred_soft_skills": [],
+        }
+    ]
+    db.tables["skills"] = [
+        {
+            "id": f"s{index}",
+            "profile_id": "p1",
+            "name": name,
+            "category": "technical",
+            "confirmed": True,
+            "in_cv": True,
+            "embedding": None,
+        }
+        for index, name in enumerate(["python", "sql", "docker", "aws", "linux"])
+    ]
+    db.tables["educations"] = [
+        {
+            "id": "e1",
+            "profile_id": "p1",
+            "field_of_study": "Ingenieria en Sistemas",
+            "degree_level": "bachelor",
+        }
+    ]
+    db.tables["languages"] = [
+        {"id": "l1", "profile_id": "p1", "name": "english", "proficiency": "advanced"}
+    ]
+
+
+def _posting(job_id: str, **overrides: object) -> dict[str, object]:
+    return {
+        "id": job_id,
+        "user_id": "u1",
+        "job_title": "Chef ejecutivo",
+        "raw_text": None,
+        "required_seniority": "senior",
+        "required_modality": "onsite",
+        "industry": "gastronomia",
+        "tech_stack": [],
+        "required_skills": ["cocina", "haccp", "gestion de inventario", "personal"],
+        "soft_skills": [],
+        "required_education": None,
+        "required_languages": [],
+        "embedding": COOKING_VECTOR,
+        **overrides,
+    }
+
+
+async def _score(job: dict[str, object]) -> MatchResult:
+    db = FakeSupabase()
+    _systems_candidate(db)
+    db.tables["job_descriptions"] = [job]
+    return await compute_match_score("p1", str(job["id"]), db)
+
+
+@pytest.mark.asyncio
+async def test_a_systems_cv_scores_low_for_a_chef_job() -> None:
+    result = await _score(_posting("chef"))
+
+    assert result.match_score <= 15
+    assert result.score_breakdown["relevance"]["source"] == "skills"
+    assert result.score_breakdown["relevance"]["score"] == RELEVANCE_FLOOR
+
+
+@pytest.mark.asyncio
+async def test_a_chef_job_with_no_extracted_skills_still_scores_low() -> None:
+    """Sin skills, el motor daba 0,8 por defecto y el puesto sumaba ~80 puntos."""
+    result = await _score(
+        _posting(
+            "chef-sin-skills",
+            required_skills=[],
+            raw_text="Buscamos chef ejecutivo para la cocina de un restaurante.",
+        )
+    )
+
+    assert result.match_score <= 15
+    assert result.score_breakdown["relevance"]["source"] == "text"
+
+
+@pytest.mark.asyncio
+async def test_a_job_without_skills_that_names_the_candidates_skills_is_relevant() -> (
+    None
+):
+    result = await _score(
+        _posting(
+            "backend-sin-skills",
+            job_title="Backend Engineer",
+            industry="software",
+            required_skills=[],
+            raw_text="Python, SQL, Docker y AWS en un equipo de plataforma.",
+        )
+    )
+
+    assert result.score_breakdown["relevance"]["score"] == 1.0
+    assert result.match_score >= 70
+
+
+@pytest.mark.asyncio
+async def test_a_job_with_no_skills_and_no_text_is_not_penalized() -> None:
+    result = await _score(
+        _posting("vacio", job_title=None, required_skills=[], raw_text=None)
+    )
+
+    assert result.score_breakdown["relevance"] == {
+        "score": 1.0,
+        "evidence": None,
+        "source": "none",
+    }
+
+
+@pytest.mark.asyncio
+async def test_a_matching_job_keeps_its_score() -> None:
+    result = await _score(
+        _posting(
+            "backend",
+            job_title="Backend Engineer",
+            industry="software",
+            required_skills=["python", "sql", "docker", "aws"],
+        )
+    )
+
+    assert result.score_breakdown["relevance"]["score"] == 1.0
+    assert result.match_score >= 85
+
+
+@pytest.mark.asyncio
+async def test_the_score_grows_with_the_share_of_required_skills_covered() -> None:
+    candidate_skills = ["python", "sql", "docker", "aws", "linux"]
+    scores = []
+    for covered in (0, 1, 2, 3, 4):
+        required = candidate_skills[:covered] + [
+            f"otra-{n}" for n in range(8 - covered)
+        ]
+        result = await _score(
+            _posting(f"job-{covered}", job_title="Backend", required_skills=required)
+        )
+        scores.append(result.match_score)
+
+    assert scores == sorted(scores)
+    assert scores[0] <= 15
+    # La mitad de lo pedido ya es del área: el gradiente se frena en lo que da el motor.
+    assert scores[-1] >= 60
+
+
+def test_relevance_is_at_the_floor_with_no_overlap_and_full_at_the_threshold() -> None:
+    job = {"required_skills": ["a", "b"], "job_title": "x"}
+
+    nothing = compute_relevance([], job, {"score": 0.0})
+    enough = compute_relevance([], job, {"score": FULL_RELEVANCE_AT})
+    half = compute_relevance([], job, {"score": FULL_RELEVANCE_AT / 2})
+
+    assert nothing["score"] == RELEVANCE_FLOOR
+    assert enough["score"] == 1.0
+    assert RELEVANCE_FLOOR < half["score"] < 1.0
+
+
+def test_a_skill_name_inside_another_word_is_not_a_mention() -> None:
+    job = {"required_skills": [], "raw_text": "Administración de bases MySQL."}
+
+    result = compute_relevance([{"name": "SQL"}], job, {"score": 0.8})
+
+    assert result["source"] == "text"
+    assert result["evidence"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_the_potential_is_not_reduced_by_the_area() -> None:
+    result = await _score(_posting("chef"))
+
+    assert result.potential_score > result.match_score
+    assert result.potential_score >= 80
 
 
 COMPONENTS = ("skills", "seniority", "education", "languages", "company", "soft")

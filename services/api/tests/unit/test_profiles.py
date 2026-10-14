@@ -35,7 +35,6 @@ def test_patch_my_profile_updates_and_recomputes_completeness(
     client: TestClient,
 ) -> None:
     fake_supabase = FakeSupabase()
-    fake_supabase.completeness = 34
 
     async def fake_client() -> FakeSupabase:
         return fake_supabase
@@ -52,4 +51,7 @@ def test_patch_my_profile_updates_and_recomputes_completeness(
     assert response.status_code == 200
     assert body["summary"] == "I build async APIs."
     assert body["target_role"] == "Staff Engineer"
-    assert body["completeness_pct"] == 34
+    # headline «Backend Engineer» (8) + rol objetivo (5). La bio de cuatro palabras
+    # es muy corta para contar: no suma.
+    assert body["completeness_pct"] == 13
+    assert fake_supabase.tables["master_profiles"][0]["completeness_pct"] == 13
