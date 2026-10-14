@@ -13,6 +13,9 @@ export type WizardSkillDraft = {
 };
 
 export type WizardStepOneDraft = {
+  // Perfil al que pertenece el borrador: la clave del navegador es una sola para todas las
+  // cuentas y sin esto un borrador de otra cuenta aparecería en esta.
+  profileId?: string;
   headline?: string;
   summary?: string;
   targetRole?: string;
