@@ -238,7 +238,6 @@ class FakeSupabase:
             # Mismos permisos que siembra la migración 026.
             "role_permissions": [{"role_id": "admin", "permission": "metrics:read"}],
         }
-        self.completeness = 21
         self.admin_metrics: dict[str, Any] | None = None
         self.rpc_calls: list[str] = []
         self.rpc_params: dict[str, dict[str, Any]] = {}
@@ -279,10 +278,7 @@ class FakeSupabase:
                 None, error=_raised_exception("Document not found or not a CV")
             )
 
-        if function_name != "compute_completeness":
-            return FakeRpcQuery(None)
-
-        return FakeRpcQuery(self.completeness)
+        return FakeRpcQuery(None)
 
     def cascade_delete_user(self, user_id: str) -> None:
         profile_ids = {
