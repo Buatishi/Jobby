@@ -13,6 +13,13 @@ class RateLimitKind(StrEnum):
     ATS = "ats"
     KITS = "kits"
     CV_OPTIMIZATION = "cv_optimization"
+    DOCUMENT_UPLOADS = "document_uploads"
+
+
+# Tope contra abuso, no de producto: cada documento registrado encola un parseo con IA
+# que cuesta. Una persona normal carga uno o dos por día; estos números no se ven.
+DOCUMENT_UPLOADS_PER_DAY_FREE = 10
+DOCUMENT_UPLOADS_PER_DAY_PREMIUM = 50
 
 
 @dataclass(frozen=True)
@@ -36,11 +43,20 @@ def _rule(kind: RateLimitKind, tier: str) -> RateLimitRule:
         return RateLimitRule(limit=50 if premium else 5, period="day")
     if kind == RateLimitKind.CV_OPTIMIZATION:
         return RateLimitRule(limit=30 if premium else 3, period="month")
+    if kind == RateLimitKind.DOCUMENT_UPLOADS:
+        return RateLimitRule(
+            limit=(
+                DOCUMENT_UPLOADS_PER_DAY_PREMIUM
+                if premium
+                else DOCUMENT_UPLOADS_PER_DAY_FREE
+            ),
+            period="day",
+        )
     return RateLimitRule(limit=10 if premium else 0, period="month")
 
 
 def _period_key(kind: RateLimitKind, now: datetime) -> str:
-    if kind == RateLimitKind.ATS:
+    if kind in {RateLimitKind.ATS, RateLimitKind.DOCUMENT_UPLOADS}:
         return now.strftime("%Y-%m-%d")
     return now.strftime("%Y-%m")
 

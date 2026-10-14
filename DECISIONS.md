@@ -1085,3 +1085,25 @@ prueba de errores deliberados.
 Los PDF entregados no se regeneran con esta tanda: se revisaron los documentos que los originan y
 ninguno dice algo que estos cambios vuelvan falso (`docs/06` es el único que cita la Decisión 28
 y solo habla del workflow de seguridad); `docs/08` no tiene PDF.
+
+## Actualización — Decisión 28 (2026-10-14)
+
+**Estado:** Ampliada, con aprobación del autor, que pidió implementar dos de las propuestas de
+la actualización anterior, un PR por cambio y con tests, sin tocar la política de contenido,
+COOP/CORP, el bucket, Supabase, las variables de entorno ni los workflows.
+
+**Tope de cargas de documentos (#73).** `POST /profiles/documents` encolaba un parseo con IA
+(DeepSeek y los embeddings de OpenAI) por cada registro, sin ningún tope: quien tuviera un archivo
+en su carpeta del bucket podía registrarlo en bucle. Ahora usa el mecanismo de `rate_limits.py`
+con un contador diario, 10 por día en free y 50 en premium, como constantes
+(`DOCUMENT_UPLOADS_PER_DAY_FREE` y `DOCUMENT_UPLOADS_PER_DAY_PREMIUM`). Es un tope contra abuso, no
+de producto: una persona normal registra uno o dos documentos por día. Al pasarlo responde 429
+`DOCUMENT_UPLOAD_RATE_LIMIT_EXCEEDED` con el límite y la fecha de reinicio, y la web muestra ese
+mensaje en el paso 2 del asistente. Tres decisiones de diseño: (a) se cuenta después de validar la
+ruta y el perfil, así que un pedido ajeno o inválido no gasta cupo; (b) se cuenta antes de tocar
+el slot del CV, así que un pedido bloqueado no borra el que ya estaba; (c) si Redis no responde se
+deja pasar y se reporta, porque cargar el CV es el primer paso del onboarding y hoy no depende de
+Redis (la tarea cae a modo local sin broker), a diferencia de los topes de puestos, ATS y kits,
+que fallan sin él. Cubierto con 7 pruebas nuevas: 10 y 50 por día, el pedido bloqueado que no
+registra ni encola, el CV del slot que sigue en su lugar, los pedidos rechazados que no gastan
+cupo y el corte de Redis.
