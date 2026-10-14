@@ -1107,3 +1107,27 @@ Redis (la tarea cae a modo local sin broker), a diferencia de los topes de puest
 que fallan sin él. Cubierto con 7 pruebas nuevas: 10 y 50 por día, el pedido bloqueado que no
 registra ni encola, el CV del slot que sigue en su lugar, los pedidos rechazados que no gastan
 cupo y el corte de Redis.
+
+**Largo máximo en los modelos de escritura del perfil (#74).** Antes de poner los topes se
+verificó por dónde pasan los datos del CV. El parseo (`tasks/parsing.py`) guarda con la clave de
+servicio, las skills por `upsert` y el resto en `uploaded_documents.parsed_data`, y no usa ninguno
+de los modelos de escritura: una prueba lo fija (un valor cinco veces por encima de los topes se
+procesa igual). Lo que sí pasa por los modelos es el asistente web: el paso 3 envía las skills que
+extrajo la IA a `POST /profiles/skills` y `POST /profiles/rejected-skills`, y el paso 2 registra el
+documento. Por eso los topes van holgados y son los mismos para confirmar y para rechazar una skill:
+200 caracteres para nombres, cargos, instituciones, idiomas y skills (como `headline`), 100 para
+categoría, nivel y fuente, 500 para el motivo de un rechazo, 5 000 para la descripción de una
+experiencia (como `summary`), 1 000 por logro con 50 como máximo, y en los documentos 64 para
+`profile_id`, 32 para `type`, 1 024 para `storage_path` (el máximo de nombre de objeto de Supabase
+Storage), 512 para el nombre del archivo y 255 para el tipo MIME. También se acotó cada ítem de
+`target_industry`, que solo tenía tope de cantidad. Un texto más largo responde 400
+`VALIDATION_ERROR` sin escribir nada. Una prueba arma un CV de 20 páginas con valores muy por
+encima de lo real (150 skills y 20 experiencias de 4 000 caracteres con 30 logros cada una) y
+comprueba que entra completo; otras 8 fallaron a propósito al quitar cuatro de los topes, así que
+detectan la falta. 43 pruebas nuevas.
+
+**Riesgo residual y lo que sigue abierto.** La IA no tiene tope en lo que devuelve: un nombre de
+skill de más de 200 caracteres (no visto y absurdo para una skill) no se podría confirmar ni
+rechazar en el paso 3. Si pasara, el arreglo es recortar en `ai_structurer.py` a la misma
+constante. Siguen sin largo máximo los identificadores `job_id` y `match_id` de ATS y kits, y no hay
+tope a la cantidad de filas por perfil (skills, experiencias): eso es un límite de uso, no de largo.
