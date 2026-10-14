@@ -1,6 +1,7 @@
 """Límites de uso por plan, contra el Redis en memoria de `conftest.py`."""
 
 import pytest
+from redis.asyncio.connection import Connection
 
 from app.services.rate_limits import (
     RateLimitExceededError,
@@ -141,3 +142,19 @@ async def test_free_jobs_allow_ten_a_month_and_block_the_eleventh(
 
     assert counts == list(range(1, 11))
     assert exceeded.value.limit == 10
+
+
+def test_the_redis_client_times_out_instead_of_waiting_forever() -> None:
+    """Un Redis colgado no puede dejar una carga de documentos esperando sin fin.
+
+    El tope de cargas deja pasar el pedido si Redis falla, pero un Redis que acepta la
+    conexión y no responde tarda lo que dure el tiempo límite del cliente. redis-py 8
+    trae 5 segundos por defecto (medido: la carga responde 201 en unos 5 s); esta
+    prueba avisa si una actualización de la librería lo cambia.
+    """
+    connection = Connection()
+
+    assert connection.socket_timeout is not None
+    assert connection.socket_connect_timeout is not None
+    assert connection.socket_timeout <= 10
+    assert connection.socket_connect_timeout <= 10

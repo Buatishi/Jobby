@@ -1131,3 +1131,22 @@ skill de más de 200 caracteres (no visto y absurdo para una skill) no se podrí
 rechazar en el paso 3. Si pasara, el arreglo es recortar en `ai_structurer.py` a la misma
 constante. Siguen sin largo máximo los identificadores `job_id` y `match_id` de ATS y kits, y no hay
 tope a la cantidad de filas por perfil (skills, experiencias): eso es un límite de uso, no de largo.
+
+**Verificación con la imagen desplegada (#75).** Los pedidos con sesión no se pueden hacer contra
+producción sin credenciales, así que #73 y #74 se verificaron con lo más cercano: la imagen
+construida del commit desplegado (`7205847`), con las variables de Render
+(`ENVIRONMENT=production`, `TASK_EXECUTION_MODE=local`), un Redis real y un Supabase simulado en la
+máquina del autor, con tokens firmados con un secreto de prueba. Las 23 comprobaciones salieron
+bien: los 11 campos fuera de tope responden 400 `VALIDATION_ERROR` sin escribir nada y sin tocar
+Redis; el tope exacto se acepta (incluida una experiencia con 50 logros de 1 000 caracteres); free
+registra 10 documentos y el 11.º responde 429 con `limit: 10` y la fecha de reinicio, sin insertar
+ni borrar el CV del slot; la clave `rate:document_uploads:<id>:<día>` queda con TTL de hasta 24 h;
+otra persona no se ve afectada; los pedidos rechazados no crean claves; y premium llega a 50 y el
+51.º da 429. Con Redis detenido o colgado (nombre que no resuelve, dirección que no responde, o
+un puerto que acepta y calla) la carga responde 201 con el aviso en el registro, en unos 4 a 5 s
+contra 0,3 s con Redis sano: es el tiempo límite por defecto de redis-py 8 (5 s) y una prueba
+avisa si una actualización lo cambia. En producción solo se comprobó que el deploy quedó `live`
+en ese commit, `/health` 200, las 7 rutas de escritura con 401 sin sesión y ningún error ni
+advertencia en los registros. El 429 y el 400 con una sesión real no se probaron allí: exige
+iniciar sesión y, para el 429, registrar 11 documentos reales en la cuenta, que reemplazan el CV
+y encolan parseos con IA.
