@@ -1047,3 +1047,41 @@ parche. Llega por Tailwind 3 (`chokidar`, `fast-glob`, `micromatch`) y también 
 `eslint-config-next`, de modo que ni cambiar de Tailwind lo quitaría; es una herramienta de
 compilación y de lint que no corre al atender pedidos. La alerta queda abierta a la espera de una
 versión corregida.
+
+**Escaneo dinámico, solo contra local (#72).** Se corrió nuclei 3.11.1 (imagen oficial
+`projectdiscovery/nuclei`, 14 366 plantillas) contra la imagen de la API sin root con
+`ENVIRONMENT=production` y valores ficticios, y contra el build de la web servido con `next
+start`, los dos en la máquina del autor. No se tocó producción ni `jobby-test`: `SECURITY.md` pide
+no correr escáneres contra los servicios en vivo. Hubo dos pasadas por objetivo: la automática por
+tecnologías detectadas (`-as`, 20 y 21 plantillas) y la completa (todas las severidades, sin las
+etiquetas `dos` ni `fuzz`; unas 14 000 conexiones por objetivo en 2 minutos). Resultado: en la
+API, solo la detección de uvicorn; en la web, 10 hallazgos informativos y ninguno de severidad
+baja o mayor (detección de Next.js, `robots.txt`, `llms.txt`, el método OPTIONS y cinco cabeceras
+ausentes: `Strict-Transport-Security`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`,
+`Cross-Origin-Resource-Policy` y `X-Permitted-Cross-Domain-Policies`). HSTS falta solo porque en
+local se sirve por HTTP: en producción Vercel lo agrega (`max-age=63072000; includeSubDomains;
+preload`, comprobado con una petición HEAD). Límite: el escaneo es sin sesión, así que cada ruta de
+la API responde 401 y no se ejerció nada autenticado; eso lo cubren la matriz de acceso y la
+prueba de errores deliberados.
+
+**Queda como propuesta, sin implementar.** Requiere tu aprobación o cuesta dinero:
+- Pasar la política de contenido de la web a modo que bloquea, con nonces (primero repasar la
+  consola con una sesión iniciada).
+- Cabeceras `Cross-Origin-Opener-Policy: same-origin-allow-popups`, `Cross-Origin-Resource-Policy`
+  y `X-Permitted-Cross-Domain-Policies: none` en la web: bajo riesgo, pero hay que probar antes el
+  inicio con Google; `Cross-Origin-Embedder-Policy` no, porque rompería las imágenes de terceros
+  (`img-src https:`).
+- Protección contra contraseñas filtradas de Supabase Auth: es del plan Pro y cuenta contra el
+  tope de USD 20 por mes.
+- Tamaño y tipo de archivo del bucket `cv-documents`: hoy no tiene `file_size_limit` ni
+  `allowed_mime_types` (verificado con una consulta de solo metadatos). Arreglarlo es una
+  migración aplicada en producción.
+- Largo máximo en los modelos de escritura del perfil (`SkillCreate`, `ExperienceCreate`,
+  `EducationCreate`, `LanguageCreate`, `UploadedDocumentCreate`): hoy solo `MasterProfileUpdate`
+  los tiene, y esos textos llegan a los prompts.
+- Límite de uso para `POST /profiles/documents`, que encola un parseo con IA sin ningún tope
+  (los puestos, el ATS, los kits y la optimización sí lo tienen).
+
+Los PDF entregados no se regeneran con esta tanda: se revisaron los documentos que los originan y
+ninguno dice algo que estos cambios vuelvan falso (`docs/06` es el único que cita la Decisión 28
+y solo habla del workflow de seguridad); `docs/08` no tiene PDF.
