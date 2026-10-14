@@ -22,6 +22,7 @@ from app.models.profiles import (
 )
 from app.models.reality_gap import RealityGapReport, RealityGapSkill
 from app.services.account_deletion import capture_exception
+from app.services.cv_parser.merge_logic import normalize_skill_key
 from app.services.printable_cv import build_printable_cv
 from app.services.rate_limits import (
     RateLimitExceededError,
@@ -434,6 +435,58 @@ async def delete_profile_document(
     await _update_completeness(supabase, str(document["profile_id"]))
 
 
+async def _matching_skill_rows(
+    supabase: Any,
+    profile_id: str,
+    name: str,
+    category: str | None,
+) -> list[dict[str, Any]]:
+    """Las skills del perfil con la misma clave que usa el parseo del CV."""
+    wanted = normalize_skill_key(name, category)
+    rows = await _profile_rows(
+        supabase, "skills", "id,name,category,in_cv,confirmed", profile_id
+    )
+    return [
+        row
+        for row in rows
+        if normalize_skill_key(str(row.get("name") or ""), row.get("category"))
+        == wanted
+    ]
+
+
+async def _confirm_existing_skills(
+    supabase: Any,
+    rows: list[dict[str, Any]],
+    payload: SkillCreate,
+) -> dict[str, Any]:
+    """Confirmar una skill que ya está guardada la actualiza, no agrega otra fila.
+
+    El parseo del CV ya la guardó (con su vector) antes de que la persona la confirme
+    en el paso 3: insertar de nuevo dejaba dos filas, la confirmada sin vector. Un alta
+    nunca baja una marca que ya estaba puesta.
+    """
+    first: dict[str, Any] | None = None
+    for row in rows:
+        changes: dict[str, Any] = {
+            "in_cv": bool(row.get("in_cv")) or payload.in_cv,
+            "confirmed": bool(row.get("confirmed")) or payload.confirmed,
+        }
+        if payload.level is not None:
+            changes["level"] = payload.level
+        response = (
+            await supabase.table("skills")
+            .update(changes)
+            .eq("id", row["id"])
+            .execute()
+        )
+        data = getattr(response, "data", None)
+        if first is None and isinstance(data, list) and data:
+            first = dict(data[0])
+    skill = first if first is not None else dict(rows[0])
+    skill.pop("embedding", None)
+    return skill
+
+
 @router.post("/skills", status_code=201)
 async def create_profile_skill(
     payload: SkillCreate,
@@ -441,19 +494,26 @@ async def create_profile_skill(
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> dict[str, Any]:
     profile = await _fetch_profile(supabase, current_user.id)
-    skill = await _insert_profile_row(
-        supabase,
-        "skills",
-        str(profile["id"]),
-        {
-            "name": payload.name,
-            "category": payload.category,
-            "level": payload.level,
-            "in_cv": payload.in_cv,
-            "confirmed": payload.confirmed,
-        },
+    profile_id = str(profile["id"])
+    matches = await _matching_skill_rows(
+        supabase, profile_id, payload.name, payload.category
     )
-    await _update_completeness(supabase, str(profile["id"]))
+    if matches:
+        skill = await _confirm_existing_skills(supabase, matches, payload)
+    else:
+        skill = await _insert_profile_row(
+            supabase,
+            "skills",
+            profile_id,
+            {
+                "name": payload.name,
+                "category": payload.category,
+                "level": payload.level,
+                "in_cv": payload.in_cv,
+                "confirmed": payload.confirmed,
+            },
+        )
+    await _update_completeness(supabase, profile_id)
     return skill
 
 
