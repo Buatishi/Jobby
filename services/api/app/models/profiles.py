@@ -1,6 +1,22 @@
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+# Topes de largo contra abuso, no de forma: ningún CV real se acerca. Las tablas guardan
+# TEXT sin límite y estos textos terminan en los prompts de IA, así que esta es la única
+# barrera. Las skills que extrae la IA del CV pasan por `SkillCreate` y
+# `RejectedSkillCreate` desde el paso 3 del asistente: por eso van holgados.
+NAME_MAX_LENGTH = 200  # empresa, cargo, institución, idioma, skill (como `headline`)
+LABEL_MAX_LENGTH = 100  # categoría, nivel, fuente
+NOTE_MAX_LENGTH = 500  # motivo de un rechazo
+LONG_TEXT_MAX_LENGTH = 5_000  # descripción de una experiencia (como `summary`)
+ACHIEVEMENT_MAX_LENGTH = 1_000
+ACHIEVEMENTS_MAX_ITEMS = 50
+STORAGE_PATH_MAX_LENGTH = 1_024  # el máximo de nombre de objeto de Supabase Storage
+FILENAME_MAX_LENGTH = 512  # los sistemas de archivos llegan a 255
+
+Name = Annotated[str, StringConstraints(max_length=NAME_MAX_LENGTH)]
+Achievement = Annotated[str, StringConstraints(max_length=ACHIEVEMENT_MAX_LENGTH)]
 
 
 class MasterProfile(BaseModel):
@@ -28,7 +44,7 @@ class MasterProfileUpdate(BaseModel):
     target_role: str | None = Field(default=None, max_length=200)
     target_seniority: str | None = Field(default=None, max_length=100)
     work_modality: str | None = Field(default=None, max_length=100)
-    target_industry: list[str] | None = Field(default=None, max_length=20)
+    target_industry: list[Name] | None = Field(default=None, max_length=20)
     linkedin_url: str | None = Field(default=None, max_length=2048)
 
     def to_update_payload(self) -> dict[str, Any]:
@@ -36,13 +52,13 @@ class MasterProfileUpdate(BaseModel):
 
 
 class UploadedDocumentCreate(BaseModel):
-    profile_id: str
-    type: str
-    storage_path: str
+    profile_id: str = Field(max_length=64)
+    type: str = Field(max_length=32)
+    storage_path: str = Field(max_length=STORAGE_PATH_MAX_LENGTH)
     cv_slot: int | None = None
     is_primary: bool = False
-    original_filename: str | None = None
-    mime_type: str | None = None
+    original_filename: str | None = Field(default=None, max_length=FILENAME_MAX_LENGTH)
+    mime_type: str | None = Field(default=None, max_length=255)
     file_size: int | None = None
 
 
@@ -68,35 +84,37 @@ class UploadedDocument(BaseModel):
 
 
 class SkillCreate(BaseModel):
-    name: str
-    category: str | None = None
-    level: str | None = None
+    name: str = Field(max_length=NAME_MAX_LENGTH)
+    category: str | None = Field(default=None, max_length=LABEL_MAX_LENGTH)
+    level: str | None = Field(default=None, max_length=LABEL_MAX_LENGTH)
     in_cv: bool = False
     confirmed: bool = False
 
 
 class RejectedSkillCreate(BaseModel):
-    name: str
-    source: str = "manual"
-    reason: str | None = None
+    name: str = Field(max_length=NAME_MAX_LENGTH)
+    source: str = Field(default="manual", max_length=LABEL_MAX_LENGTH)
+    reason: str | None = Field(default=None, max_length=NOTE_MAX_LENGTH)
 
 
 class ExperienceCreate(BaseModel):
-    company: str
-    title: str
-    description: str | None = None
-    achievements: list[str] = Field(default_factory=list)
+    company: str = Field(max_length=NAME_MAX_LENGTH)
+    title: str = Field(max_length=NAME_MAX_LENGTH)
+    description: str | None = Field(default=None, max_length=LONG_TEXT_MAX_LENGTH)
+    achievements: list[Achievement] = Field(
+        default_factory=list, max_length=ACHIEVEMENTS_MAX_ITEMS
+    )
 
 
 class EducationCreate(BaseModel):
-    institution: str
-    field_of_study: str | None = None
-    degree_level: str | None = None
+    institution: str = Field(max_length=NAME_MAX_LENGTH)
+    field_of_study: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    degree_level: str | None = Field(default=None, max_length=LABEL_MAX_LENGTH)
 
 
 class LanguageCreate(BaseModel):
-    name: str
-    level: str | None = None
+    name: str = Field(max_length=NAME_MAX_LENGTH)
+    level: str | None = Field(default=None, max_length=LABEL_MAX_LENGTH)
 
 
 class PrintableCVContact(BaseModel):
