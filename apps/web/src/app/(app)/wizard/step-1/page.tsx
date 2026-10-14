@@ -25,13 +25,15 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from "@/components/ui/tooltip";
+import {
+  resolveStepOneValues,
+  SENIORITY_OPTIONS,
+  WORK_MODALITIES,
+  type StepOneProfile
+} from "@/lib/wizard/step-one";
 
-const seniorityOptions = ["junior", "mid", "senior", "staff", "principal"];
-const workModalities = [
-  { value: "remote", label: "Remoto" },
-  { value: "hybrid", label: "Híbrido" },
-  { value: "onsite", label: "Presencial" }
-];
+const seniorityOptions = SENIORITY_OPTIONS;
+const workModalities = WORK_MODALITIES;
 
 export default function WizardStepOnePage() {
   const router = useRouter();
@@ -43,18 +45,36 @@ export default function WizardStepOnePage() {
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileId, setProfileId] = useState<string | undefined>(undefined);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isPrefilled, setIsPrefilled] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const draft = getWizardProgress().stepOneDraft;
-    if (!draft) {
-      return;
-    }
 
-    setHeadline(draft.headline ?? "");
-    setSummary(draft.summary ?? "");
-    setTargetRole(draft.targetRole ?? "");
-    setTargetSeniority(draft.targetSeniority ?? "mid");
-    setWorkModality(draft.workModality ?? "remote");
+    // Se abre con lo que ya está guardado en el perfil; si la carga falla, con el borrador.
+    apiClient<StepOneProfile>("/api/v1/profiles/me")
+      .catch(() => null)
+      .then((profile) => {
+        if (!active) {
+          return;
+        }
+
+        const { values, prefilled } = resolveStepOneValues(profile, draft);
+        setHeadline(values.headline);
+        setSummary(values.summary);
+        setTargetRole(values.targetRole);
+        setTargetSeniority(values.targetSeniority);
+        setWorkModality(values.workModality);
+        setProfileId(profile?.id ?? undefined);
+        setIsPrefilled(prefilled);
+        setIsLoadingProfile(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const completionPercent = useMemo(() => {
@@ -73,6 +93,7 @@ export default function WizardStepOnePage() {
     saveWizardProgress({
       currentStep: 1,
       stepOneDraft: {
+        profileId,
         headline,
         summary,
         targetRole,
@@ -81,12 +102,17 @@ export default function WizardStepOnePage() {
       }
     });
     setSavedAt(new Date().toLocaleTimeString("es-AR", { timeStyle: "short" }));
-  }, [headline, summary, targetRole, targetSeniority, workModality]);
+  }, [profileId, headline, summary, targetRole, targetSeniority, workModality]);
 
   useEffect(() => {
+    // Antes de cargar el perfil el formulario tiene los valores por defecto: no se guardan.
+    if (isLoadingProfile) {
+      return;
+    }
+
     const timeout = window.setTimeout(saveDraft, 500);
     return () => window.clearTimeout(timeout);
-  }, [saveDraft]);
+  }, [isLoadingProfile, saveDraft]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,6 +134,7 @@ export default function WizardStepOnePage() {
       saveWizardProgress({
         currentStep: 2,
         stepOneDraft: {
+          profileId,
           headline,
           summary,
           targetRole,
@@ -155,7 +182,19 @@ export default function WizardStepOnePage() {
             </div>
           </div>
 
+          {isLoadingProfile ? (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Cargando tu perfil...
+            </p>
+          ) : isPrefilled ? (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Ya cargamos lo que tenés guardado: editá solo lo que quieras
+              cambiar y guardá.
+            </p>
+          ) : null}
+
           <form className="space-y-5" onSubmit={handleSubmit}>
+            <fieldset className="contents" disabled={isLoadingProfile}>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="headline">
                 Headline
@@ -322,6 +361,7 @@ export default function WizardStepOnePage() {
                 Ir al dashboard
               </Button>
             </div>
+            </fieldset>
           </form>
         </CardContent>
       </Card>
