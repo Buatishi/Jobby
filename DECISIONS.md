@@ -1235,3 +1235,27 @@ coincide: 89 → 89.
 - El potencial de un puesto de otra área sigue siendo alto (87 en el caso del chef).
 - Los porcentajes ya guardados se corrigen en el próximo cambio del perfil de cada persona; no
   hay migración de datos.
+
+---
+
+## Actualización — Decisión 29 (2026-10-14)
+
+**Verificación en vivo y corrección de la relevancia.** Con la cuenta del autor en producción
+(perfil en 82 % tras guardar el paso 1 y completar el paso 4; el porcentaje pasó de 38 a 58 y a 82 sin
+tocar nada más) se analizaron dos puestos de prueba. Un puesto de chef dio **3/100** con la
+relevancia en su piso (antes habría rondado 50): la compuerta funciona. Un puesto de desarrollo
+full stack junior, del propio rubro del autor, dio **21/100**: el perfil tiene 4 filas de `skills`,
+solo 1 de las 6 skills pedidas coincide literal, y la relevancia (0,50) partió a la mitad un puntaje
+de 42. La bio y el headline nombran las 6.
+
+**Corregido.** La evidencia de relevancia pasa a ser la mayor entre las filas de `skills` y las
+skills pedidas que el perfil nombra (headline, rol, bio, cargos, descripciones y logros). El piso, el
+umbral del 40 % y el potencial no cambian. Un puesto de otra área sigue en el piso aunque la bio
+nombre tecnologías.
+
+**Hallado y sin corregir en este cambio.** El idioma pedido llega de la IA como un texto entero
+(`"Inglés intermedio (B1/B2)"`) y el motor lo compara literal con el nombre del idioma de la
+persona («Inglés»): el componente de idiomas dio 0 con el idioma cargado. Pre-existente; propuesto
+como cambio aparte. La web tampoco tiene dónde cargar la URL de LinkedIn ni un documento de
+LinkedIn, así que con la web el máximo es 82 % y el kit de entrevista (que pide 100 %) no se puede
+generar.

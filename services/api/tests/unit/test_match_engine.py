@@ -5,6 +5,7 @@ from app.services.match_engine.formula import _weighted_score
 from app.services.match_engine.s_relevance import (
     FULL_RELEVANCE_AT,
     RELEVANCE_FLOOR,
+    build_profile_text,
     compute_relevance,
 )
 from app.tasks.matching import run_match
@@ -386,6 +387,112 @@ async def test_the_potential_is_not_reduced_by_the_area() -> None:
 
     assert result.potential_score > result.match_score
     assert result.potential_score >= 80
+
+
+# --- la persona nombra sus skills aunque tenga pocas filas cargadas -------------
+
+
+def _developer_with_few_skill_rows(db: FakeSupabase) -> None:
+    """Una sola fila en `skills`, pero el headline y la bio nombran el resto."""
+    _systems_candidate(db)
+    db.tables["master_profiles"][0].update(
+        {
+            "headline": "Full Stack Developer | Python | React",
+            "summary": (
+                "Mis tecnologías: Python, JavaScript, React, SQL, API REST y Git. "
+                "Automatizo flujos de trabajo e integro sistemas."
+            ),
+        }
+    )
+    db.tables["skills"] = db.tables["skills"][:1]
+
+
+async def _score_developer(job: dict[str, object]) -> MatchResult:
+    db = FakeSupabase()
+    _developer_with_few_skill_rows(db)
+    db.tables["job_descriptions"] = [job]
+    return await compute_match_score("p1", str(job["id"]), db)
+
+
+@pytest.mark.asyncio
+async def test_a_job_of_the_persons_own_area_is_not_halved_by_few_skill_rows() -> None:
+    """En producción un puesto de su rubro daba 21: solo 1 de 6 skills era una fila."""
+    result = await _score_developer(
+        _posting(
+            "fullstack",
+            job_title="Desarrollador Full Stack Jr",
+            industry="software",
+            required_skills=[
+                "python",
+                "javascript",
+                "react",
+                "sql",
+                "api rest",
+                "git",
+            ],
+        )
+    )
+
+    relevance = result.score_breakdown["relevance"]
+    assert relevance["source"] == "profile_text"
+    assert relevance["score"] == 1.0
+    # Sigue siendo bajo en habilidades (1 de 6 filas), pero no se castiga por área.
+    assert result.score_breakdown["sub_scores"]["skills"] < 0.2
+    assert result.match_score >= 50
+
+
+@pytest.mark.asyncio
+async def test_naming_skills_in_the_bio_does_not_lift_a_job_of_another_area() -> None:
+    result = await _score_developer(_posting("chef"))
+
+    assert result.score_breakdown["relevance"]["score"] == RELEVANCE_FLOOR
+    assert result.match_score <= 15
+
+
+def test_the_profile_text_gathers_what_the_person_says_about_themselves() -> None:
+    text = build_profile_text(
+        {
+            "headline": "Chef Ejecutivo",
+            "target_role": "Jefe de Cocina",
+            "summary": "Lidero equipos",
+        },
+        [{"name": "HACCP"}, {"name": None}],
+        [
+            {
+                "title": "Sous Chef",
+                "description": "Costeo de platos",
+                "achievements": ["Redujo mermas un 12%"],
+            }
+        ],
+    )
+
+    for expected in ("chef ejecutivo", "jefe de cocina", "lidero equipos", "haccp"):
+        assert expected in text
+    assert "sous chef" in text
+    assert "costeo de platos" in text
+    assert "redujo mermas" in text
+    assert "none" not in text
+
+
+def test_a_required_skill_is_found_in_the_profile_text_ignoring_accents() -> None:
+    job = {"required_skills": ["gestión de inventario"]}
+    profile_text = build_profile_text(
+        {"summary": "Gestion de inventario y costos en cocinas de alto volumen"}, [], []
+    )
+
+    result = compute_relevance([], job, {"score": 0.0}, profile_text)
+
+    assert result["source"] == "profile_text"
+    assert result["score"] == 1.0
+
+
+def test_one_letter_skill_names_are_not_searched_in_the_profile_text() -> None:
+    job = {"required_skills": ["r"]}
+
+    result = compute_relevance([], job, {"score": 0.0}, "r studio y python")
+
+    assert result["evidence"] == 0.0
+    assert result["score"] == RELEVANCE_FLOOR
 
 
 COMPONENTS = ("skills", "seniority", "education", "languages", "company", "soft")
