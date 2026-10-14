@@ -1176,3 +1176,14 @@ no es un cambio de librería. Corregirlo es una acción del autor en Upstash (re
 crear otra) y, si cambia la URL, actualizar `REDIS_URL` en Render; no requiere código. Con Redis
 de vuelta se repite la misma prueba de 11 pedidos y el 11.º debe dar 429. Costo de la prueba: hasta
 24 eventos en Sentry (12 del aviso de Redis y 12 del rechazo de la base).
+
+**Verificación en vivo del 429, ya con Redis (2026-10-14).** Después del deploy manual del autor de
+las 04:40 UTC, el registro de Render dejó de mostrar el aviso de Redis caído y se repitió la misma
+secuencia con la sesión del autor y el `file_size` fuera de rango. Los pedidos 1 a 10 respondieron
+500 (la base rechaza la inserción con `22003`, sin crear filas) y el 11.º respondió **429
+`DOCUMENT_UPLOAD_RATE_LIMIT_EXCEEDED`** con `limit: 10` y `reset_at: 2026-10-15T00:00:00+00:00`. La
+base sigue con un único documento (el CV, en `done`) y ninguna fila con `file_size` fuera de rango.
+El tope queda verificado en producción. Mientras no pase la medianoche UTC, la cuenta del autor no
+puede registrar documentos nuevos (el reintento de parseo con `set-primary` no pasa por el tope).
+Con Redis de vuelta, los demás topes (puestos, ATS, kits y optimizador del CV) también quedan en
+condiciones de responder en vez de dar 500.
