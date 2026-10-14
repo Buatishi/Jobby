@@ -1033,3 +1033,17 @@ flag. No se agregó `HEALTHCHECK`: en producción la comprobación es `healthChe
 servicio web, y la misma imagen la usan los workers, que no tienen puerto HTTP; una sonda dentro
 de la imagen los marcaría como no saludables en cualquier plataforma que la respete. El cambio no
 toca `render.yaml`, variables ni el workflow.
+
+**Alertas de Dependabot que seguían abiertas (#71).** `postcss-selector-parser` 6.x no tiene
+parche: el arreglo (alerta 81, complejidad cuadrática al analizar selectores) está solo en la
+7.1.6. Tailwind 3 y `postcss-nested` la piden con `^6`, así que un override de `package.json`
+(`postcss-selector-parser@^6: ^7.1.6`) mueve a los dos. Solo corre al compilar. Se verificó que
+es compatible: la compilación termina y los dos archivos de CSS que genera son idénticos byte a
+byte a los de antes, con typecheck, lint y las 186 pruebas de la web en verde. Una prueba
+(`apps/web/lib/security/dependency-floor.test.ts`) falla si el lock vuelve a la 6.x; para
+revertir basta quitar la línea del override. `braces` (alerta 80) se descarta: la última versión
+publicada es la 3.0.3, la misma que la alerta marca como afectada (`<= 3.0.3`), así que no existe
+parche. Llega por Tailwind 3 (`chokidar`, `fast-glob`, `micromatch`) y también por
+`eslint-config-next`, de modo que ni cambiar de Tailwind lo quitaría; es una herramienta de
+compilación y de lint que no corre al atender pedidos. La alerta queda abierta a la espera de una
+versión corregida.
