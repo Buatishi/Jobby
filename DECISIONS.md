@@ -1236,6 +1236,30 @@ coincide: 89 → 89.
 - Los porcentajes ya guardados se corrigen en el próximo cambio del perfil de cada persona; no
   hay migración de datos.
 
+---
+
+## Actualización — Decisión 29 (2026-10-14)
+
+**Verificación en vivo y corrección de la relevancia.** Con la cuenta del autor en producción
+(perfil en 82 % tras guardar el paso 1 y completar el paso 4; el porcentaje pasó de 38 a 58 y a 82 sin
+tocar nada más) se analizaron dos puestos de prueba. Un puesto de chef dio **3/100** con la
+relevancia en su piso (antes habría rondado 50): la compuerta funciona. Un puesto de desarrollo
+full stack junior, del propio rubro del autor, dio **21/100**: el perfil tiene 4 filas de `skills`,
+solo 1 de las 6 skills pedidas coincide literal, y la relevancia (0,50) partió a la mitad un puntaje
+de 42. La bio y el headline nombran las 6.
+
+**Corregido.** La evidencia de relevancia pasa a ser la mayor entre las filas de `skills` y las
+skills pedidas que el perfil nombra (headline, rol, bio, cargos, descripciones y logros). El piso, el
+umbral del 40 % y el potencial no cambian. Un puesto de otra área sigue en el piso aunque la bio
+nombre tecnologías.
+
+**Hallado y sin corregir en este cambio.** El idioma pedido llega de la IA como un texto entero
+(`"Inglés intermedio (B1/B2)"`) y el motor lo compara literal con el nombre del idioma de la
+persona («Inglés»): el componente de idiomas dio 0 con el idioma cargado. Pre-existente; propuesto
+como cambio aparte. La web tampoco tiene dónde cargar la URL de LinkedIn ni un documento de
+LinkedIn, así que con la web el máximo es 82 % y el kit de entrevista (que pide 100 %) no se puede
+generar.
+
 ## Actualización — Decisión 29 (2026-10-14)
 
 **Estado:** Corrección pedida por el autor tras medir en producción con una cuenta real. Las
@@ -1245,6 +1269,7 @@ reglas marcadas como «propuesta» no fueron aprobadas y se pueden cambiar.
 «Inglés intermedio (B1/B2)», y `s_languages.py` lo buscaba entero contra el nombre del idioma
 del perfil («Inglés», nivel `professional`). No coincidía nunca y el componente daba 0 (10 % del
 MatchScore) aunque la persona tuviera el idioma. Pasaba igual con «Inglés básico» y con «English».
+Es lo que la actualización anterior dejó como «hallado y sin corregir».
 
 **Elegido.** Separar nombre y nivel del texto, sin IA y sin tocar los pesos:
 - El nombre se reconoce dentro del texto, sin acentos ni mayúsculas, con las equivalencias es/en
