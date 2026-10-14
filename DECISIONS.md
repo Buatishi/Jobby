@@ -1013,3 +1013,23 @@ disponible desde el plan Pro, así que cuenta contra el tope de USD 20 por mes.
 `postcss-selector-parser` 6.x solo tiene parche en la 7. Ambas llegan por `tailwindcss` 3.4.19
 (y `braces` también por `eslint-config-next`), herramientas de compilación y de lint que no se
 ejecutan al atender pedidos.
+
+## Actualización — Decisión 28 (2026-10-13)
+
+**Estado:** Ampliada, con aprobación del autor, que pidió cerrar los pendientes de ciberseguridad
+que fueran gratuitos y de bajo riesgo: un PR por cambio y ningún merge sin la prueba hecha. Lo que
+requiere su aprobación (política de contenido que bloquea, `render.yaml`, workflows, variables,
+planes de pago, PDF entregados) queda como propuesta, sin implementar.
+
+**Contenedor sin root (#70).** La imagen de la API corría todo como root y `apt-get` instalaba
+paquetes recomendados que no hacen falta. Ahora crea `appuser` (uid 10001), copia el código con
+ese dueño y arranca con `USER appuser`; `apt-get` usa `--no-install-recommends`. Se probó en
+Docker local con la imagen construida como la construye Render: la web arranca y `/health`
+responde 200 con las mismas cabeceras, y el worker con el comando de `render.yaml`
+(`celery -A app.tasks:celery_app worker -Q parsing,analysis`) se conecta a un Redis local, registra
+la tarea de parseo y queda `ready`; ambos corren con uid 10001 y el archivo temporal del PDF se
+escribe en `/tmp`. `tests/unit/test_dockerfile_hardening.py` falla si vuelve a faltar `USER` o el
+flag. No se agregó `HEALTHCHECK`: en producción la comprobación es `healthCheckPath: /health` del
+servicio web, y la misma imagen la usan los workers, que no tienen puerto HTTP; una sonda dentro
+de la imagen los marcaría como no saludables en cualquier plataforma que la respete. El cambio no
+toca `render.yaml`, variables ni el workflow.

@@ -3,7 +3,7 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,8 +17,14 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
 
+# Usuario sin privilegios: si alguien lograra ejecutar código dentro del contenedor, no
+# sería root. Las dependencias ya quedaron instaladas arriba (como root, solo lectura aquí).
+RUN useradd --create-home --uid 10001 appuser
+
 # Copiar el resto del código
-COPY . .
+COPY --chown=appuser:appuser . .
+
+USER appuser
 
 # Exponer puerto
 EXPOSE 8000
