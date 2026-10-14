@@ -76,20 +76,31 @@ async def _upsert_skill_embeddings(
 
     skill_names = [str(skill["name"]) for skill in skills]
     embeddings = await gateway.embed_many(skill_names)
-    payloads = []
+    existing_rows: list[dict[str, Any]] = []
+    new_rows: list[dict[str, Any]] = []
     for skill, embedding in zip(skills, embeddings, strict=True):
-        payloads.append(
-            {
-                "profile_id": profile_id,
-                "name": skill["name"],
-                "category": skill.get("category"),
-                "level": skill.get("level"),
-                "in_cv": True,
-                "confirmed": skill.get("confirmed", False),
-                "embedding": embedding,
-            }
-        )
-    await _execute(supabase.table("skills").upsert(payloads))
+        in_cv = skill.get("in_cv")
+        row = {
+            "profile_id": profile_id,
+            "name": skill["name"],
+            "category": skill.get("category"),
+            "level": skill.get("level"),
+            "in_cv": True if in_cv is None else bool(in_cv),
+            "confirmed": skill.get("confirmed", False),
+            "embedding": embedding,
+        }
+        if skill.get("id"):
+            existing_rows.append({"id": skill["id"], **row})
+        else:
+            new_rows.append(row)
+
+    # `skills` no tiene índice único y un upsert sin `id` inserta siempre: antes cada
+    # parseo dejaba una copia nueva de cada skill. Las que ya existen se actualizan por
+    # su `id` y solo las nuevas se insertan, en dos lotes homogéneos.
+    if existing_rows:
+        await _execute(supabase.table("skills").upsert(existing_rows))
+    if new_rows:
+        await _execute(supabase.table("skills").upsert(new_rows))
 
 
 async def run_parse_cv(

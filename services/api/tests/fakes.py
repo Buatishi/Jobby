@@ -109,6 +109,20 @@ class FakeTableQuery:
             )
             upserted_rows = []
             for payload in payloads:
+                # Como PostgREST: con un `id` que ya existe actualiza esa fila; sin `id`
+                # (o con uno nuevo) inserta.
+                current = next(
+                    (
+                        row
+                        for row in rows
+                        if "id" in payload and row.get("id") == payload["id"]
+                    ),
+                    None,
+                )
+                if current is not None:
+                    current.update(payload)
+                    upserted_rows.append(current.copy())
+                    continue
                 upserted = payload.copy()
                 upserted.setdefault("id", f"{self.table_name}-{len(rows) + 1}")
                 rows.append(upserted)
