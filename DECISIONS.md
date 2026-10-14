@@ -1187,3 +1187,51 @@ El tope queda verificado en producción. Mientras no pase la medianoche UTC, la 
 puede registrar documentos nuevos (el reintento de parseo con `set-primary` no pasa por el tope).
 Con Redis de vuelta, los demás topes (puestos, ATS, kits y optimizador del CV) también quedan en
 condiciones de responder en vez de dar 500.
+
+---
+
+## Decisión 29 — El porcentaje del perfil exige datos útiles y el puesto tiene que ser de tu área
+
+**Estado:** Pedido por el autor (2026-10-14). La mecánica es lo pedido; los valores numéricos
+(piso 0,15, umbral 0,4, cuatro menciones, mínimo de cinco palabras en la bio) son una propuesta
+del cambio, **sin aprobar**, y se calibran con la prueba de todo el pasillo en producción.
+
+**Problema (medido, no supuesto).** (1) `compute_completeness` devolvía el número y nadie lo
+guardaba: en producción hay 4 perfiles, el máximo guardado es 38 y ninguno llega al 60 que pide el
+análisis de puestos, así que nadie puede analizar un puesto aunque su perfil esté completo.
+(2) Contaba que hubiera algo: «asdf» en el headline sumaba lo mismo que un cargo real. (3) Un CV
+de sistemas contra un puesto de chef daba 52 puntos, y 80 si la IA no extraía ninguna skill del
+puesto, porque cuatro de los seis componentes (seniority, idiomas, empresa y blandas) valen
+0,75 a 0,85 apenas el puesto no pide algo puntual, sea cual sea el rubro.
+
+**Elegido.**
+- El porcentaje se calcula en Python (`services/profile_completeness.py`, sin migración) y se
+  guarda en cada cambio del perfil (`refresh_completeness`). La función SQL queda sin uso. Un fallo
+  del recálculo no tumba la escritura ni marca el CV como fallido.
+- Mismos pesos (suman 100), pero cada criterio exige un dato útil (`services/text_quality.py`,
+  reglas deterministas, sin IA y sin costo): headline y rol que no sean relleno («asdf», «N/A»,
+  «profesional responsable»), bio con al menos 5 palabras con contenido y sin repetirse ni copiar
+  el headline, seniority y modalidad dentro de los valores que entiende el motor, nombres reales
+  en experiencias, skills (3 confirmadas y distintas), estudios e idiomas, URL de LinkedIn que sea
+  un perfil. El CV y el documento de LinkedIn dan sus puntos completos solo si dejaron al menos 3
+  skills con nombre válido, la mitad si dejaron algo, y nada si terminaron en `done` sin dejar
+  datos.
+- El MatchScore se multiplica por una **relevancia** (`s_relevance.py`): sin ninguna skill del
+  puesto en común queda en 0,15 de su valor; con el 40 % de las skills pedidas ya es del área y
+  no cambia. Si el puesto no lista skills, cuenta cuántas de las skills de la persona nombra su
+  texto. El potencial no se atenúa (es «si cerraras la brecha»).
+
+**Medido con el motor real y datos de prueba** (un perfil senior de sistemas con cinco skills).
+Chef contra CV de sistemas: 52 → 8; sin skills extraídas: 80 → 12; puesto de backend que
+coincide: 89 → 89.
+
+**Límites que quedan abiertos (no se arreglan acá).**
+- El asistente (paso 4) guarda la experiencia con `description: null`, la educación solo como
+  `institution` y los idiomas con nivel fijo, así que las reglas no exigen descripción ni carrera:
+  hacerlo volvería inalcanzable el 100 % que pide el kit de entrevista. Hasta que la web los
+  pida, el motor compara estudios con un componente casi neutro y las blandas sin texto.
+- El parser deja `degree_level` en texto libre y el motor lo busca en `phd/master/bachelor/...`:
+  casi siempre cae al valor por defecto.
+- El potencial de un puesto de otra área sigue siendo alto (87 en el caso del chef).
+- Los porcentajes ya guardados se corrigen en el próximo cambio del perfil de cada persona; no
+  hay migración de datos.
