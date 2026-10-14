@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,9 +21,17 @@ from app.models.profiles import (
     UploadedDocumentCreate,
 )
 from app.models.reality_gap import RealityGapReport, RealityGapSkill
+from app.services.account_deletion import capture_exception
 from app.services.printable_cv import build_printable_cv
+from app.services.rate_limits import (
+    RateLimitExceededError,
+    RateLimitKind,
+    increment_rate_limit,
+)
 from app.services.reality_gap import score_reality_gap
 from app.tasks import parsing as parsing_tasks
+
+logger = logging.getLogger("jobmatch.api")
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -74,6 +83,36 @@ def _ensure_own_storage_path(storage_path: str, supabase_uid: str) -> None:
                 "details": {},
             },
         )
+
+
+async def _enforce_document_upload_limit(current_user: CurrentUser) -> None:
+    """Tope diario contra abuso: cada registro encola un parseo con IA que tiene costo.
+
+    Si Redis no responde se deja pasar. Cargar el CV es el primer paso del onboarding y
+    hasta ahora no dependía de Redis (la tarea cae a modo local si falta el broker): el
+    tope no tiene que volverlo una caída más. El error se reporta igual.
+    """
+    try:
+        await increment_rate_limit(
+            current_user.id,
+            current_user.tier,
+            RateLimitKind.DOCUMENT_UPLOADS,
+        )
+    except RateLimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "Límite diario de cargas de documentos alcanzado",
+                "code": "DOCUMENT_UPLOAD_RATE_LIMIT_EXCEEDED",
+                "details": {
+                    "limit": exc.limit,
+                    "reset_at": exc.reset_at.isoformat(),
+                },
+            },
+        ) from exc
+    except Exception as exc:
+        logger.warning("No se pudo comprobar el tope de cargas de documentos: %s", exc)
+        capture_exception(exc)
 
 
 async def _fetch_profile(supabase: Any, user_id: str) -> dict[str, Any]:
@@ -313,6 +352,8 @@ async def create_profile_document(
     if str(profile.get("id")) != payload.profile_id:
         raise _not_found()
     _ensure_own_storage_path(payload.storage_path, current_user.supabase_uid)
+    # Antes de tocar el slot: un pedido bloqueado no puede borrar el CV que ya está.
+    await _enforce_document_upload_limit(current_user)
 
     await _prepare_cv_slot_for_insert(supabase, current_user.id, payload)
 

@@ -74,6 +74,52 @@ async def test_the_free_plan_optimizes_three_cvs_a_month_and_premium_thirty(
 
 
 @pytest.mark.asyncio
+async def test_document_uploads_are_ten_a_day_for_free_and_fifty_for_premium(
+    fake_redis: FakeRedis,
+) -> None:
+    for _ in range(10):
+        await increment_rate_limit("user-1", "free", RateLimitKind.DOCUMENT_UPLOADS)
+    with pytest.raises(RateLimitExceededError) as free_exceeded:
+        await increment_rate_limit("user-1", "free", RateLimitKind.DOCUMENT_UPLOADS)
+
+    for _ in range(50):
+        await increment_rate_limit(
+            "user-2", "premium", RateLimitKind.DOCUMENT_UPLOADS
+        )
+    with pytest.raises(RateLimitExceededError) as premium_exceeded:
+        await increment_rate_limit(
+            "user-2", "premium", RateLimitKind.DOCUMENT_UPLOADS
+        )
+
+    assert free_exceeded.value.limit == 10
+    assert premium_exceeded.value.limit == 50
+    # Diario, como el ATS: la clave lleva el día y vence dentro de las 24 horas.
+    key = next(
+        key
+        for key in fake_redis.values
+        if key.startswith("rate:document_uploads:user-1:")
+    )
+    assert len(key.rsplit(":", 1)[1]) == len("2026-10-14")
+    assert 0 < fake_redis.ttls[key] <= 24 * 60 * 60
+
+
+@pytest.mark.asyncio
+async def test_document_uploads_do_not_share_a_counter_with_the_ats_report(
+    fake_redis: FakeRedis,
+) -> None:
+    for _ in range(5):
+        await increment_rate_limit("user-1", "free", RateLimitKind.ATS)
+    with pytest.raises(RateLimitExceededError):
+        await increment_rate_limit("user-1", "free", RateLimitKind.ATS)
+
+    count = await increment_rate_limit(
+        "user-1", "free", RateLimitKind.DOCUMENT_UPLOADS
+    )
+
+    assert count == 1
+
+
+@pytest.mark.asyncio
 async def test_each_person_has_its_own_counter(fake_redis: FakeRedis) -> None:
     await increment_rate_limit("user-1", "free", RateLimitKind.JOBS)
     await increment_rate_limit("user-2", "free", RateLimitKind.JOBS)
