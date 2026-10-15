@@ -1,3 +1,9 @@
+import type { Metadata } from "next";
+
+import {
+  buildHomeStructuredData,
+  serializeJsonLd
+} from "@/lib/seo/structured-data";
 import { Closing } from "@/src/components/landing/closing";
 import { CompareCard } from "@/src/components/landing/compare-card";
 import { Features } from "@/src/components/landing/features";
@@ -11,9 +17,20 @@ import { RevealStatement } from "@/src/components/landing/reveal-statement";
 import { RolesMarquee } from "@/src/components/landing/roles-marquee";
 import { WhenToUse } from "@/src/components/landing/when-to-use";
 
+// Canónica propia: los enlaces compartidos con ?utm_* no deben contar como páginas aparte.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" }
+};
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-white text-foreground">
+      <script
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(buildHomeStructuredData())
+        }}
+        type="application/ld+json"
+      />
       <LandingNav />
       <Hero />
       <RolesMarquee />

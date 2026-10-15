@@ -9,7 +9,7 @@ vi.mock("@/lib/auth/use-has-session", () => ({
   useHasSession: () => session.hasSession
 }));
 
-import LandingPage from "@/src/app/(public)/page";
+import LandingPage, { metadata } from "@/src/app/(public)/page";
 
 function render(hasSession: boolean | null) {
   session.hasSession = hasSession;
@@ -41,5 +41,25 @@ describe("LandingPage header", () => {
 
     expect(html).toContain("Iniciar sesión");
     expect(html).not.toContain("Ir al dashboard");
+  });
+});
+
+describe("LandingPage search metadata", () => {
+  it("points its canonical url at the home page", () => {
+    expect(metadata.alternates?.canonical).toBe("/");
+  });
+
+  it("ships the structured data in the server markup", () => {
+    const html = render(false);
+    const match = html.match(
+      /<script type="application\/ld\+json">(.*?)<\/script>/s
+    );
+
+    expect(match).not.toBeNull();
+    const nodes = JSON.parse(match![1]) as Array<{ "@type": string }>;
+    expect(nodes.map((node) => node["@type"])).toEqual([
+      "WebSite",
+      "WebApplication"
+    ]);
   });
 });
