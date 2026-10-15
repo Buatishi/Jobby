@@ -34,4 +34,8 @@ describe("public pages metadata", () => {
   it("leaves the canonical out of pricing so its child routes do not inherit it", () => {
     expect(pricing.alternates).toBeUndefined();
   });
+
+  it("carries the Search Console verification code on the root layout", () => {
+    expect(root.verification?.google).toMatch(/^[A-Za-z0-9_-]{30,}$/);
+  });
 });

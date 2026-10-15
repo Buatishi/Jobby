@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   title: "Jobby — Sabé cuánto matcheás antes de aplicar",
   description:
     "Jobby compara tu CV con un puesto real usando IA: match score, compatibilidad ATS, gaps y recomendaciones para postularte mejor.",
+  // Código público de Google Search Console para verificar la propiedad del sitio.
+  verification: {
+    google: "lJJeKc6H3k7puFsEJ8sNu8oxCA1tdUr6KnTL3REmFQo"
+  },
   openGraph: {
     title: "Jobby — Sabé cuánto matcheás antes de aplicar",
     description:
