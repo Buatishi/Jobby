@@ -140,6 +140,145 @@ def test_structured_payload_normalization_accepts_ai_variants() -> None:
     assert len(parsed.skills) == 1
 
 
+def _skill_names(payload: dict[str, object]) -> list[str]:
+    normalized = ai_structurer._normalize_structured_payload(payload)
+    return [skill["name"] for skill in normalized["skills"]]
+
+
+def test_skills_given_as_plain_strings_are_kept() -> None:
+    """Con una lista de strings el CV de producción quedó con 0 skills y sin error."""
+    names = _skill_names({"skills": ["Python", "JavaScript", "React", "SQL"]})
+
+    assert names == ["Python", "JavaScript", "React", "SQL"]
+
+
+def test_skills_given_as_one_separated_text_are_split() -> None:
+    text = "Python · JavaScript · React, SQL; Git | Docker\n- Linux"
+
+    assert _skill_names({"skills": text}) == [
+        "Python",
+        "JavaScript",
+        "React",
+        "SQL",
+        "Git",
+        "Docker",
+        "Linux",
+    ]
+
+
+def test_a_separator_inside_parentheses_does_not_split_a_skill() -> None:
+    names = _skill_names(
+        {"skills": ["Office (Word, Excel and Power Point) · Power BI"]}
+    )
+
+    assert names == ["Office (Word, Excel and Power Point)", "Power BI"]
+
+
+def test_skills_grouped_by_category_keep_the_category() -> None:
+    normalized = ai_structurer._normalize_structured_payload(
+        {"skills": {"technical": ["Python", "React"], "soft": "Comunicación · Equipo"}}
+    )
+
+    categories = {s["name"]: s["category"] for s in normalized["skills"]}
+    assert categories == {
+        "Python": "technical",
+        "React": "technical",
+        "Comunicación": "soft",
+        "Equipo": "soft",
+    }
+
+
+def test_objects_and_strings_can_be_mixed_and_repeats_are_dropped() -> None:
+    normalized = ai_structurer._normalize_structured_payload(
+        {
+            "skills": [
+                {"name": "Python", "category": "technical", "level": "advanced"},
+                "python",
+                "Docker",
+                {"category": "technical"},
+                "",
+            ]
+        }
+    )
+
+    parsed = CVStructuredData.model_validate(normalized)
+    assert [(s.name, s.category) for s in parsed.skills] == [
+        ("Python", "technical"),
+        ("Docker", "general"),
+    ]
+    assert parsed.skills[0].level == "advanced"
+
+
+def test_a_single_skill_object_is_accepted() -> None:
+    assert _skill_names({"skills": {"name": "Python", "level": "senior"}}) == ["Python"]
+
+
+def test_a_skill_longer_than_the_wizard_accepts_is_dropped() -> None:
+    names = _skill_names({"skills": ["Python", "x" * 201]})
+
+    assert names == ["Python"]
+
+
+def test_languages_and_certifications_given_as_strings_are_kept() -> None:
+    normalized = ai_structurer._normalize_structured_payload(
+        {
+            "languages": ["Inglés nivel B2", {"language": "Español"}],
+            "certifications": ["AWS Cloud Practitioner"],
+        }
+    )
+
+    assert [item["name"] for item in normalized["languages"]] == [
+        "Inglés nivel B2",
+        "Español",
+    ]
+    assert normalized["certifications"][0]["name"] == "AWS Cloud Practitioner"
+
+
+def test_the_prompt_defines_the_shape_of_each_item() -> None:
+    prompt = ai_structurer._system_prompt()
+
+    assert "skills {name, category, level}" in prompt
+    assert "each skill" in prompt.lower()
+
+
+@pytest.mark.asyncio
+async def test_a_cv_whose_skills_come_back_as_strings_still_gets_its_skills(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reply = (
+        '{"contact": {}, "skills": ["Python", "JavaScript", "React"],'
+        ' "experiences": [{"title": "Dev", "company": "Acme"}]}'
+    )
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"choices": [{"message": {"content": reply}}]}
+
+    class FakeClient:
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(ai_structurer.settings, "deepseek_api_key", "test-key")
+    monkeypatch.setattr(ai_structurer.httpx, "AsyncClient", FakeClient)
+
+    parsed = await ai_structurer.structure_cv_text("Python JavaScript React")
+
+    assert [skill.name for skill in parsed.skills] == ["Python", "JavaScript", "React"]
+    assert parsed.experiences[0].title == "Dev"
+
+
 @pytest.mark.asyncio
 async def test_deepseek_unauthorized_returns_actionable_error(
     monkeypatch: pytest.MonkeyPatch,

@@ -10,6 +10,12 @@ from app.services.cv_parser.errors import CVParsingError
 
 DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
 
+# Mismo tope que `SkillCreate.name`: una skill más larga no se podría confirmar en el
+# paso 3 del asistente (la API respondería 400) y solo ensuciaría el perfil.
+MAX_SKILL_NAME_LENGTH = 200
+_LIST_SEPARATORS = "·•|;,\n"
+_NAME_KEYS = ("name", "skill", "skill_name", "technology")
+
 
 class ParsedSkill(BaseModel):
     name: str = ""
@@ -71,6 +77,12 @@ def _system_prompt() -> str:
         "Extract only facts explicitly present in the CV. Return strict JSON "
         "with this shape: contact, skills, experiences, educations, languages, "
         "certifications. Do not include markdown, comments, or extra keys. "
+        "Each skill, experience, education, language and certification is an "
+        "object: skills {name, category, level}; experiences {company, title, "
+        "started_at, description, achievements}; educations {institution, "
+        "field_of_study, degree_level}; languages {name, level}; certifications "
+        "{name, issuer}. List every skill, technology and tool the CV mentions as "
+        "its own skills object, including those written in a single line. "
         "Use lowercase categories and levels when possible. "
         f"{UNTRUSTED_DATA_NOTICE_EN}"
     )
@@ -125,6 +137,66 @@ def _normalize_items(value: Any) -> list[dict[str, Any]]:
     return [item for item in _ensure_list(value) if isinstance(item, dict)]
 
 
+def _split_list_text(text: str) -> list[str]:
+    """Separa «Python · React, SQL» sin partir lo que está entre paréntesis."""
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in text:
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth = max(0, depth - 1)
+        if depth == 0 and char in _LIST_SEPARATORS:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current))
+    cleaned = (part.strip(" \t-–—") for part in parts)
+    return [part for part in cleaned if part]
+
+
+def _skill_entries(raw: Any, category: str = "general") -> list[dict[str, str]]:
+    """Las skills del CV, con la forma que la IA las haya devuelto.
+
+    El prompt no fijaba la forma de cada ítem y la IA devuelve a veces objetos, a veces
+    strings sueltos, un solo texto separado por «·» o un objeto agrupado por categoría.
+    Solo se aceptaban objetos: con una lista de strings el CV quedaba sin skills, sin
+    ningún error.
+    """
+    entries: list[dict[str, str]] = []
+    if isinstance(raw, str):
+        for name in _split_list_text(raw):
+            entries.append({"name": name, "category": category, "level": "unknown"})
+    elif isinstance(raw, dict):
+        if any(key in raw for key in _NAME_KEYS):
+            entries.extend(_skill_entries([raw], category))
+        else:
+            for group, value in raw.items():
+                if isinstance(value, list | str):
+                    entries.extend(_skill_entries(value, _clean_str(group) or category))
+    elif isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, dict):
+                name = _pick(item, *_NAME_KEYS)
+                if name:
+                    entries.append(
+                        {
+                            "name": name,
+                            "category": _pick(
+                                item, "category", "type", default=category
+                            ),
+                            "level": _pick(
+                                item, "level", "proficiency", default="unknown"
+                            ),
+                        }
+                    )
+            elif isinstance(item, str):
+                entries.extend(_skill_entries(item, category))
+    return entries
+
+
 def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
     for wrapper_key in ("data", "profile", "parsed_data", "cv"):
         wrapped = parsed.get(wrapper_key)
@@ -142,18 +214,15 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         "linkedin_url": _pick(contact_item, "linkedin_url", "linkedin"),
     }
 
-    skills = []
-    for item in _normalize_items(parsed.get("skills")):
-        name = _pick(item, "name", "skill", "skill_name", "technology")
-        if not name:
+    skills: list[dict[str, str]] = []
+    seen_skills: set[str] = set()
+    for entry in _skill_entries(parsed.get("skills")):
+        # La misma skill repetida (otra categoría o mayúscula) cuenta una sola vez.
+        key = entry["name"].lower()
+        if len(entry["name"]) > MAX_SKILL_NAME_LENGTH or key in seen_skills:
             continue
-        skills.append(
-            {
-                "name": name,
-                "category": _pick(item, "category", "type", default="general"),
-                "level": _pick(item, "level", "proficiency", default="unknown"),
-            }
-        )
+        seen_skills.add(key)
+        skills.append(entry)
 
     experiences = []
     for item in _normalize_items(parsed.get("experiences")):
@@ -192,7 +261,11 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         )
 
     languages = []
-    for item in _normalize_items(parsed.get("languages")):
+    for item in _ensure_list(parsed.get("languages")):
+        if isinstance(item, str):
+            item = {"name": item}
+        if not isinstance(item, dict):
+            continue
         name = _pick(item, "name", "language")
         if not name:
             continue
@@ -204,7 +277,11 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         )
 
     certifications = []
-    for item in _normalize_items(parsed.get("certifications")):
+    for item in _ensure_list(parsed.get("certifications")):
+        if isinstance(item, str):
+            item = {"name": item}
+        if not isinstance(item, dict):
+            continue
         name = _pick(item, "name", "certification", "title")
         if not name:
             continue
