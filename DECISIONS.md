@@ -1300,3 +1300,35 @@ hay verificación en Search Console que lo confirme.
   decisión previa y no se toca acá.
 - El subdominio `vercel.app` no acumula autoridad propia. Un dominio propio obliga a tocar las URLs
   de Supabase Auth, LemonSqueezy y CORS, y a redirigir con 301; va en un cambio aparte.
+
+---
+
+## Actualización — Decisión 14 (2026-10-16)
+
+**Estado:** Ampliada, con aprobación del autor.
+
+**Medición.** La consulta periódica de la actualización del 2026-09-25 no cumplía lo
+prometido: `keep-alive.yml` corrió el 2026-10-14 y el 2026-10-15 a las 19:40, 22:40, 00:55,
+03:22, 15:24, 19:16 y 22:24 UTC, es decir, una vez cada ~3 horas, con huecos de hasta ~4 horas
+dentro del horario (por ejemplo, ninguna corrida entre las 11:00 y las 15:24 UTC). La API Free
+dormía buena parte del día y el primer pedido de cada período esperaba ~40 s: es la causa de
+fondo de las demoras que se vieron en las pantallas del asistente. La limitación estaba prevista (GitHub puede demorar o saltear ejecuciones), pero
+su peso no estaba medido.
+
+**Elegido.** Los pedidos a `/health` pasan a hacerse desde la base de datos con `pg_cron` y
+`pg_net` (migración 029): `*/10 11-23 * * *` y `*/10 0-2 * * *` en UTC, es decir, de 8 a 24 hora
+de Buenos Aires, igual que antes. Un tercer trabajo borra a diario lo anterior a 7 días de
+`cron.job_run_details`. Probado en `jobby-test` antes de aplicarlo (ejecuciones a los :00 y
+`200` de `/health`) y aplicado en producción el 2026-10-16. El workflow de GitHub no se toca y
+queda como respaldo. Consumo y costo sin cambios: ~16 h por día, unas 500 de las 750 horas
+gratis de Render, USD 0.
+
+**Alternativas evaluadas.** (a) UptimeRobot cada 5 minutos: mantiene la API despierta las 24 h
+(744 de 750 horas) y deja casi sin margen a los otros servicios del workspace; (b) cron de
+Render: mínimo USD 1 por mes; (c) Render Starter (USD 7/mes): único arreglo total, sigue como
+opción si el proyecto necesita cero espera de forma permanente.
+
+**Límites.** Si Supabase pausa el proyecto por inactividad, el ping se detiene hasta que se lo
+restaure; no está verificado que la propia actividad del cron evite esa pausa. Revertir:
+`select cron.unschedule(jobname) from cron.job;` y `drop extension pg_cron; drop extension
+pg_net;`.
