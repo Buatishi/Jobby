@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Info, Lightbulb, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -26,10 +26,14 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip";
 import {
+  mergeLoadedValues,
   resolveStepOneValues,
   SENIORITY_OPTIONS,
+  STEP_ONE_DEFAULTS,
   WORK_MODALITIES,
-  type StepOneProfile
+  type StepOneField,
+  type StepOneProfile,
+  type StepOneValues
 } from "@/lib/wizard/step-one";
 
 const seniorityOptions = SENIORITY_OPTIONS;
@@ -37,17 +41,21 @@ const workModalities = WORK_MODALITIES;
 
 export default function WizardStepOnePage() {
   const router = useRouter();
-  const [headline, setHeadline] = useState("");
-  const [summary, setSummary] = useState("");
-  const [targetRole, setTargetRole] = useState("");
-  const [targetSeniority, setTargetSeniority] = useState("mid");
-  const [workModality, setWorkModality] = useState("remote");
+  const [values, setValues] = useState<StepOneValues>(STEP_ONE_DEFAULTS);
+  // Campos que la persona ya tocó: el perfil, al llegar, no los pisa.
+  const touchedRef = useRef<Set<StepOneField>>(new Set());
+  const { headline, summary, targetRole, targetSeniority, workModality } = values;
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileId, setProfileId] = useState<string | undefined>(undefined);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isPrefilled, setIsPrefilled] = useState(false);
+
+  function edit(field: StepOneField, value: string) {
+    touchedRef.current.add(field);
+    setValues((current) => ({ ...current, [field]: value }));
+  }
 
   useEffect(() => {
     let active = true;
@@ -61,12 +69,11 @@ export default function WizardStepOnePage() {
           return;
         }
 
-        const { values, prefilled } = resolveStepOneValues(profile, draft);
-        setHeadline(values.headline);
-        setSummary(values.summary);
-        setTargetRole(values.targetRole);
-        setTargetSeniority(values.targetSeniority);
-        setWorkModality(values.workModality);
+        const resolved = resolveStepOneValues(profile, draft);
+        const prefilled = resolved.prefilled;
+        setValues((current) =>
+          mergeLoadedValues(current, touchedRef.current, resolved.values)
+        );
         setProfileId(profile?.id ?? undefined);
         setIsPrefilled(prefilled);
         setIsLoadingProfile(false);
@@ -184,7 +191,8 @@ export default function WizardStepOnePage() {
 
           {isLoadingProfile ? (
             <p className="mb-4 text-sm text-muted-foreground">
-              Cargando tu perfil...
+              Cargando tu perfil: ya podés escribir y el guardado se habilita en
+              un momento.
             </p>
           ) : isPrefilled ? (
             <p className="mb-4 text-sm text-muted-foreground">
@@ -193,9 +201,7 @@ export default function WizardStepOnePage() {
             </p>
           ) : null}
 
-          <form onSubmit={handleSubmit}>
-            {/* El espaciado va en el fieldset: es el único hijo directo del form. */}
-            <fieldset className="min-w-0 space-y-5" disabled={isLoadingProfile}>
+          <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="headline">
                 Headline
@@ -203,7 +209,7 @@ export default function WizardStepOnePage() {
               <input
                 className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="headline"
-                onChange={(event) => setHeadline(event.target.value)}
+                onChange={(event) => edit("headline", event.target.value)}
                 placeholder="Backend Engineer"
                 required
                 value={headline}
@@ -220,7 +226,7 @@ export default function WizardStepOnePage() {
               <textarea
                 className="min-h-28 w-full resize-none rounded-2xl border border-input bg-background p-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="summary"
-                onChange={(event) => setSummary(event.target.value)}
+                onChange={(event) => edit("summary", event.target.value)}
                 placeholder="Contame en pocas líneas qué hacés y hacia dónde querés ir."
                 value={summary}
               />
@@ -251,7 +257,7 @@ export default function WizardStepOnePage() {
                 <input
                   className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="targetRole"
-                  onChange={(event) => setTargetRole(event.target.value)}
+                  onChange={(event) => edit("targetRole", event.target.value)}
                   placeholder="AI Product Engineer"
                   required
                   value={targetRole}
@@ -277,7 +283,7 @@ export default function WizardStepOnePage() {
                 <select
                   className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="seniority"
-                  onChange={(event) => setTargetSeniority(event.target.value)}
+                  onChange={(event) => edit("targetSeniority", event.target.value)}
                   value={targetSeniority}
                 >
                   {seniorityOptions.map((option) => (
@@ -315,7 +321,7 @@ export default function WizardStepOnePage() {
                     <input
                       checked={workModality === option.value}
                       name="workModality"
-                      onChange={() => setWorkModality(option.value)}
+                      onChange={() => edit("workModality", option.value)}
                       type="radio"
                     />
                     {option.label}
@@ -334,14 +340,14 @@ export default function WizardStepOnePage() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button
                 className="w-full sm:w-auto"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingProfile}
                 type="submit"
               >
                 {isSubmitting ? "Guardando..." : "Guardar y continuar"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingProfile}
                 onClick={saveDraft}
                 type="button"
                 variant="secondary"
@@ -350,7 +356,7 @@ export default function WizardStepOnePage() {
                 Guardar borrador
               </Button>
               <Button
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingProfile}
                 onClick={() => {
                   saveDraft();
                   completeWizard();
@@ -362,7 +368,6 @@ export default function WizardStepOnePage() {
                 Ir al dashboard
               </Button>
             </div>
-            </fieldset>
           </form>
         </CardContent>
       </Card>

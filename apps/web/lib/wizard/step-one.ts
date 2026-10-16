@@ -38,13 +38,17 @@ export type StepOneResolution = {
   prefilled: boolean;
 };
 
-const DEFAULTS: StepOneValues = {
+export type StepOneField = keyof StepOneValues;
+
+export const STEP_ONE_DEFAULTS: StepOneValues = {
   headline: "",
   summary: "",
   targetRole: "",
   targetSeniority: "mid",
   workModality: "remote"
 };
+
+const DEFAULTS = STEP_ONE_DEFAULTS;
 
 const SENIORITIES: readonly string[] = SENIORITY_OPTIONS;
 const MODALITIES: readonly string[] = WORK_MODALITIES.map((option) => option.value);
@@ -59,6 +63,28 @@ function oneOf(
 ): string | null {
   const normalized = filled(value)?.trim().toLowerCase();
   return normalized && allowed.includes(normalized) ? normalized : null;
+}
+
+/**
+ * El formulario se puede escribir mientras el perfil carga (si la API despierta de un
+ * arranque en frío, tarda hasta ~40 s). Al llegar el perfil, un campo que la persona ya
+ * tocó conserva lo escrito y el resto toma el valor cargado.
+ */
+export function mergeLoadedValues(
+  current: StepOneValues,
+  touched: ReadonlySet<StepOneField>,
+  loaded: StepOneValues
+): StepOneValues {
+  const pick = (field: StepOneField) =>
+    touched.has(field) ? current[field] : loaded[field];
+
+  return {
+    headline: pick("headline"),
+    summary: pick("summary"),
+    targetRole: pick("targetRole"),
+    targetSeniority: pick("targetSeniority"),
+    workModality: pick("workModality")
+  };
 }
 
 /**
