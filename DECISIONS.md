@@ -1319,8 +1319,10 @@ su peso no estaba medido.
 `pg_net` (migración 029): `*/10 11-23 * * *` y `*/10 0-2 * * *` en UTC, es decir, de 8 a 24 hora
 de Buenos Aires, igual que antes. Un tercer trabajo borra a diario lo anterior a 7 días de
 `cron.job_run_details`. Probado en `jobby-test` antes de aplicarlo (ejecuciones a los :00 y
-`200` de `/health`) y aplicado en producción el 2026-10-16. El workflow de GitHub no se toca y
-queda como respaldo. Consumo y costo sin cambios: ~16 h por día, unas 500 de las 750 horas
+`200` de `/health`) y aplicado en producción el 2026-10-16; el primer disparo real fue a las
+02:00:00 UTC y devolvió `200`. La migración 030 dejó `pg_net` en el esquema `extensions`: el
+Security Advisor avisó `extension_in_public` tras la 029 y el aviso desapareció. El workflow de
+GitHub no se toca y queda como respaldo. Consumo y costo sin cambios: ~16 h por día, unas 500 de las 750 horas
 gratis de Render, USD 0.
 
 **Alternativas evaluadas.** (a) UptimeRobot cada 5 minutos: mantiene la API despierta las 24 h

@@ -56,7 +56,8 @@ Desde el 2026-09-25 hay una cuarta pieza, fuera de la web, y desde el 2026-10-16
 base de datos:
 
 4. **Consulta periódica de día.** Dos trabajos de `pg_cron` en Supabase (migración 029,
-   `services/api/migrations/029_keep_api_awake.sql`) piden `/health` con `pg_net` cada 10
+   `services/api/migrations/029_keep_api_awake.sql`; la 030 deja `pg_net` en el esquema
+   `extensions`, como pide el Security Advisor) piden `/health` con `pg_net` cada 10
    minutos de 8 a 24 (hora de Buenos Aires), así la API no llega a dormirse en el horario de
    uso. De noche duerme y la cubren las tres piezas anteriores. Es posible porque
    `jobmatch-api` quedó como el único servicio gratis activo del workspace: despierta unas
