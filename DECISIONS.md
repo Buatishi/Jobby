@@ -1335,7 +1335,7 @@ restaure; no está verificado que la propia actividad del cron evite esa pausa. 
 `select cron.unschedule(jobname) from cron.job;` y `drop extension pg_cron; drop extension
 pg_net;`.
 
-## Actualización — Decisión 29 (2026-10-14)
+## Actualización — Decisión 29 (2026-10-14): idiomas del puesto
 
 **Estado:** Corrección pedida por el autor tras medir en producción con una cuenta real. Las
 reglas marcadas como «propuesta» no fueron aprobadas y se pueden cambiar.
