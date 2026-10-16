@@ -1367,3 +1367,36 @@ Es lo que la actualización anterior dejó como «hallado y sin corregir».
 **Límites que quedan abiertos.** El nivel del perfil se sigue leyendo solo con las palabras en
 inglés de `LANGUAGE_LEVEL` y sin códigos MCER: un «Avanzado» o «C1» cargado a mano cae en
 intermedio. «Fluido» o «fluent» tampoco se reconoce como nivel en el texto del puesto.
+
+## Actualización — Decisión 29 (2026-10-16): el paso 4 edita lo guardado
+
+**Estado:** Corrección pedida por el autor tras el recorrido de punta a punta del
+2026-10-15, donde quedó anotado que el paso 4 no precargaba y agregaba filas al repetirse.
+
+**Problema (medido en el código y en vivo).** El paso 4 abría siempre vacío y cada «Guardar y
+finalizar» enviaba un `POST` por cada campo completo. Volver a pasar por el paso agregaba otra
+experiencia, otro estudio y otro idioma iguales, y no había forma de ver ni corregir lo que
+ya estaba cargado.
+
+**Elegido.**
+- `GET /profiles/details` devuelve las experiencias, estudios e idiomas cargados a mano, de la
+  más nueva a la más vieja, sin vectores ni filas de otra persona.
+- `PATCH /profiles/experiences/{id}`, `/educations/{id}` y `/languages/{id}` hacen un cambio
+  parcial: solo tocan los campos enviados y un `null` no vacía una columna obligatoria. Una fila
+  de otra persona responde 404 igual que una inexistente (casos nuevos en la matriz de
+  `test_cross_user_access.py`). Después de cada cambio se recalcula el porcentaje del perfil.
+- El paso 4 abre con la fila más nueva de cada tipo. Al guardar, edita esa fila si el valor
+  cambió, no hace ningún pedido si no cambió y crea solo cuando no hay ninguna. Si un pedido
+  falla y otro salió bien, lo que salió bien se recuerda: reintentar no lo repite.
+- Mientras carga lo guardado se puede escribir (lo tocado no se pisa) y el guardado se habilita
+  al llegar. Si la carga falla, no se guarda hasta reintentar: guardar sin saber qué hay
+  duplicaría datos.
+- Los `PATCH` del paso llevan `idempotent: true`, así que se reintentan ante un 502 de deploy
+  (ver la actualización de la Decisión 14 del 2026-10-16); los `POST` que crean, no.
+
+**Límites que quedan abiertos.**
+- Vaciar un campo no borra lo guardado: la API no tiene borrado de estas filas.
+- Las filas duplicadas que ya existen (por ejemplo en las cuentas de prueba) no se unifican.
+- El paso muestra y edita solo la más nueva de cada tipo; si hay más, siguen en el perfil.
+- El nivel del idioma sigue fijo en `professional` al crearlo y el paso no pide carrera ni
+  descripción (ver los límites de la Decisión 29).

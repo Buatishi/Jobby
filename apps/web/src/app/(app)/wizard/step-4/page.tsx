@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 
@@ -20,6 +20,18 @@ import {
   getWizardProgress,
   type WizardSkillDraft
 } from "@/lib/wizard/progress";
+import {
+  applyStepFourWrite,
+  mergeLoadedValues,
+  planStepFourWrites,
+  resolveStepFour,
+  STEP_FOUR_DEFAULTS,
+  STEP_FOUR_NOTHING_SAVED,
+  type StepFourDetails,
+  type StepFourField,
+  type StepFourSaved,
+  type StepFourValues
+} from "@/lib/wizard/step-four";
 
 type ProfilePreview = {
   headline?: string | null;
@@ -29,14 +41,60 @@ type ProfilePreview = {
 
 export default function WizardStepFourPage() {
   const router = useRouter();
-  const [company, setCompany] = useState("");
-  const [title, setTitle] = useState("");
-  const [education, setEducation] = useState("");
-  const [language, setLanguage] = useState("");
+  const [values, setValues] = useState<StepFourValues>(STEP_FOUR_DEFAULTS);
+  // Campos que la persona ya tocó: lo guardado, al llegar, no los pisa.
+  const touchedRef = useRef<Set<StepFourField>>(new Set());
+  const { company, title, education, language } = values;
+  // Las filas que este paso edita; si ya existen, guardar las modifica en vez de agregar.
+  const [saved, setSaved] = useState<StepFourSaved>(STEP_FOUR_NOTHING_SAVED);
+  const [savedExperienceCount, setSavedExperienceCount] = useState(0);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [isPrefilled, setIsPrefilled] = useState(false);
   const [profile, setProfile] = useState<ProfilePreview | null>(null);
   const [skills, setSkills] = useState<WizardSkillDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function edit(field: StepFourField, value: string) {
+    touchedRef.current.add(field);
+    setValues((current) => ({ ...current, [field]: value }));
+  }
+
+  const loadDetails = useCallback(() => {
+    let active = true;
+    setIsLoadingDetails(true);
+    setLoadFailed(false);
+
+    apiClient<StepFourDetails>("/api/v1/profiles/details")
+      .then((details) => {
+        if (!active) {
+          return;
+        }
+
+        const resolved = resolveStepFour(details);
+        setValues((current) =>
+          mergeLoadedValues(current, touchedRef.current, resolved.values)
+        );
+        setSaved(resolved.saved);
+        setSavedExperienceCount(resolved.experienceCount);
+        setIsPrefilled(resolved.prefilled);
+        setIsLoadingDetails(false);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        // Sin saber qué hay guardado, guardar podría repetir datos: se espera al reintento.
+        setLoadFailed(true);
+        setIsLoadingDetails(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const progress = getWizardProgress();
@@ -45,10 +103,13 @@ export default function WizardStepFourPage() {
     void apiClient<ProfilePreview>("/api/v1/profiles/me")
       .then(setProfile)
       .catch(() => setProfile(null));
-  }, []);
+
+    return loadDetails();
+  }, [loadDetails]);
 
   const visibleSkills = useMemo(() => skills.slice(0, 8), [skills]);
-  const experienceCount = company || title ? 1 : 0;
+  const hasExperience = company.trim() !== "" || title.trim() !== "";
+  const experienceCount = Math.max(savedExperienceCount, hasExperience ? 1 : 0);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,48 +117,44 @@ export default function WizardStepFourPage() {
     setIsSubmitting(true);
 
     try {
-      const requests: Array<Promise<unknown>> = [];
-
-      if (company || title) {
-        requests.push(
-          apiClient("/api/v1/profiles/experiences", {
-            method: "POST",
-            body: JSON.stringify({
-              company,
-              title,
-              description: null,
-              achievements: []
-            })
+      const writes = planStepFourWrites(values, saved);
+      const results = await Promise.allSettled(
+        writes.map((write) =>
+          apiClient<{ id?: string | null }>(write.path, {
+            method: write.method,
+            // Editar una fila deja el mismo resultado si se repite (un deploy puede dar
+            // 502); crear una no: repetirlo la duplicaría.
+            idempotent: write.method === "PATCH",
+            body: JSON.stringify(write.body)
           })
-        );
+        )
+      );
+
+      // Lo que salió bien queda como guardado: si otro pedido falló y la persona
+      // reintenta, esas filas se editan y no se vuelven a crear.
+      let nextSaved = saved;
+      let firstFailure: unknown = null;
+      results.forEach((result, index) => {
+        const write = writes[index];
+        if (!write) {
+          return;
+        }
+        if (result.status === "fulfilled") {
+          nextSaved = applyStepFourWrite(
+            nextSaved,
+            write,
+            result.value?.id ?? null
+          );
+        } else if (firstFailure === null) {
+          firstFailure = result.reason;
+        }
+      });
+      setSaved(nextSaved);
+
+      if (firstFailure !== null) {
+        throw firstFailure;
       }
 
-      if (education) {
-        requests.push(
-          apiClient("/api/v1/profiles/educations", {
-            method: "POST",
-            body: JSON.stringify({
-              institution: education,
-              field_of_study: null,
-              degree_level: null
-            })
-          })
-        );
-      }
-
-      if (language) {
-        requests.push(
-          apiClient("/api/v1/profiles/languages", {
-            method: "POST",
-            body: JSON.stringify({
-              name: language,
-              level: "professional"
-            })
-          })
-        );
-      }
-
-      await Promise.all(requests);
       completeWizard();
       router.push("/dashboard");
       router.refresh();
@@ -134,6 +191,28 @@ export default function WizardStepFourPage() {
             </div>
           </div>
 
+          {isLoadingDetails ? (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Cargando lo que ya guardaste: podés escribir y el guardado se
+              habilita en un momento.
+            </p>
+          ) : loadFailed ? (
+            <div className="mb-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center">
+              <p className="text-destructive">
+                No pudimos cargar lo que ya guardaste, así que no se puede
+                guardar desde acá sin repetir datos.
+              </p>
+              <Button onClick={loadDetails} size="sm" type="button" variant="outline">
+                Reintentar
+              </Button>
+            </div>
+          ) : isPrefilled ? (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Cargamos lo que ya tenías guardado. Cambiá solo lo que quieras
+              actualizar: si no tocás nada, no se vuelve a guardar.
+            </p>
+          ) : null}
+
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -143,7 +222,7 @@ export default function WizardStepFourPage() {
                 <input
                   className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="company"
-                  onChange={(event) => setCompany(event.target.value)}
+                  onChange={(event) => edit("company", event.target.value)}
                   placeholder="Acme"
                   value={company}
                 />
@@ -155,7 +234,7 @@ export default function WizardStepFourPage() {
                 <input
                   className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="title"
-                  onChange={(event) => setTitle(event.target.value)}
+                  onChange={(event) => edit("title", event.target.value)}
                   placeholder="Software Engineer"
                   value={title}
                 />
@@ -169,7 +248,7 @@ export default function WizardStepFourPage() {
               <input
                 className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="education"
-                onChange={(event) => setEducation(event.target.value)}
+                onChange={(event) => edit("education", event.target.value)}
                 placeholder="Universidad, bootcamp o certificación principal"
                 value={education}
               />
@@ -182,7 +261,7 @@ export default function WizardStepFourPage() {
               <input
                 className="h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="language"
-                onChange={(event) => setLanguage(event.target.value)}
+                onChange={(event) => edit("language", event.target.value)}
                 placeholder="Inglés"
                 value={language}
               />
@@ -204,7 +283,7 @@ export default function WizardStepFourPage() {
                     {profile?.target_role ? ` · ${profile.target_role}` : ""}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Experiencias cargadas en este paso: {experienceCount}
+                    Experiencias en tu perfil: {experienceCount}
                   </p>
                 </div>
 
@@ -235,7 +314,10 @@ export default function WizardStepFourPage() {
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button disabled={isSubmitting} type="submit">
+              <Button
+                disabled={isSubmitting || isLoadingDetails || loadFailed}
+                type="submit"
+              >
                 {isSubmitting ? "Guardando..." : "Guardar y finalizar"}
               </Button>
               <Button

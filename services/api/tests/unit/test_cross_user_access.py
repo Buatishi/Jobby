@@ -33,6 +33,9 @@ SECRET = "DATO-PRIVADO-DE-USER-2"
 
 JOB_ID = "3f1c2a4e-8b7d-4c21-9e5a-1d2f3a4b5c6d"
 JOB_WITHOUT_RESULTS_ID = "7b2d9c1e-4a3f-4e8b-9c6d-2f1a0b9c8d7e"
+EXPERIENCE_ID = "5a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+EDUCATION_ID = "6b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e"
+LANGUAGE_ID = "7c3d4e5f-6a7b-4c8d-8e9f-1a2b3c4d5e6f"
 
 # Ambas son premium: así las rutas premium llegan a la verificación de dueña y un
 # 403 por plan no puede esconder una verificación que falte.
@@ -117,6 +120,15 @@ CASES = [
                200),
     AccessCase("DELETE", "/api/v1/profiles/documents/{document_id}",
                "/api/v1/profiles/documents/doc-2", "DOCUMENT_NOT_FOUND", 204),
+    AccessCase("PATCH", "/api/v1/profiles/experiences/{experience_id}",
+               f"/api/v1/profiles/experiences/{EXPERIENCE_ID}",
+               "EXPERIENCE_NOT_FOUND", 200, body={"company": "Cambio"}),
+    AccessCase("PATCH", "/api/v1/profiles/educations/{education_id}",
+               f"/api/v1/profiles/educations/{EDUCATION_ID}",
+               "EDUCATION_NOT_FOUND", 200, body={"institution": "Cambio"}),
+    AccessCase("PATCH", "/api/v1/profiles/languages/{language_id}",
+               f"/api/v1/profiles/languages/{LANGUAGE_ID}",
+               "LANGUAGE_NOT_FOUND", 200, body={"name": "Cambio"}),
     # El identificador viaja en el cuerpo y no en la URL, pero es el mismo riesgo.
     AccessCase("POST", "/api/v1/ats/optimize", "/api/v1/ats/optimize",
                "JOB_NOT_FOUND", 404, body={"job_id": JOB_ID},
@@ -181,6 +193,21 @@ def world(monkeypatch: pytest.MonkeyPatch) -> World:
             "status": "done",
             "prep_notes": {"interviewer_name": SECRET},
         }
+    )
+    supabase.tables["master_profiles"].append({"id": "profile-2", "user_id": "user-2"})
+    supabase.tables["experiences"].append(
+        {
+            "id": EXPERIENCE_ID,
+            "profile_id": "profile-2",
+            "company": SECRET,
+            "title": SECRET,
+        }
+    )
+    supabase.tables["educations"].append(
+        {"id": EDUCATION_ID, "profile_id": "profile-2", "institution": SECRET}
+    )
+    supabase.tables["languages"].append(
+        {"id": LANGUAGE_ID, "profile_id": "profile-2", "name": SECRET}
     )
     supabase.tables["uploaded_documents"].append(
         {
