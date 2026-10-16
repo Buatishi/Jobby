@@ -1438,3 +1438,43 @@ sesión devuelve un muro de registro y no se usa scraping del perfil propio.
 - La coincidencia es literal por nombre: «API REST» y «REST APIs» no coinciden.
 - Cada PDF cuenta en el tope diario de cargas (10) y en el costo de lectura con IA.
 - El asistente sigue sin pedir LinkedIn; solo está en «Mi perfil».
+
+## Actualización — Decisión 31 (2026-10-16): alias y traducciones
+
+**Estado:** Pedido por el autor tras probar en vivo con su PDF, donde LinkedIn nombró «React.js»
+y «API Integrations» y el perfil tenía «React» e «Integración de APIs»: no coincidían por
+compararse el texto literal. Pedido: «que reconozca alias y traducciones, pero que sea lógico».
+La lista de equivalencias es propuesta del cambio y no fue aprobada entrada por entrada.
+
+**Elegido.** `services/api/app/services/skill_names.py` decide cuándo dos nombres son la misma
+skill, con reglas fijas, sin IA y sin costo. Dos nombres coinciden si quedan iguales después de:
+1. Quitar acentos y mayúsculas e ignorar la puntuación (salvo `.`, `+` y `#`: «Node.js», «C++»).
+2. Llevar un producto escrito de varias maneras a una sola («Power BI», «Microsoft Power BI» y
+   «PowerBI»; «React», «React.js» y «ReactJS», solo para los frameworks de la lista).
+3. Llevar las palabras genéricas a un inglés único y en singular («integración», «integraciones» e
+   «integrations»). Los nombres que la tabla no conoce solo coinciden consigo mismos.
+4. Descartar conectores («de», «y», «of») y palabras que no cambian de qué skill se habla
+   («skills», «habilidades», «metodologías», «herramientas»).
+5. Ignorar el orden: «API REST» y «REST API».
+
+**Qué no se iguala (lo fijan las pruebas).** Java y JavaScript, C, C++ y C#, React y React Native,
+Angular y AngularJS, SQL con PostgreSQL, MySQL y NoSQL, Git y GitHub, Project y Product
+Management, Data Science y Data Analysis, Machine y Deep Learning, Seguridad y Ciberseguridad,
+Frontend y Backend, Power BI y Power Automate. Cada alias de la tabla tiene que ser la misma
+skill, no una parecida o relacionada; ante la duda no se agrega.
+
+**Alternativas descartadas.** Distancia de edición: iguala «Java» con «Lava». Similitud por
+vectores: cuesta un vector por nombre, no explica por qué dos nombres coinciden y habría que
+fijar un umbral que se equivoca en los dos sentidos.
+
+**Dónde se aplica.** Solo al marcado de `skills.in_linkedin` por el PDF de LinkedIn.
+
+**Dónde NO se aplica (propuesta sin aprobar).** El MatchScore (`s_skills`: coincidencia literal
+y respaldo semántico con peso 0,6), el reporte ATS (`keyword_matcher`), la deduplicación al
+leer un CV y `POST /profiles/skills`. Aplicarlo ahí convertiría coincidencias semánticas en
+literales («API REST» contra «REST APIs») y movería los puntajes de personas reales: conviene
+hacerlo como cambio aparte, midiendo antes y después con los mismos perfiles y puestos.
+
+**Límites que quedan abiertos.** La tabla es finita: un alias nuevo se agrega a `_GROUPS` y su
+par negativo a `test_skill_names.py`. Un PDF ya subido no se vuelve a leer solo: hay que subirlo
+otra vez para que marque las coincidencias nuevas.
