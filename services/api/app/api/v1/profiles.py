@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from postgrest.exceptions import APIError
@@ -10,11 +11,18 @@ from app.dependencies import get_current_user
 from app.models.auth import CurrentUser
 from app.models.profiles import (
     EducationCreate,
+    EducationUpdate,
     ExperienceCreate,
+    ExperienceUpdate,
     LanguageCreate,
+    LanguageUpdate,
     MasterProfile,
     MasterProfileUpdate,
     PrintableCV,
+    ProfileDetails,
+    ProfileEducationItem,
+    ProfileExperienceItem,
+    ProfileLanguageItem,
     RejectedSkillCreate,
     SkillCreate,
     UploadedDocument,
@@ -236,13 +244,12 @@ async def _profile_rows(
     table_name: str,
     columns: str,
     profile_id: str,
+    newest_first: bool = False,
 ) -> list[dict[str, Any]]:
-    response = (
-        await supabase.table(table_name)
-        .select(columns)
-        .eq("profile_id", profile_id)
-        .execute()
-    )
+    query = supabase.table(table_name).select(columns).eq("profile_id", profile_id)
+    if newest_first:
+        query = query.order("created_at", desc=True)
+    response = await query.execute()
     data = getattr(response, "data", None)
     if not isinstance(data, list):
         return []
@@ -579,6 +586,149 @@ async def create_profile_language(
     )
     await _update_completeness(supabase, str(profile["id"]))
     return language
+
+
+def _detail_not_found(label: str, code: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={"error": f"{label} no encontrada", "code": code, "details": {}},
+    )
+
+
+async def _update_profile_row(
+    supabase: Any,
+    table_name: str,
+    columns: str,
+    profile_id: str,
+    row_id: UUID,
+    changes: dict[str, Any],
+    not_found: HTTPException,
+) -> dict[str, Any]:
+    """Cambia una fila del perfil de quien pregunta.
+
+    Filtra por el perfil además del id: una fila de otra persona responde igual que una
+    inexistente (404) y no se toca.
+    """
+    table = supabase.table(table_name)
+    query = table.update(changes) if changes else table.select(columns)
+    response = await (
+        query.eq("id", str(row_id)).eq("profile_id", profile_id).execute()
+    )
+    data = getattr(response, "data", None)
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    raise not_found
+
+
+@router.get("/details", response_model=ProfileDetails)
+async def get_profile_details(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> ProfileDetails:
+    """Experiencia, educación e idiomas cargados a mano: el paso 4 los muestra."""
+    profile = await _fetch_profile(supabase, current_user.id)
+    profile_id = str(profile["id"])
+    experiences, educations, languages = await asyncio.gather(
+        _profile_rows(
+            supabase,
+            "experiences",
+            "id,company,title,description",
+            profile_id,
+            newest_first=True,
+        ),
+        _profile_rows(
+            supabase,
+            "educations",
+            "id,institution,field_of_study,degree_level",
+            profile_id,
+            newest_first=True,
+        ),
+        _profile_rows(
+            supabase,
+            "languages",
+            "id,name,proficiency",
+            profile_id,
+            newest_first=True,
+        ),
+    )
+    return ProfileDetails(
+        experiences=[ProfileExperienceItem(**row) for row in experiences],
+        educations=[ProfileEducationItem(**row) for row in educations],
+        languages=[
+            ProfileLanguageItem(
+                id=row["id"], name=row.get("name") or "", level=row.get("proficiency")
+            )
+            for row in languages
+        ],
+    )
+
+
+@router.patch("/experiences/{experience_id}", response_model=ProfileExperienceItem)
+async def update_profile_experience(
+    experience_id: UUID,
+    payload: ExperienceUpdate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> ProfileExperienceItem:
+    profile = await _fetch_profile(supabase, current_user.id)
+    profile_id = str(profile["id"])
+    row = await _update_profile_row(
+        supabase,
+        "experiences",
+        "id,company,title,description",
+        profile_id,
+        experience_id,
+        payload.to_update_payload(),
+        _detail_not_found("Experiencia", "EXPERIENCE_NOT_FOUND"),
+    )
+    await _update_completeness(supabase, profile_id)
+    return ProfileExperienceItem(**row)
+
+
+@router.patch("/educations/{education_id}", response_model=ProfileEducationItem)
+async def update_profile_education(
+    education_id: UUID,
+    payload: EducationUpdate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> ProfileEducationItem:
+    profile = await _fetch_profile(supabase, current_user.id)
+    profile_id = str(profile["id"])
+    row = await _update_profile_row(
+        supabase,
+        "educations",
+        "id,institution,field_of_study,degree_level",
+        profile_id,
+        education_id,
+        payload.to_update_payload(),
+        _detail_not_found("Educación", "EDUCATION_NOT_FOUND"),
+    )
+    await _update_completeness(supabase, profile_id)
+    return ProfileEducationItem(**row)
+
+
+@router.patch("/languages/{language_id}", response_model=ProfileLanguageItem)
+async def update_profile_language(
+    language_id: UUID,
+    payload: LanguageUpdate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> ProfileLanguageItem:
+    profile = await _fetch_profile(supabase, current_user.id)
+    profile_id = str(profile["id"])
+    row = await _update_profile_row(
+        supabase,
+        "languages",
+        "id,name,proficiency",
+        profile_id,
+        language_id,
+        payload.to_update_payload(),
+        _detail_not_found("Idioma", "LANGUAGE_NOT_FOUND"),
+    )
+    await _update_completeness(supabase, profile_id)
+    return ProfileLanguageItem(
+        id=row["id"], name=row.get("name") or "", level=row.get("proficiency")
+    )
 
 
 @router.get("/reality-gap", response_model=RealityGapReport)

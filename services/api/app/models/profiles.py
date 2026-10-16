@@ -160,3 +160,76 @@ class PrintableCV(BaseModel):
     educations: list[PrintableCVEducation] = Field(default_factory=list)
     languages: list[PrintableCVLanguage] = Field(default_factory=list)
     certifications: list[PrintableCVCertification] = Field(default_factory=list)
+
+
+class ExperienceUpdate(BaseModel):
+    """Cambio parcial: solo se tocan los campos que llegan en el cuerpo."""
+
+    company: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    title: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    description: str | None = Field(default=None, max_length=LONG_TEXT_MAX_LENGTH)
+    achievements: list[Achievement] | None = Field(
+        default=None, max_length=ACHIEVEMENTS_MAX_ITEMS
+    )
+
+    def to_update_payload(self) -> dict[str, Any]:
+        # company y title son NOT NULL: un null explícito no los vacía.
+        changes = self.model_dump(exclude_unset=True)
+        for column in ("company", "title"):
+            if changes.get(column, "") is None:
+                del changes[column]
+        return changes
+
+
+class EducationUpdate(BaseModel):
+    institution: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    field_of_study: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    degree_level: str | None = Field(default=None, max_length=LABEL_MAX_LENGTH)
+
+    def to_update_payload(self) -> dict[str, Any]:
+        changes = self.model_dump(exclude_unset=True)
+        if changes.get("institution", "") is None:
+            del changes["institution"]
+        return changes
+
+
+class LanguageUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=NAME_MAX_LENGTH)
+    level: str | None = Field(default=None, max_length=LABEL_MAX_LENGTH)
+
+    def to_update_payload(self) -> dict[str, Any]:
+        """Con las columnas de la tabla: el nivel se guarda en `proficiency`."""
+        changes = self.model_dump(exclude_unset=True)
+        if changes.get("name", "") is None:
+            del changes["name"]
+        if "level" in changes:
+            changes["proficiency"] = changes.pop("level")
+        return changes
+
+
+class ProfileExperienceItem(BaseModel):
+    id: str
+    company: str = ""
+    title: str = ""
+    description: str | None = None
+
+
+class ProfileEducationItem(BaseModel):
+    id: str
+    institution: str = ""
+    field_of_study: str | None = None
+    degree_level: str | None = None
+
+
+class ProfileLanguageItem(BaseModel):
+    id: str
+    name: str = ""
+    level: str | None = None
+
+
+class ProfileDetails(BaseModel):
+    """Lo que la persona ya cargó a mano, de la más nueva a la más vieja."""
+
+    experiences: list[ProfileExperienceItem] = Field(default_factory=list)
+    educations: list[ProfileEducationItem] = Field(default_factory=list)
+    languages: list[ProfileLanguageItem] = Field(default_factory=list)
