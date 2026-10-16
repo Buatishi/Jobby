@@ -66,6 +66,7 @@ export function JobCard({ job, onUpdated, onDeleted }: JobCardProps) {
     try {
       const updated = await apiClient<JobSummary>(`/api/v1/jobs/${job.id}`, {
         method: "PATCH",
+        idempotent: true,
         body: JSON.stringify(result.payload)
       });
       onUpdated(updated);

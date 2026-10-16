@@ -114,6 +114,7 @@ export default function MatchReportPage() {
       `/api/v1/matches/${report.id}/rating`,
       {
         method: "PATCH",
+        idempotent: true,
         body: JSON.stringify({ rating: nextRating })
       }
     );

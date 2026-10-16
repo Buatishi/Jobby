@@ -195,6 +195,71 @@ describe("fetchWithColdStartRetry", () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
+  it("reintenta un PATCH declarado idempotente ante 502 hasta que responde", async () => {
+    const send = vi
+      .fn<() => Promise<Response>>()
+      .mockResolvedValueOnce(statusResponse(502))
+      .mockResolvedValueOnce(statusResponse(502))
+      .mockResolvedValueOnce(okResponse());
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    const response = await fetchWithColdStartRetry(send, {
+      method: "PATCH",
+      idempotent: true,
+      delays,
+      sleep
+    });
+
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(sleep.mock.calls.map((call) => call[0])).toEqual([10, 20]);
+  });
+
+  it("reintenta un POST idempotente tras un error de red", async () => {
+    const send = vi
+      .fn<() => Promise<Response>>()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(okResponse());
+
+    const response = await fetchWithColdStartRetry(send, {
+      method: "POST",
+      idempotent: true,
+      delays,
+      sleep: async () => undefined
+    });
+
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("un pedido idempotente tampoco reintenta una respuesta que no es de puerta de enlace", async () => {
+    const send = vi.fn(async () => statusResponse(400));
+
+    const response = await fetchWithColdStartRetry(send, {
+      method: "PATCH",
+      idempotent: true,
+      delays,
+      sleep: async () => undefined
+    });
+
+    expect(response.status).toBe(400);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("agotados los reintentos, un pedido idempotente devuelve el último 502", async () => {
+    const send = vi.fn(async () => statusResponse(502));
+
+    const response = await fetchWithColdStartRetry(send, {
+      method: "PATCH",
+      idempotent: true,
+      delays,
+      sleep: async () => undefined
+    });
+
+    expect(response.status).toBe(502);
+    expect(send).toHaveBeenCalledTimes(delays.length + 1);
+  });
+
   it("no reintenta errores que no son de red ni respuestas que no son de puerta de enlace", async () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
 

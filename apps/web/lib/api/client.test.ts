@@ -73,3 +73,44 @@ describe("apiClient with an empty success", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("apiClient with a gateway error on a write", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("does not repeat a PATCH that was not declared idempotent", async () => {
+    const fetchMock = vi.fn(async () => new Response("", { status: 502 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      apiClient("/api/v1/profiles/me", { method: "PATCH", body: "{}" })
+    ).rejects.toThrow("status 502");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("repeats a PATCH declared idempotent until the API answers", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 502 }))
+      .mockResolvedValueOnce(new Response('{"ok":true}', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = apiClient<{ ok: boolean }>("/api/v1/profiles/me", {
+      method: "PATCH",
+      body: '{"headline":"Chef"}',
+      idempotent: true
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(request).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // La marca es de la app: no viaja como opción del fetch.
+    const init = fetchMock.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(init).not.toHaveProperty("idempotent");
+    expect(init.method).toBe("PATCH");
+  });
+});

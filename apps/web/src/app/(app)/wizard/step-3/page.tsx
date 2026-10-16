@@ -42,6 +42,8 @@ export default function WizardStepThreePage() {
   async function confirmSkill(skill: WizardSkillDraft) {
     await apiClient("/api/v1/profiles/skills", {
       method: "POST",
+      // Confirmar una skill ya guardada la actualiza, no agrega otra fila (PR #79).
+      idempotent: true,
       body: JSON.stringify({
         name: skill.name,
         category: skill.category,

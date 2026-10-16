@@ -130,6 +130,8 @@ export default function WizardStepOnePage() {
     try {
       await apiClient("/api/v1/profiles/me", {
         method: "PATCH",
+        // Valores absolutos: repetirlo da el mismo perfil (un deploy puede dar 502).
+        idempotent: true,
         body: JSON.stringify({
           headline,
           summary,
