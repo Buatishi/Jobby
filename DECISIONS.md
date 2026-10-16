@@ -1334,3 +1334,29 @@ opción si el proyecto necesita cero espera de forma permanente.
 restaure; no está verificado que la propia actividad del cron evite esa pausa. Revertir:
 `select cron.unschedule(jobname) from cron.job;` y `drop extension pg_cron; drop extension
 pg_net;`.
+
+## Actualización — Decisión 29 (2026-10-14): idiomas del puesto
+
+**Estado:** Corrección pedida por el autor tras medir en producción con una cuenta real. Las
+reglas marcadas como «propuesta» no fueron aprobadas y se pueden cambiar.
+
+**Problema (medido).** La IA devuelve cada idioma del puesto como un único texto, por ejemplo
+«Inglés intermedio (B1/B2)», y `s_languages.py` lo buscaba entero contra el nombre del idioma
+del perfil («Inglés», nivel `professional`). No coincidía nunca y el componente daba 0 (10 % del
+MatchScore) aunque la persona tuviera el idioma. Pasaba igual con «Inglés básico» y con «English».
+Es lo que la actualización anterior dejó como «hallado y sin corregir».
+
+**Elegido.** Separar nombre y nivel del texto, sin IA y sin tocar los pesos:
+- El nombre se reconoce dentro del texto, sin acentos ni mayúsculas, con las equivalencias es/en
+  de inglés, español, portugués, francés, alemán e italiano; el nombre del perfil se compara con
+  las mismas. Un idioma fuera de la tabla coincide por su propio nombre («Chino intermedio» con
+  «Chino»).
+- El nivel se lee por palabras (básico, intermedio, avanzado, nativo, bilingüe y sus formas en
+  inglés) y por códigos del MCER; sin nivel, intermedio, como antes.
+- Propuesta: el MCER se mapea A1/A2 → básico, B1/B2 → intermedio, C1 → avanzado y C2 → nativo;
+  un rango («B2/C1») pide su nivel más bajo; un texto con dos idiomas («Inglés y portugués») pide
+  los dos, con el nivel que nombra el texto.
+
+**Límites que quedan abiertos.** El nivel del perfil se sigue leyendo solo con las palabras en
+inglés de `LANGUAGE_LEVEL` y sin códigos MCER: un «Avanzado» o «C1» cargado a mano cae en
+intermedio. «Fluido» o «fluent» tampoco se reconoce como nivel en el texto del puesto.
