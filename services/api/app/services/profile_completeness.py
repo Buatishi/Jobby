@@ -127,6 +127,12 @@ def compute_completeness(
         [skill for skill in skills if skill.get("in_cv") is True],
         confirmed_only=False,
     )
+    # Las skills que el PDF de LinkedIn nombró: no se agregan al perfil, solo se
+    # marcan las que la persona ya tenía (`in_linkedin`).
+    in_linkedin_skills = _skill_names(
+        [skill for skill in skills if skill.get("in_linkedin") is True],
+        confirmed_only=False,
+    )
     parsed_rows = int(has_experience) + int(has_education)
 
     points = {
@@ -161,7 +167,7 @@ def compute_completeness(
             documents,
             "linkedin",
             WEIGHTS["linkedin_document"],
-            len(in_cv_skills),
+            len(in_linkedin_skills),
             parsed_rows,
         ),
         "linkedin_url": WEIGHTS["linkedin_url"]
@@ -201,7 +207,7 @@ async def refresh_completeness(supabase: Any, profile_id: str) -> int:
 
     experiences, skills, educations, languages, documents = await asyncio.gather(
         _rows(supabase, "experiences", "title,company", profile_id),
-        _rows(supabase, "skills", "name,confirmed,in_cv", profile_id),
+        _rows(supabase, "skills", "name,confirmed,in_cv,in_linkedin", profile_id),
         _rows(supabase, "educations", "institution,field_of_study", profile_id),
         _rows(supabase, "languages", "name", profile_id),
         _rows(supabase, "uploaded_documents", "type,status", profile_id),

@@ -12,6 +12,7 @@ from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
     extract_pdf_text,
     merge_parsed_skills,
+    skills_named_in_linkedin,
     strip_embeddings,
     structure_cv_text,
 )
@@ -89,6 +90,8 @@ async def _upsert_skill_embeddings(
             "category": skill.get("category"),
             "level": skill.get("level"),
             "in_cv": True if in_cv is None else bool(in_cv),
+            # Sin esto un CV nuevo apagaba la marca que dejó el PDF de LinkedIn.
+            "in_linkedin": bool(skill.get("in_linkedin")),
             "confirmed": skill.get("confirmed", False),
             "embedding": embedding,
         }
@@ -104,6 +107,53 @@ async def _upsert_skill_embeddings(
         await _execute(supabase.table("skills").upsert(existing_rows))
     if new_rows:
         await _execute(supabase.table("skills").upsert(new_rows))
+
+
+def _structured_sections(structured_data: Any) -> dict[str, Any]:
+    return {
+        "experiences": [
+            experience.model_dump() for experience in structured_data.experiences
+        ],
+        "educations": [
+            education.model_dump() for education in structured_data.educations
+        ],
+        "languages": [language.model_dump() for language in structured_data.languages],
+        "certifications": [
+            certification.model_dump()
+            for certification in structured_data.certifications
+        ],
+    }
+
+
+async def _mark_skills_in_linkedin(
+    supabase: Any,
+    structured_data: Any,
+    existing_skills: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """El PDF de LinkedIn marca `in_linkedin` en las skills que la persona ya tiene.
+
+    No toca `in_cv` ni agrega skills (ver `skills_named_in_linkedin`), así que no hay
+    vectores nuevos que calcular ni cambia lo que usa el motor de comparación.
+    """
+    skill_ids = skills_named_in_linkedin(structured_data, existing_skills)
+    await asyncio.gather(
+        *(
+            _execute(
+                supabase.table("skills")
+                .update({"in_linkedin": True})
+                .eq("id", skill_id)
+            )
+            for skill_id in skill_ids
+        )
+    )
+    return {
+        "skills": [
+            {"name": skill.name, "category": skill.category, "level": skill.level}
+            for skill in structured_data.skills
+        ],
+        "matched_skills": len(skill_ids),
+        **_structured_sections(structured_data),
+    }
 
 
 async def run_parse_cv(
@@ -134,32 +184,26 @@ async def run_parse_cv(
             supabase_client,
             str(document["profile_id"]),
         )
-        merged_skills = merge_parsed_skills(structured_data, existing_skills)
-        await _upsert_skill_embeddings(
-            supabase_client,
-            str(document["profile_id"]),
-            merged_skills,
-            ai_gateway,
-        )
+        if document.get("type") == "linkedin":
+            parsed_data = await _mark_skills_in_linkedin(
+                supabase_client, structured_data, existing_skills
+            )
+        else:
+            merged_skills = merge_parsed_skills(structured_data, existing_skills)
+            await _upsert_skill_embeddings(
+                supabase_client,
+                str(document["profile_id"]),
+                merged_skills,
+                ai_gateway,
+            )
 
-        # El vector ya quedó en la tabla `skills` (arriba): `parsed_data` guarda solo
-        # los datos legibles. Con el vector un CV pesaba ~80 KB y llegaba a los prompts.
-        parsed_data = {
-            "skills": strip_embeddings(merged_skills),
-            "experiences": [
-                experience.model_dump() for experience in structured_data.experiences
-            ],
-            "educations": [
-                education.model_dump() for education in structured_data.educations
-            ],
-            "languages": [
-                language.model_dump() for language in structured_data.languages
-            ],
-            "certifications": [
-                certification.model_dump()
-                for certification in structured_data.certifications
-            ],
-        }
+            # El vector ya quedó en la tabla `skills` (arriba): `parsed_data` guarda
+            # solo los datos legibles. Con el vector un CV pesaba ~80 KB y llegaba a los
+            # prompts.
+            parsed_data = {
+                "skills": strip_embeddings(merged_skills),
+                **_structured_sections(structured_data),
+            }
         await _execute(
             supabase_client.table("uploaded_documents")
             .update({"status": "done", "parsed_data": parsed_data, "error_msg": None})

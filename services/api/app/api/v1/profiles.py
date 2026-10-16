@@ -16,6 +16,8 @@ from app.models.profiles import (
     ExperienceUpdate,
     LanguageCreate,
     LanguageUpdate,
+    LinkedInDocument,
+    LinkedInStatus,
     MasterProfile,
     MasterProfileUpdate,
     PrintableCV,
@@ -179,6 +181,17 @@ async def _prepare_cv_slot_for_insert(
     user_id: str,
     payload: UploadedDocumentCreate,
 ) -> None:
+    if payload.type == "linkedin":
+        # Un solo PDF de LinkedIn por persona: el nuevo reemplaza al anterior.
+        await (
+            supabase.table("uploaded_documents")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("type", "linkedin")
+            .execute()
+        )
+        return
+
     if payload.type != "cv":
         return
 
@@ -268,6 +281,36 @@ async def _primary_cv(supabase: Any, user_id: str) -> dict[str, Any] | None:
     )
     data = getattr(response, "data", None)
     return data if isinstance(data, dict) else None
+
+
+@router.get("/linkedin", response_model=LinkedInStatus)
+async def get_linkedin_status(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    supabase: Annotated[Any, Depends(get_supabase_client)],
+) -> LinkedInStatus:
+    """La URL de LinkedIn y el estado del PDF: la tarjeta de «Mi perfil» los muestra."""
+    profile = await _fetch_profile(supabase, current_user.id)
+    profile_id = str(profile["id"])
+    documents, skills = await asyncio.gather(
+        _profile_rows(
+            supabase,
+            "uploaded_documents",
+            "id,type,status,original_filename,error_msg,created_at",
+            profile_id,
+            newest_first=True,
+        ),
+        _profile_rows(supabase, "skills", "in_linkedin", profile_id),
+    )
+    document = next(
+        (row for row in documents if row.get("type") == "linkedin"), None
+    )
+    in_linkedin = sum(1 for skill in skills if skill.get("in_linkedin") is True)
+    return LinkedInStatus(
+        profile_id=profile_id,
+        linkedin_url=profile.get("linkedin_url") or None,
+        document=LinkedInDocument(**document) if document else None,
+        skills_in_linkedin=in_linkedin,
+    )
 
 
 @router.get("/cv", response_model=PrintableCV)

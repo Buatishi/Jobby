@@ -1400,3 +1400,41 @@ ya estaba cargado.
 - El paso muestra y edita solo la más nueva de cada tipo; si hay más, siguen en el perfil.
 - El nivel del idioma sigue fijo en `professional` al crearlo y el paso no pide carrera ni
   descripción (ver los límites de la Decisión 29).
+
+## Decisión 31 — LinkedIn en el perfil: el enlace y el PDF
+
+**Estado:** Pedido por el autor (2026-10-16): «arreglá lo de LinkedIn sin UI». Es el hallazgo que
+dejó la Decisión 29: sin dónde cargar la URL ni el documento de LinkedIn, el 18 % del porcentaje
+(6 de la URL y 12 del documento) era inalcanzable por la web y el kit de entrevista, que pide
+100 %, no se podía generar. El **reparto de pantallas y la regla de lectura** son propuesta del
+cambio y no fueron aprobados por separado.
+
+**Elegido.**
+- Una tarjeta «LinkedIn» en «Mi perfil» (`/profile`), separada del asistente para no tocar el
+  flujo del CV. Tiene el enlace al perfil y la subida del PDF que LinkedIn exporta («Guardar en
+  PDF»). `GET /profiles/linkedin` devuelve el enlace, el estado del PDF (sin su contenido) y
+  cuántas skills ya guardadas nombra.
+- El enlace se valida igual que la API (`linkedin.com/in/<usuario>`) y se guarda con `PATCH
+  /profiles/me`. Dejarlo vacío lo quita.
+- El PDF se sube al mismo bucket privado y se registra como `uploaded_documents.type =
+  'linkedin'`. Un PDF nuevo reemplaza al anterior; no ocupa el lugar del CV ni es CV primario.
+- La tarea de lectura distingue el tipo. Con `linkedin` usa el mismo lector, pero **solo marca
+  `skills.in_linkedin`** en las skills que la persona ya tiene (nombre sin acentos ni mayúsculas,
+  sin mirar la categoría). No toca `in_cv`, no agrega skills y no calcula vectores. Un CV nuevo
+  conserva esa marca.
+- El documento de LinkedIn da sus 12 puntos según las skills que **LinkedIn** nombró (3 o más:
+  completos; alguna o datos del perfil: la mitad; nada: cero). Antes, sin interfaz, se medía con
+  las skills del CV. El Reality Gap ya leía `in_linkedin`, que nada marcaba.
+
+**Por qué no agrega skills.** El motor de comparación usa todas las skills guardadas, confirmadas
+o no, y un perfil de LinkedIn suele traer aptitudes que nadie revisó: agregarlas habría movido
+los MatchScore sin que la persona las confirmara. Tampoco se pidió leer LinkedIn por la web: sin
+sesión devuelve un muro de registro y no se usa scraping del perfil propio.
+
+**Límites que quedan abiertos.**
+- Una skill que figura solo en LinkedIn no se agrega: hay que cargarla y confirmarla a mano.
+- Borrar el PDF no apaga `in_linkedin` (igual que borrar un CV no apaga `in_cv`); subir otro
+  vuelve a marcar, pero no desmarca.
+- La coincidencia es literal por nombre: «API REST» y «REST APIs» no coinciden.
+- Cada PDF cuenta en el tope diario de cargas (10) y en el costo de lectura con IA.
+- El asistente sigue sin pedir LinkedIn; solo está en «Mi perfil».

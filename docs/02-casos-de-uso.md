@@ -71,6 +71,7 @@ la persona o por un evento de LemonSqueezy.
 | CU25 | Editar puesto | Persona usuaria | `PATCH /jobs/{id}`; botón «Editar» de la pantalla Jobs |
 | CU26 | Eliminar puesto | Persona usuaria | `DELETE /jobs/{id}` (409 si tiene comparaciones o kits); botón «Eliminar» de la pantalla Jobs |
 | CU27 | Descargar CV | Persona usuaria | `GET /profiles/cv`; botón «Descargar CV en PDF» del perfil y del reporte ATS (con las secciones optimizadas que la persona elige) |
+| CU28 | Cargar LinkedIn | Persona usuaria | Pantalla «Mi perfil», tarjeta LinkedIn; `PATCH /profiles/me` (enlace), `POST /profiles/documents` con tipo `linkedin` (PDF) y `GET /profiles/linkedin` (estado) |
 
 ## 3. Narrativas de los tres casos de uso principales
 
