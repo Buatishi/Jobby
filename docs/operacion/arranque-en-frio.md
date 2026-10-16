@@ -1,7 +1,8 @@
 # Arranque en frío y suspensión por inactividad
 
 Estado: vigente desde 2026-09-21 (Decisión 14 de `DECISIONS.md`), con la consulta periódica
-de día sumada el 2026-09-25. Costo: USD 0.
+de día sumada el 2026-09-25 y trasladada a la base de datos (`pg_cron`) el 2026-10-16.
+Costo: USD 0.
 
 ## 1. Problema
 
@@ -51,15 +52,24 @@ Tres piezas en el frontend, sin servicios externos (`apps/web/lib/api/cold-start
 El componente `ColdStartNotice` (`apps/web/components/cold-start-notice.tsx`) está montado
 en el layout raíz, así que cubre también a quien entra directo a una pantalla interna.
 
-Desde el 2026-09-25 hay una cuarta pieza, fuera de la web:
+Desde el 2026-09-25 hay una cuarta pieza, fuera de la web, y desde el 2026-10-16 corre en la
+base de datos:
 
-4. **Consulta periódica de día.** El workflow `.github/workflows/keep-alive.yml` pide
-   `/health` cada 10 minutos de 8 a 24 (hora de Buenos Aires), así la API no llega a dormirse
-   en el horario de uso. De noche duerme y la cubren las tres piezas anteriores. Es posible
-   porque `jobmatch-api` quedó como el único servicio gratis activo del workspace: despierta
-   unas 16 horas por día, usa cerca de 500 de las 750 horas del mes. En la pestaña Actions
-   estas corridas aparecen junto a las del pipeline: para ver el pipeline, filtrar por el
-   workflow «CI».
+4. **Consulta periódica de día.** Dos trabajos de `pg_cron` en Supabase (migración 029,
+   `services/api/migrations/029_keep_api_awake.sql`; la 030 deja `pg_net` en el esquema
+   `extensions`, como pide el Security Advisor) piden `/health` con `pg_net` cada 10
+   minutos de 8 a 24 (hora de Buenos Aires), así la API no llega a dormirse en el horario de
+   uso. De noche duerme y la cubren las tres piezas anteriores. Es posible porque
+   `jobmatch-api` quedó como el único servicio gratis activo del workspace: despierta unas
+   16 horas por día, usa cerca de 500 de las 750 horas del mes. Un tercer trabajo borra a
+   diario el historial de ejecuciones de más de 7 días (`cron.job_run_details`).
+
+   El 2026-09-25 esta pieza se había hecho con el workflow
+   `.github/workflows/keep-alive.yml`, y ese workflow **sigue activo como respaldo**. Se la
+   trasladó porque GitHub no lo cumplía: entre el 2026-10-14 y el 2026-10-15 corrió una vez
+   cada ~3 horas (con huecos de hasta ~4 h dentro del horario), no cada 10 minutos, y la API
+   dormía buena parte del día. En la pestaña Actions sus corridas aparecen junto a las del pipeline:
+   para ver el pipeline, filtrar por el workflow «CI».
 
 ## 3. Alternativas evaluadas
 
@@ -68,7 +78,8 @@ Desde el 2026-09-25 hay una cuarta pieza, fuera de la web:
 | Monitor externo (UptimeRobot) cada 5 min | USD 0, pero 720 a 744 de las 750 horas | Descartada como principal: deja 6 a 30 horas para `Jobby` y `Dardo-Audio`; si se agotan Render suspende todo. `/health` no toca la base, así que no evita la pausa de Supabase. Sus términos permiten uso comercial ([política](https://uptimerobot.com/terms-fair-use/)). |
 | Health check nativo de Render | USD 0 | No evita el sueño (observado en logs). |
 | Cron job de Render | Mínimo USD 1/mes ([doc](https://render.com/docs/cronjobs)) | Costo real. |
-| GitHub Actions programado | USD 0 | Descartado el 2026-09-21 (cuenta bloqueada y tres servicios gratis compartiendo las horas). **Adoptado el 2026-09-25**, solo de día, cuando esas dos condiciones cambiaron. |
+| GitHub Actions programado | USD 0 | Descartado el 2026-09-21 (cuenta bloqueada y tres servicios gratis compartiendo las horas). Adoptado el 2026-09-25, solo de día. **Insuficiente (medido el 2026-10-16):** GitHub lo corrió cada ~3 h en lugar de cada 10 min. Queda como respaldo. |
+| `pg_cron` + `pg_net` en Supabase | USD 0 | **Adoptada el 2026-10-16** (migración 029). Corre a la hora exacta (probado: ejecuciones a los :00 y `200` de `/health`) y no depende del planificador de GitHub. |
 | Optimizar imagen o imports | USD 0 | Uvicorn arranca unos 39 s después del pedido; no se puede separar plataforma de imports. No se justifica sin medir. |
 | Worker o cola | USD 0 a 7 | No resuelve: el encolado ocurre dentro de la API dormida. |
 | Render Starter (siempre despierta) | USD 7/mes, por segundo | Único arreglo total. Queda para evaluar ([precios](https://render.com/pricing)). |
@@ -78,6 +89,10 @@ Desde el 2026-09-25 hay una cuarta pieza, fuera de la web:
 - No evita reinicios ni deploys de Render.
 - Si un GET falla por un motivo distinto de puerta de enlace (por ejemplo 500), no se
   reintenta: el error se muestra enseguida.
+- La consulta de `pg_cron` solo corre si el proyecto de Supabase está activo: si Supabase lo
+  pausa (regla de la sección 1), el ping se detiene y la API vuelve a dormirse hasta que se
+  restaure el proyecto. Cada ejecución es actividad de base de datos; que eso baste para que
+  Supabase no pause el proyecto no está verificado.
 - Un POST enviado justo con la API dormida puede fallar; el pre-calentamiento al abrir la
   web hace que sea poco probable.
 - En una build autoalojada (`next start`) el proxy de Next corta a los 30 s con un 500
@@ -110,7 +125,15 @@ Desde el 2026-09-25 hay una cuarta pieza, fuera de la web:
    (resultado del 2026-09-21: 200 en 43,5 s). Para confirmar a qué API apunta el frontend,
    probar las dos APIs 50 s después: la del frontend debe responder en menos de 1 s y la
    otra tardar unos 42 s.
-4. Tests automáticos: `cd apps/web && pnpm test` (`lib/api/cold-start.test.ts`, 19 casos:
+4. Consulta periódica de la base (con el proyecto activo y dentro del horario de 8 a 24, hora
+   de Buenos Aires): en el SQL Editor de Supabase,
+   `select j.jobname, d.start_time, d.status from cron.job_run_details d join cron.job j
+   using (jobid) order by d.start_time desc limit 10;` debe mostrar ejecuciones `succeeded` a
+   los :00, :10, :20... de cada hora, y
+   `select created, status_code from net._http_response order by created desc limit 5;`
+   debe mostrar `200`. Para desactivarla: `select cron.unschedule(jobname) from cron.job;` y
+   `drop extension pg_cron; drop extension pg_net;`.
+5. Tests automáticos: `cd apps/web && pnpm test` (`lib/api/cold-start.test.ts`, 19 casos:
    TTL del pre-calentamiento, ausencia de credenciales, reintentos solo en GET, límites de
    reintento y aviso de demora).
 
