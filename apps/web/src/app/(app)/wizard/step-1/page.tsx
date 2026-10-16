@@ -193,8 +193,9 @@ export default function WizardStepOnePage() {
             </p>
           ) : null}
 
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <fieldset className="contents" disabled={isLoadingProfile}>
+          <form onSubmit={handleSubmit}>
+            {/* El espaciado va en el fieldset: es el único hijo directo del form. */}
+            <fieldset className="min-w-0 space-y-5" disabled={isLoadingProfile}>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="headline">
                 Headline
