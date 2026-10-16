@@ -15,6 +15,21 @@ def normalize_skill_key(name: str, category: str | None) -> tuple[str, str]:
     return " ".join(ascii_name.split()), normalized_category
 
 
+def strip_embeddings(skills: list[Any]) -> list[Any]:
+    """Copia de las skills sin el vector `embedding` (1536 números por fila).
+
+    Las filas de `skills` se leen con `select("*")` y traen el vector, que ya vive en
+    esa tabla. No debe copiarse a `uploaded_documents.parsed_data` ni pegarse en un
+    prompt: pesa decenas de KB por CV y se paga en tokens. Lo que no es dict pasa igual.
+    """
+    return [
+        {key: value for key, value in skill.items() if key != "embedding"}
+        if isinstance(skill, dict)
+        else skill
+        for skill in skills
+    ]
+
+
 def merge_parsed_skills(
     parsed_data: CVStructuredData,
     existing_skills: list[dict[str, Any]],
