@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { ColdStartNotice } from "@/components/cold-start-notice";
 import { I18nProvider } from "@/lib/i18n/provider";
+import { SITE_NAME, SITE_URL } from "@/lib/seo/site";
 
 // Fuente variable: cubre los pesos 400 a 700 y la cursiva de las cifras grandes.
 const montserrat = Montserrat({
@@ -14,18 +15,22 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://jobbyweb.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: "Jobby — Sabé cuánto matcheás antes de aplicar",
   description:
-    "Análisis de compatibilidad laboral con IA para comparar tu CV contra puestos reales, detectar gaps y preparar mejores postulaciones.",
+    "Jobby compara tu CV con un puesto real usando IA: match score, compatibilidad ATS, gaps y recomendaciones para postularte mejor.",
+  // Código público de Google Search Console para verificar la propiedad del sitio.
+  verification: {
+    google: "lJJeKc6H3k7puFsEJ8sNu8oxCA1tdUr6KnTL3REmFQo"
+  },
   openGraph: {
     title: "Jobby — Sabé cuánto matcheás antes de aplicar",
     description:
       "Subí tu CV, pegá un puesto y recibí match score, ATS, gaps reales y recomendaciones accionables.",
     images: ["/og-image.png"],
-    siteName: "Jobby",
+    siteName: SITE_NAME,
     type: "website",
-    url: "https://jobbyweb.vercel.app"
+    url: SITE_URL
   },
   twitter: {
     card: "summary_large_image",

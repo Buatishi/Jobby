@@ -12,6 +12,7 @@ from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
     extract_pdf_text,
     merge_parsed_skills,
+    strip_embeddings,
     structure_cv_text,
 )
 from app.services.profile_completeness import refresh_completeness
@@ -141,8 +142,10 @@ async def run_parse_cv(
             ai_gateway,
         )
 
+        # El vector ya quedó en la tabla `skills` (arriba): `parsed_data` guarda solo
+        # los datos legibles. Con el vector un CV pesaba ~80 KB y llegaba a los prompts.
         parsed_data = {
-            "skills": merged_skills,
+            "skills": strip_embeddings(merged_skills),
             "experiences": [
                 experience.model_dump() for experience in structured_data.experiences
             ],

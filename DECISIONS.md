@@ -1260,6 +1260,81 @@ como cambio aparte. La web tampoco tiene dónde cargar la URL de LinkedIn ni un 
 LinkedIn, así que con la web el máximo es 82 % y el kit de entrevista (que pide 100 %) no se puede
 generar.
 
+---
+
+## Decisión 30 — Posicionamiento orgánico de la web, sin costo
+
+**Estado:** Pedido por el autor (2026-10-15). Solo cubre lo gratuito y técnico; el dominio propio
+es una propuesta **sin aprobar** y queda fuera de este cambio.
+
+**Relevamiento (medido en producción, no supuesto).** La web ya servía HTML prerenderizado, título,
+descripción, Open Graph, `sitemap.xml` y un `robots.txt` que deja pasar a los buscadores y bloquea
+solo las rutas privadas. Faltaban: URL canónica, datos estructurados, títulos propios en
+`/pricing`, `/terms` y `/privacy` (los tres heredaban el título de la home), y un `lastModified` del
+sitemap que dijera la verdad (valía la fecha de cada build para todas las URLs). Una búsqueda de
+`site:jobbyweb.vercel.app` no devolvió páginas del sitio; no prueba que no esté indexado, pero no
+hay verificación en Search Console que lo confirme.
+
+**Elegido.**
+- La URL pública vive en un solo lugar (`lib/seo/site.ts`) y la usan `metadataBase`, Open Graph,
+  el sitemap y los datos estructurados. `public/robots.txt` es estático y se edita a mano.
+- Canónica propia en la home (`/`), `/terms` y `/privacy`. `/pricing` no la lleva a propósito:
+  sus rutas hijas (`success`, `cancel`, `unavailable`) la heredarían y apuntarían a una página que
+  no son.
+- JSON-LD `WebSite` (con `alternateName` «Jobby web») y `WebApplication` en la home. No declara
+  valoraciones ni reseñas: no existen.
+- Título y descripción propios en `/pricing`, `/terms` y `/privacy`, vía un `layout.tsx` por ruta
+  (las páginas son de cliente y no pueden exportar metadatos).
+- El sitemap deja de publicar `lastModified`.
+- La descripción de la home nombra el match score y la compatibilidad ATS.
+
+**Límites que quedan abiertos.**
+- Nadie garantiza una posición: depende de la indexación, de los enlaces entrantes y de la
+  competencia del nombre («jobby» es también una plataforma italiana, paquetes de código y una
+  palabra de jerga). El objetivo realista son búsquedas como «jobby web», «jobby cv» o
+  «jobby match score».
+- Falta que el autor dé de alta el sitio en Google Search Console y Bing Webmaster y envíe el
+  sitemap; la verificación por etiqueta se agrega con el código que entregue cada servicio.
+- `robots.txt` y el middleware bloquean a los rastreadores de IA (GPTBot, OAI-SearchBot,
+  PerplexityBot y otros): el sitio no aparecerá en las respuestas de esos buscadores. Es una
+  decisión previa y no se toca acá.
+- El subdominio `vercel.app` no acumula autoridad propia. Un dominio propio obliga a tocar las URLs
+  de Supabase Auth, LemonSqueezy y CORS, y a redirigir con 301; va en un cambio aparte.
+
+---
+
+## Actualización — Decisión 14 (2026-10-16)
+
+**Estado:** Ampliada, con aprobación del autor.
+
+**Medición.** La consulta periódica de la actualización del 2026-09-25 no cumplía lo
+prometido: `keep-alive.yml` corrió el 2026-10-14 y el 2026-10-15 a las 19:40, 22:40, 00:55,
+03:22, 15:24, 19:16 y 22:24 UTC, es decir, una vez cada ~3 horas, con huecos de hasta ~4 horas
+dentro del horario (por ejemplo, ninguna corrida entre las 11:00 y las 15:24 UTC). La API Free
+dormía buena parte del día y el primer pedido de cada período esperaba ~40 s: es la causa de
+fondo de las demoras que se vieron en las pantallas del asistente. La limitación estaba prevista (GitHub puede demorar o saltear ejecuciones), pero
+su peso no estaba medido.
+
+**Elegido.** Los pedidos a `/health` pasan a hacerse desde la base de datos con `pg_cron` y
+`pg_net` (migración 029): `*/10 11-23 * * *` y `*/10 0-2 * * *` en UTC, es decir, de 8 a 24 hora
+de Buenos Aires, igual que antes. Un tercer trabajo borra a diario lo anterior a 7 días de
+`cron.job_run_details`. Probado en `jobby-test` antes de aplicarlo (ejecuciones a los :00 y
+`200` de `/health`) y aplicado en producción el 2026-10-16; el primer disparo real fue a las
+02:00:00 UTC y devolvió `200`. La migración 030 dejó `pg_net` en el esquema `extensions`: el
+Security Advisor avisó `extension_in_public` tras la 029 y el aviso desapareció. El workflow de
+GitHub no se toca y queda como respaldo. Consumo y costo sin cambios: ~16 h por día, unas 500 de las 750 horas
+gratis de Render, USD 0.
+
+**Alternativas evaluadas.** (a) UptimeRobot cada 5 minutos: mantiene la API despierta las 24 h
+(744 de 750 horas) y deja casi sin margen a los otros servicios del workspace; (b) cron de
+Render: mínimo USD 1 por mes; (c) Render Starter (USD 7/mes): único arreglo total, sigue como
+opción si el proyecto necesita cero espera de forma permanente.
+
+**Límites.** Si Supabase pausa el proyecto por inactividad, el ping se detiene hasta que se lo
+restaure; no está verificado que la propia actividad del cron evite esa pausa. Revertir:
+`select cron.unschedule(jobname) from cron.job;` y `drop extension pg_cron; drop extension
+pg_net;`.
+
 ## Actualización — Decisión 29 (2026-10-14)
 
 **Estado:** Corrección pedida por el autor tras medir en producción con una cuenta real. Las
