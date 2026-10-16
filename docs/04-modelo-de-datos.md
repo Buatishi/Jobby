@@ -31,7 +31,7 @@ A3 en [pdf/laminas/modelo-entidad-relacion.pdf](pdf/laminas/modelo-entidad-relac
 | `roles` | Roles posibles: `user` y `admin` (migración 026). | No |
 | `role_permissions` | Permisos de cada rol; hoy `admin` tiene `metrics:read`. Los endpoints exigen un permiso, nunca un nombre de rol. | No |
 | `master_profiles` | Perfil profesional único de cada persona: titular, resumen, rol y seniority buscados, modalidad, industrias y porcentaje de perfil completo. | Sí |
-| `uploaded_documents` | CV subidos: ruta en el almacén privado, estado del análisis y CV estructurado (`parsed_data`). | Sí: el contenido del CV |
+| `uploaded_documents` | CV y PDF de LinkedIn subidos (`type`: `cv` o `linkedin`): ruta en el almacén privado, estado del análisis y datos leídos (`parsed_data`). | Sí: el contenido del CV y de LinkedIn |
 | `skills` | Habilidades (confirmadas o no, si figuran en el CV o en LinkedIn) con su vector de 1536 números. | Sí |
 | `experiences` | Experiencia laboral: empresa, cargo, fechas, descripción y logros. | Sí |
 | `educations` | Estudios: institución, campo, nivel y fechas, con vector. | Sí |
