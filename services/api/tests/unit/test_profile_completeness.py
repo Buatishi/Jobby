@@ -48,8 +48,21 @@ def _profile(**overrides: Any) -> dict[str, Any]:
     }
 
 
-def _skills(*names: str, confirmed: bool = True, in_cv: bool = False) -> list[dict]:
-    return [{"name": name, "confirmed": confirmed, "in_cv": in_cv} for name in names]
+def _skills(
+    *names: str,
+    confirmed: bool = True,
+    in_cv: bool = False,
+    in_linkedin: bool = False,
+) -> list[dict]:
+    return [
+        {
+            "name": name,
+            "confirmed": confirmed,
+            "in_cv": in_cv,
+            "in_linkedin": in_linkedin,
+        }
+        for name in names
+    ]
 
 
 def _points(
@@ -82,7 +95,9 @@ def _full_profile_inputs() -> dict[str, Any]:
             linkedin_url=LINKEDIN,
         ),
         "experiences": [{"title": "Backend Engineer", "company": "Acme"}],
-        "skills": _skills("Python", "FastAPI", "PostgreSQL", in_cv=True),
+        "skills": _skills(
+            "Python", "FastAPI", "PostgreSQL", in_cv=True, in_linkedin=True
+        ),
         "educations": [{"institution": "UTN", "field_of_study": None}],
         "languages": [{"name": "Inglés"}],
         "documents": [
@@ -295,17 +310,35 @@ def test_a_cv_that_only_left_an_experience_earns_half() -> None:
     assert points["cv"] == WEIGHTS["cv"] // 2
 
 
-def test_the_linkedin_document_uses_the_same_rule() -> None:
+def test_the_linkedin_document_counts_for_the_skills_it_named() -> None:
     document = [{"type": "linkedin", "status": "done"}]
+    names = ("Python", "SQL", "Docker")
 
     assert _points(documents=document)["linkedin_document"] == 0
     assert (
         _points(
-            skills=_skills("Python", "SQL", "Docker", confirmed=False, in_cv=True),
+            skills=_skills(*names, confirmed=False, in_linkedin=True),
             documents=document,
         )["linkedin_document"]
         == WEIGHTS["linkedin_document"]
     )
+    assert (
+        _points(
+            skills=_skills("Python", confirmed=False, in_linkedin=True),
+            documents=document,
+        )["linkedin_document"]
+        == WEIGHTS["linkedin_document"] // 2
+    )
+
+
+def test_a_cv_does_not_make_the_linkedin_document_useful() -> None:
+    # Las skills del CV (`in_cv`) no salen del PDF de LinkedIn.
+    points = _points(
+        skills=_skills("Python", "SQL", "Docker", confirmed=False, in_cv=True),
+        documents=[{"type": "linkedin", "status": "done"}],
+    )
+
+    assert points["linkedin_document"] == 0
 
 
 @pytest.mark.parametrize(

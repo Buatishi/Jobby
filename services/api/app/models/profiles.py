@@ -233,3 +233,21 @@ class ProfileDetails(BaseModel):
     experiences: list[ProfileExperienceItem] = Field(default_factory=list)
     educations: list[ProfileEducationItem] = Field(default_factory=list)
     languages: list[ProfileLanguageItem] = Field(default_factory=list)
+
+
+class LinkedInDocument(BaseModel):
+    id: str
+    status: str = "pending"
+    original_filename: str | None = None
+    error_msg: str | None = None
+    created_at: str | None = None
+
+
+class LinkedInStatus(BaseModel):
+    """Lo que la persona cargó de LinkedIn: la URL de su perfil y el PDF leído."""
+
+    profile_id: str
+    linkedin_url: str | None = None
+    document: LinkedInDocument | None = None
+    # Skills ya guardadas en el perfil que el documento de LinkedIn nombra.
+    skills_in_linkedin: int = 0

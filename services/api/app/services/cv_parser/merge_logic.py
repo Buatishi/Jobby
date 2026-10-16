@@ -80,3 +80,24 @@ def merge_structured_cv_data(
             certification.model_dump() for certification in parsed_data.certifications
         ],
     }
+
+
+def skills_named_in_linkedin(
+    parsed_data: CVStructuredData,
+    existing_skills: list[dict[str, Any]],
+) -> list[str]:
+    """Ids de las skills ya guardadas que el documento de LinkedIn nombra.
+
+    Solo marca las que la persona ya tiene: una skill que figura únicamente en
+    LinkedIn no se agrega al perfil. El motor de comparación usa todas las skills
+    guardadas, confirmadas o no, y un perfil de LinkedIn suele traer aptitudes que
+    nadie revisó. La categoría se ignora: la IA la infiere distinto en cada documento.
+    """
+    named = {normalize_skill_key(skill.name, None)[0] for skill in parsed_data.skills}
+    return [
+        str(skill["id"])
+        for skill in existing_skills
+        if skill.get("id")
+        and skill.get("in_linkedin") is not True
+        and normalize_skill_key(str(skill.get("name", "")), None)[0] in named
+    ]
