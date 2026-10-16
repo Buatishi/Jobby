@@ -164,6 +164,35 @@ async def test_a_linkedin_document_marks_in_linkedin_and_leaves_in_cv_alone(
 
 
 @pytest.mark.asyncio
+async def test_a_linkedin_document_marks_a_skill_named_with_an_alias_or_translation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    supabase = _world("linkedin")
+    supabase.tables["skills"].extend(
+        [
+            _row("s-react", "React"),
+            _row("s-apis", "Integración de APIs"),
+            _row("s-native", "React Native"),
+            _row("s-java", "Java"),
+        ]
+    )
+    _use_parser(monkeypatch, "React.js", "API Integrations", "JavaScript")
+
+    result = await parsing.run_parse_cv(
+        "document-1",
+        supabase=supabase,
+        gateway=ExplodingGateway(),  # type: ignore[arg-type]
+    )
+
+    assert _skill(supabase, "s-react")["in_linkedin"] is True
+    assert _skill(supabase, "s-apis")["in_linkedin"] is True
+    # Lo parecido pero distinto no se marca.
+    assert _skill(supabase, "s-native")["in_linkedin"] is False
+    assert _skill(supabase, "s-java")["in_linkedin"] is False
+    assert result["matched_skills"] == 2
+
+
+@pytest.mark.asyncio
 async def test_a_linkedin_document_stores_no_vectors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

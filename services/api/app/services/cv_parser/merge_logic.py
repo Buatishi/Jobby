@@ -2,6 +2,7 @@ import unicodedata
 from typing import Any
 
 from app.services.cv_parser.ai_structurer import CVStructuredData
+from app.services.skill_names import canonical_skill_key
 
 
 def normalize_skill_key(name: str, category: str | None) -> tuple[str, str]:
@@ -92,12 +93,17 @@ def skills_named_in_linkedin(
     LinkedIn no se agrega al perfil. El motor de comparación usa todas las skills
     guardadas, confirmadas o no, y un perfil de LinkedIn suele traer aptitudes que
     nadie revisó. La categoría se ignora: la IA la infiere distinto en cada documento.
+
+    El nombre se compara con `canonical_skill_key`: «React.js» de LinkedIn marca
+    «React» y «API Integrations» marca «Integración de APIs», pero «Java» no marca
+    «JavaScript».
     """
-    named = {normalize_skill_key(skill.name, None)[0] for skill in parsed_data.skills}
+    named = {canonical_skill_key(skill.name) for skill in parsed_data.skills}
+    named.discard("")
     return [
         str(skill["id"])
         for skill in existing_skills
         if skill.get("id")
         and skill.get("in_linkedin") is not True
-        and normalize_skill_key(str(skill.get("name", "")), None)[0] in named
+        and canonical_skill_key(skill.get("name")) in named
     ]
