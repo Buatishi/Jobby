@@ -8,6 +8,7 @@ from app.models.ats import ATSKeywordMatch, OptimizedCVSection
 from app.services.ai_gateway import AIGateway, UserTier
 from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_ES
 from app.services.ats_analyzer.scoring import score_keyword_coverage
+from app.services.cv_parser import strip_embeddings
 from app.services.match_engine.common import normalize_text
 
 
@@ -18,9 +19,12 @@ class _OptimizedPayload(BaseModel):
 def _cv_sections(primary_cv: dict[str, Any]) -> dict[str, Any]:
     parsed_data = primary_cv.get("parsed_data")
     if isinstance(parsed_data, dict):
+        skills = parsed_data.get("skills", [])
         return {
             "summary": parsed_data.get("summary"),
-            "skills": parsed_data.get("skills", []),
+            # Los CV guardados antes de cortar la fuga traen el vector de 1536
+            # números en cada skill: no va al prompt ni al texto de verificación.
+            "skills": strip_embeddings(skills) if isinstance(skills, list) else skills,
             "experiences": parsed_data.get("experiences", []),
             "educations": parsed_data.get("educations", []),
             "certifications": parsed_data.get("certifications", []),
@@ -30,9 +34,7 @@ def _cv_sections(primary_cv: dict[str, Any]) -> dict[str, Any]:
 
 def _low_coverage_keywords(matches: list[ATSKeywordMatch]) -> list[str]:
     return [
-        match.keyword
-        for match in matches
-        if match.status in {"missing", "semantic"}
+        match.keyword for match in matches if match.status in {"missing", "semantic"}
     ]
 
 
@@ -42,6 +44,9 @@ def _prompt(
     matches: list[ATSKeywordMatch],
 ) -> str:
     low_coverage = _low_coverage_keywords(matches)
+    # La fila del puesto se lee con select("*") y trae su vector (`embedding`):
+    # ~15 KB de números que el modelo no usa y que se pagan en tokens.
+    prompt_job = strip_embeddings([job])[0]
     return (
         f"{UNTRUSTED_DATA_NOTICE_ES}\n\n"
         "Reescribi solamente las secciones del CV con baja cobertura ATS. "
@@ -55,7 +60,7 @@ def _prompt(
         '{"sections":[{"section_name":"string","original_excerpt":"string",'
         '"rewritten_text":"string","added_keywords":["string"],'
         '"rationale":"string"}]}\n\n'
-        f"JOB:\n{json.dumps(job, ensure_ascii=False)}\n\n"
+        f"JOB:\n{json.dumps(prompt_job, ensure_ascii=False)}\n\n"
         f"LOW_COVERAGE_KEYWORDS:\n{json.dumps(low_coverage, ensure_ascii=False)}\n\n"
         f"CV_SECTIONS:\n{json.dumps(_cv_sections(primary_cv), ensure_ascii=False)}"
     )
