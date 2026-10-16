@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveStepOneValues } from "@/lib/wizard/step-one";
+import {
+  mergeLoadedValues,
+  resolveStepOneValues,
+  STEP_ONE_DEFAULTS,
+  type StepOneField
+} from "@/lib/wizard/step-one";
 
 const profile = {
   id: "profile-1",
@@ -150,5 +155,58 @@ describe("resolveStepOneValues", () => {
     expect(values.headline).toBe("");
     expect(values.summary).toBe("");
     expect(prefilled).toBe(false);
+  });
+});
+
+describe("mergeLoadedValues", () => {
+  const loaded = {
+    headline: "Full Stack Developer",
+    summary: "Automatizo flujos de trabajo con Python.",
+    targetRole: "Tech engineering",
+    targetSeniority: "junior",
+    workModality: "hybrid"
+  };
+
+  it("takes everything from the profile when the person has not typed yet", () => {
+    const merged = mergeLoadedValues(STEP_ONE_DEFAULTS, new Set(), loaded);
+
+    expect(merged).toEqual(loaded);
+  });
+
+  it("keeps what the person already typed while the profile was loading", () => {
+    const typed = { ...STEP_ONE_DEFAULTS, headline: "Mi titular nuevo" };
+    const touched = new Set<StepOneField>(["headline"]);
+
+    const merged = mergeLoadedValues(typed, touched, loaded);
+
+    expect(merged.headline).toBe("Mi titular nuevo");
+    expect(merged.summary).toBe(loaded.summary);
+    expect(merged.targetSeniority).toBe("junior");
+  });
+
+  it("keeps a field the person emptied on purpose", () => {
+    const emptied = { ...loaded, summary: "" };
+    const touched = new Set<StepOneField>(["summary"]);
+
+    expect(mergeLoadedValues(emptied, touched, loaded).summary).toBe("");
+  });
+
+  it("changes nothing when every field was typed", () => {
+    const typed = {
+      headline: "A",
+      summary: "B",
+      targetRole: "C",
+      targetSeniority: "senior",
+      workModality: "onsite"
+    };
+    const touched = new Set<StepOneField>([
+      "headline",
+      "summary",
+      "targetRole",
+      "targetSeniority",
+      "workModality"
+    ]);
+
+    expect(mergeLoadedValues(typed, touched, loaded)).toEqual(typed);
   });
 });
