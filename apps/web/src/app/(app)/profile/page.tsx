@@ -3,6 +3,7 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 
 import { DownloadCVPanel } from "@/components/cv/download-cv-panel";
+import { LinkedInPanel } from "@/components/linkedin-panel";
 import { PageBanner } from "@/components/page-banner";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { useApiResource } from "@/lib/api/use-api-resource";
+import { fetchAndRemember, useApiResource } from "@/lib/api/use-api-resource";
 
 type Profile = {
   headline?: string | null;
@@ -24,10 +25,21 @@ type Profile = {
 };
 
 export default function ProfilePage() {
-  const { data: profile, error } = useApiResource<Profile>(
+  const {
+    data: profile,
+    error,
+    mutate
+  } = useApiResource<Profile>(
     "/api/v1/profiles/me",
     "No se pudo cargar el perfil."
   );
+
+  // LinkedIn mueve el porcentaje: se vuelve a pedir el perfil para mostrarlo al día.
+  function reloadProfile() {
+    void fetchAndRemember<Profile>("/api/v1/profiles/me")
+      .then((fresh) => mutate(() => fresh))
+      .catch(() => undefined);
+  }
 
   return (
     <main className="min-h-screen bg-white p-4 pb-14">
@@ -39,6 +51,8 @@ export default function ProfilePage() {
 
       <div className="mt-5 space-y-5">
         <DownloadCVPanel />
+
+        <LinkedInPanel onProfileChange={reloadProfile} />
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
