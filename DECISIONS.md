@@ -1330,6 +1330,13 @@ gratis de Render, USD 0.
 Render: mínimo USD 1 por mes; (c) Render Starter (USD 7/mes): único arreglo total, sigue como
 opción si el proyecto necesita cero espera de forma permanente.
 
+**Escrituras durante un deploy.** Mientras Render cambia de instancia en un deploy, el
+primer PATCH a `/profiles/me` recibió un 502 y no se reintentó (solo se reintentaban los GET).
+`apiClient` acepta ahora `idempotent: true` y, con esa marca, reintenta la escritura con la
+misma escalera de esperas. Se marcaron cuatro pedidos que dejan el mismo resultado al
+repetirse: PATCH del perfil, POST de una skill (actualiza la fila ya guardada), PATCH de un
+puesto y PATCH de la calificación. Ningún POST que crea filas ni ningún DELETE lleva la marca.
+
 **Límites.** Si Supabase pausa el proyecto por inactividad, el ping se detiene hasta que se lo
 restaure; no está verificado que la propia actividad del cron evite esa pausa. Revertir:
 `select cron.unschedule(jobname) from cron.job;` y `drop extension pg_cron; drop extension

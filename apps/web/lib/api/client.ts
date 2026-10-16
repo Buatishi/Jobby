@@ -6,6 +6,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ApiClientOptions = Omit<RequestInit, "headers"> & {
   headers?: HeadersInit;
+  /** Un PATCH o POST que se puede repetir sin efecto doble: se reintenta ante 502/503/504. */
+  idempotent?: boolean;
 };
 
 export class ApiAuthenticationError extends Error {
@@ -106,16 +108,19 @@ async function parseApiError(response: Response) {
 
 function requestWithColdStartHandling(
   send: () => Promise<Response>,
-  method?: string
+  method?: string,
+  idempotent?: boolean
 ) {
-  return trackSlowRequest(() => fetchWithColdStartRetry(send, { method }));
+  return trackSlowRequest(() =>
+    fetchWithColdStartRetry(send, { method, idempotent })
+  );
 }
 
 export async function apiClient<TResponse>(
   path: string,
   options: ApiClientOptions = {}
 ): Promise<TResponse> {
-  const { headers, ...requestOptions } = options;
+  const { headers, idempotent, ...requestOptions } = options;
   const apiUrl = getApiUrl();
 
   async function sendRequest(forceRefresh = false) {
@@ -134,7 +139,8 @@ export async function apiClient<TResponse>(
   try {
     response = await requestWithColdStartHandling(
       () => sendRequest(),
-      requestOptions.method
+      requestOptions.method,
+      idempotent
     );
   } catch {
     throw new ApiConnectionError();

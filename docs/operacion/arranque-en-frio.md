@@ -41,9 +41,14 @@ Tres piezas en el frontend, sin servicios externos (`apps/web/lib/api/cold-start
    un `GET /api/backend/health` sin credenciales ni datos, una vez cada 10 minutos por
    pestaña (registro en `sessionStorage`). La API despierta mientras la persona lee la
    landing o inicia sesión. Solo consume horas gratis cuando hay visitas reales.
-2. **Reintento de los GET.** Si un GET (o la conexión SSE de `/tasks`) falla por error de
-   red o responde 502, 503 o 504, se reintenta con esperas de 1, 2, 4, 8, 15 y 20 s. Los
-   POST, PATCH y DELETE **nunca** se reintentan, para no duplicar acciones.
+2. **Reintento de los GET y de las escrituras idempotentes.** Si un GET (o la conexión SSE
+   de `/tasks`) falla por error de red o responde 502, 503 o 504, se reintenta con esperas
+   de 1, 2, 4, 8, 15 y 20 s. Los POST, PATCH y DELETE **no** se reintentan por defecto, para
+   no duplicar acciones. Un pedido de escritura solo se reintenta si quien lo escribe lo
+   declara con `idempotent: true` en `apiClient`, y eso solo se hace cuando repetirlo deja el
+   mismo resultado: guardar el perfil (PATCH), confirmar una skill (POST que actualiza la
+   fila existente), editar un puesto y calificar una coincidencia. DELETE no se marca: la
+   segunda llamada respondería 404.
 3. **Aviso de espera.** Si un pedido tarda más de 4 s aparece un aviso accesible
    (`role="status"`): "Seguimos trabajando en tu pedido… puede demorar hasta un minuto".
    El texto es genérico a propósito: también se muestra ante una demora que no es de

@@ -5,7 +5,8 @@
  * 1. `warmUpApi`: al abrir la web dispara un pedido liviano a `/health` (público, sin datos)
  *    para que la API despierte mientras la persona lee o inicia sesión.
  * 2. `fetchWithColdStartRetry`: reintenta con espera creciente cuando la API todavía no
- *    respondió. Solo para GET/HEAD: reintentar un POST podría duplicar una acción.
+ *    respondió. Solo para GET/HEAD y para los pedidos que quien llama declara
+ *    `idempotent`: reintentar un POST cualquiera podría duplicar una acción.
  * 3. `coldStartNotice`: estado observable que muestra un aviso si un pedido tarda de más.
  *
  * Ver docs/operacion/arranque-en-frio.md.
@@ -103,6 +104,12 @@ function isNetworkError(error: unknown): boolean {
 
 type RetryOptions = {
   method?: string;
+  /**
+   * El pedido se puede repetir sin efecto doble (un PATCH con valores absolutos, un alta
+   * que deduplica): se reintenta aunque no sea GET. Un 502 en un deploy dejaba el guardado
+   * en error aunque la API volvía a responder segundos después.
+   */
+  idempotent?: boolean;
   delays?: readonly number[];
   sleep?: (ms: number) => Promise<void>;
 };
@@ -114,8 +121,13 @@ export async function fetchWithColdStartRetry(
   send: () => Promise<Response>,
   options: RetryOptions = {}
 ): Promise<Response> {
-  const { method, delays = RETRY_DELAYS_MS, sleep = defaultSleep } = options;
-  const canRetry = isRetryableMethod(method);
+  const {
+    method,
+    idempotent = false,
+    delays = RETRY_DELAYS_MS,
+    sleep = defaultSleep
+  } = options;
+  const canRetry = idempotent || isRetryableMethod(method);
 
   for (let attempt = 0; ; attempt += 1) {
     let response: Response | undefined;
