@@ -19,6 +19,7 @@ from app.services.ai_gateway.prompts.interview_kit_v1 import (
 )
 from app.services.ai_gateway.prompts.interview_kit_v1 import build_user_prompt
 from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_EN
+from app.services.cv_parser import strip_embeddings
 from app.services.match_engine import MatchResult, compute_match_score
 from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
@@ -184,7 +185,12 @@ def _cv_text(primary_cv: dict[str, Any] | None) -> str:
     parsed_data = primary_cv["parsed_data"]
     chunks: list[str] = []
     for key in ("skills", "experiences", "educations", "languages", "certifications"):
-        chunks.append(f"{key}: {parsed_data.get(key, [])}")
+        value = parsed_data.get(key, [])
+        if key == "skills" and isinstance(value, list):
+            # Los CV guardados antes de que el parseo dejara de copiar el vector lo
+            # traen dentro de cada skill: no va al prompt (se limpian al reprocesarse).
+            value = strip_embeddings(value)
+        chunks.append(f"{key}: {value}")
     return "\n".join(chunks)
 
 
@@ -480,7 +486,8 @@ async def run_interview_kit(
         prompt = build_user_prompt(
             nombre=str(profile.get("headline") or profile.get("id")),
             cv_text=_cv_text(primary_cv),
-            skills=skills,
+            # `skills` se lee con select("*"): cada fila trae su vector de 1536 números.
+            skills=strip_embeddings(skills),
             experiences=experiences,
             company_name=str(job.get("company_name") or "No disponible"),
             job_title=str(job.get("job_title") or "No disponible"),
