@@ -1,9 +1,21 @@
 import math
 from typing import Any
 
+from app.services.skill_names import canonical_skill_key
+
 
 def normalize_text(value: Any) -> str:
     return str(value or "").strip().lower()
+
+
+def skill_key(name: Any) -> str:
+    """Con qué se compara el nombre de una skill: su forma común.
+
+    «API REST» y «REST APIs» tienen la misma (`canonical_skill_key`). Si un nombre
+    no deja nada con contenido (solo relleno), se compara como siempre, en
+    minúsculas, para que siga coincidiendo consigo mismo.
+    """
+    return canonical_skill_key(name) or normalize_text(name)
 
 
 def clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
@@ -35,15 +47,19 @@ def cosine_similarity(left: Any, right: Any) -> float:
     return clamp(dot / (left_norm * right_norm))
 
 
-def count_semantic_matches(
+def semantic_match_indexes(
     profile_items: list[dict[str, Any]],
     job_items: list[dict[str, Any]],
     threshold: float = 0.82,
-) -> int:
-    matched_profile_indexes: set[int] = set()
-    count = 0
+) -> set[int]:
+    """Posiciones de `job_items` que se parecen a algo del perfil.
 
-    for job_item in job_items:
+    Cada skill del perfil respalda a lo sumo a una del puesto.
+    """
+    matched_profile_indexes: set[int] = set()
+    matched_job_indexes: set[int] = set()
+
+    for job_index, job_item in enumerate(job_items):
         best_index: int | None = None
         best_score = 0.0
         for index, profile_item in enumerate(profile_items):
@@ -58,6 +74,14 @@ def count_semantic_matches(
                 best_index = index
         if best_index is not None and best_score >= threshold:
             matched_profile_indexes.add(best_index)
-            count += 1
+            matched_job_indexes.add(job_index)
 
-    return count
+    return matched_job_indexes
+
+
+def count_semantic_matches(
+    profile_items: list[dict[str, Any]],
+    job_items: list[dict[str, Any]],
+    threshold: float = 0.82,
+) -> int:
+    return len(semantic_match_indexes(profile_items, job_items, threshold))

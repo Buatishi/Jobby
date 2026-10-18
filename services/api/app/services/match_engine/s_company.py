@@ -5,6 +5,7 @@ from app.services.match_engine.common import (
     cosine_similarity,
     count_semantic_matches,
     normalize_text,
+    skill_key,
 )
 
 MODALITY_COMPAT = {
@@ -30,7 +31,12 @@ def compute_company_score(
         for skill in profile_skills
         if normalize_text(skill.get("category")) == "technical"
     ]
-    profile_names = {normalize_text(skill.get("name")): skill for skill in profile_tech}
+    # Por forma común: «API REST» es «REST APIs» (ver `skill_key`).
+    profile_names = {
+        skill_key(skill.get("name")): skill
+        for skill in profile_tech
+        if skill_key(skill.get("name"))
+    }
     job_tech_names = [normalize_text(item) for item in job.get("tech_stack") or []]
     job_tech = [
         {"name": item, "embedding": job.get("embedding")}
@@ -40,19 +46,22 @@ def compute_company_score(
     if not job_tech_names:
         tech_score = 0.8
     else:
-        literal_hits = set(profile_names).intersection(job_tech_names)
-        literal_score = len(literal_hits) / len(job_tech_names)
+        job_keys = [skill_key(name) for name in job_tech_names]
+        is_literal = [key in profile_names for key in job_keys]
+        literal_score = sum(is_literal) / len(job_tech_names)
+        used_keys = {
+            key for key, hit in zip(job_keys, is_literal, strict=True) if hit
+        }
         semantic_hits = count_semantic_matches(
             [
                 skill
                 for name, skill in profile_names.items()
-                if name not in literal_hits and skill.get("embedding") is not None
+                if name not in used_keys and skill.get("embedding") is not None
             ],
             [
                 skill
-                for skill in job_tech
-                if skill["name"] not in literal_hits
-                and skill.get("embedding") is not None
+                for skill, hit in zip(job_tech, is_literal, strict=True)
+                if not hit and skill.get("embedding") is not None
             ],
             threshold=0.82,
         )

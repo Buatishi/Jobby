@@ -1478,3 +1478,52 @@ hacerlo como cambio aparte, midiendo antes y después con los mismos perfiles y 
 **Límites que quedan abiertos.** La tabla es finita: un alias nuevo se agrega a `_GROUPS` y su
 par negativo a `test_skill_names.py`. Un PDF ya subido no se vuelve a leer solo: hay que subirlo
 otra vez para que marque las coincidencias nuevas.
+
+## Actualización — Decisión 31 (2026-10-18): alias y traducciones en el MatchScore y el ATS
+
+**Estado:** Opción A aprobada por el autor («A, dale»), que la propuesta del 2026-10-16 había
+dejado sin aprobar. Cubre las skills del MatchScore, el stack tecnológico de la compatibilidad
+con la empresa y las palabras clave del ATS. No incluye el límite de palabra del ATS (opción B).
+
+**Elegido.**
+- `match_engine/common.py::skill_key` compara por la forma común de `canonical_skill_key`; si el
+  nombre solo tiene relleno, por su texto en minúsculas, como antes. La usan `s_skills` (skills
+  pedidas por el puesto) y `s_company` (stack tecnológico).
+- ATS (`analyze_keywords`): una palabra clave es «literal» si lo era por la regla de siempre
+  («contenida en» un término del CV) o si su forma común coincide con la de un término. Lo que
+  coincide así ya no pide vectores, lo que abarata el reporte.
+- Cada skill pedida cuenta por separado. Con alias es normal que un puesto liste «REST API» y
+  «API REST»: las dos coinciden y no se divide por la cantidad de nombres distintos.
+- Se arregló `missing_skills`: tomaba las últimas N skills del puesto en vez de las que faltan, y
+  figuraba «git» (que la persona tiene) en lugar de «api rest». Ahora son las que no coincidieron
+  ni literal ni semánticamente, en el orden del puesto. `semantic_match_indexes` devuelve qué
+  skills del puesto se parecieron a algo del perfil (`count_semantic_matches` sigue igual).
+- Un puesto cuyas skills pedidas están todas en blanco ya no divide por cero: queda en el puntaje
+  neutro de un puesto sin skills.
+
+**El puntaje solo puede subir.** Todo lo que coincidía literal sigue coincidiendo, y cada alias
+convierte una coincidencia semántica (0,6) o una falta en una literal (1,0). Una prueba lo exige
+comparando contra la regla anterior en 30 combinaciones de perfil y puesto.
+
+**Medición antes y después con producción.** Las 6 comparaciones guardadas (2 perfiles, 6
+puestos, ninguna con coincidencias semánticas en las skills): el cálculo con la regla anterior
+reproduce exactamente los 6 puntajes guardados, y con alias cambia **una**: el puesto «Desarrollador/a
+Full Stack Jr» del perfil con CV de Canva pasa de 65 a 71 (pide «API REST», el perfil tiene «REST
+APIs»; skills de 5 de 6 a 6 de 6). Las otras cinco no cambian (el puesto de datos pide «Excel» y el
+perfil tiene «Office (Word, Excel, PowerPoint)»; el del chef no tiene nada en común). ATS, con las
+18 skills y tecnologías de esos puestos como palabras clave y el CV real: 1 de 18 pasa a literal
+(«API REST» por «REST APIs»). Los puntajes guardados **no se recalculan**: cambian cuando la
+persona vuelve a analizar el puesto.
+
+**Hallazgos de la medición, sin tocar (propuestas sin aprobar).**
+- El stack tecnológico solo compara contra skills con `category = "technical"`, pero el lector de
+  CV no fija las categorías (pide «minúsculas cuando se pueda»): un CV leído hoy trae
+  «programming», «frontend», «api», «devops»… y el componente da 0 aunque la persona tenga las 10
+  tecnologías del puesto. En el puesto de la medición, compararlo contra todas las skills lo
+  llevaría a 1,0 (el componente de empresa pesa 15 % y el stack la mitad de ese: unos +7,5 puntos).
+  Cambia puntajes de muchas personas, por eso queda aparte.
+- ATS: la regla «contenida en» no respeta límites de palabra: «Java» cuenta dentro de
+  «JavaScript», «Go» dentro de «Google Sheets», «R» dentro de «React» y «Angular» dentro de
+  «AngularJS». Infla el puntaje; corregirlo lo baja en esos casos (opción B).
+- Los nombres compuestos («Office (Word, Excel, PowerPoint)», «Agile / Scrum») no se parten en
+  componentes, así que «Excel» no coincide con el primero.
