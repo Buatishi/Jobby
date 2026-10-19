@@ -1,7 +1,9 @@
-User-agent: GPTBot
-Disallow: /
+# Rastreadores de entrenamiento y de extracción: bloqueados en todo el sitio.
+# OAI-SearchBot, PerplexityBot y ChatGPT-User no tienen grupo propio a propósito: son de
+# búsqueda o actúan a pedido de una persona, y siguen las reglas de `*` (páginas públicas sí,
+# rutas privadas no). El middleware responde 403 a los tres en las rutas privadas.
 
-User-agent: ChatGPT-User
+User-agent: GPTBot
 Disallow: /
 
 User-agent: ClaudeBot
@@ -11,9 +13,6 @@ User-agent: Claude-User
 Disallow: /
 
 User-agent: Google-Extended
-Disallow: /
-
-User-agent: PerplexityBot
 Disallow: /
 
 User-agent: Amazonbot
@@ -35,9 +34,6 @@ User-agent: YouBot
 Disallow: /
 
 User-agent: Anthropic-ai
-Disallow: /
-
-User-agent: OAI-SearchBot
 Disallow: /
 
 User-agent: *

@@ -1401,6 +1401,43 @@ ya estaba cargado.
 - El nivel del idioma sigue fijo en `professional` al crearlo y el paso no pide carrera ni
   descripción (ver los límites de la Decisión 29).
 
+## Actualización — Decisión 30 (2026-10-19): rastreadores de búsqueda de IA
+
+**Estado:** Decidido por el autor. Cierra el límite que la Decisión 30 dejó abierto.
+
+**Antes.** `robots.txt` bloqueaba en todo el sitio a 14 rastreadores de IA, incluidos los de
+búsqueda (`OAI-SearchBot`, `PerplexityBot`) y el que actúa a pedido de una persona
+(`ChatGPT-User`): el sitio no podía aparecer en ChatGPT search ni en Perplexity. Una precisión a
+la Decisión 30: el middleware solo responde 403 a esos rastreadores en las **rutas privadas**
+(`/dashboard`, `/profile`, `/jobs`, `/ats`, `/reality-gap`, `/interview-kits`, `/wizard`,
+`/billing`, `/admin`, `/api`); las páginas públicas las bloqueaba únicamente `robots.txt`.
+
+**Elegido.**
+- Se quitan de `robots.txt` los grupos de `OAI-SearchBot`, `PerplexityBot` y `ChatGPT-User`. Sin
+  grupo propio siguen las reglas de `*`: leen las páginas públicas y no las rutas privadas.
+- Según la documentación oficial (OpenAI y Perplexity, consultada el 2026-10-19), `OAI-SearchBot` y
+  `PerplexityBot` son de búsqueda y no entrenan modelos; `ChatGPT-User` visita páginas cuando una
+  persona lo pide y OpenAI avisa que ahí `robots.txt` puede no aplicar.
+- Siguen bloqueados en todo el sitio los de entrenamiento y extracción: `GPTBot`, `ClaudeBot`,
+  `Claude-User`, `Google-Extended`, `Amazonbot`, `Bytespider`, `CCBot`, `Applebot-Extended`,
+  `Meta-ExternalAgent`, `YouBot` y `Anthropic-ai`.
+- El middleware no cambia: sigue siendo el respaldo que corta a los tres en las rutas privadas.
+- `llms.txt` decía que no se autorizaba a resumir ni indexar nada; se reescribe para que no
+  contradiga a `robots.txt`: los tres pueden leer y citar las páginas públicas con enlace, y todo lo
+  demás (entrenamiento, extracción, rutas privadas, contenido de usuarios) sigue prohibido.
+- Tres archivos de tests fijan la política: `lib/seo/robots.test.ts` (grupos de `robots.txt` y texto
+  de `llms.txt`) y `src/middleware.test.ts` (403 en cada ruta privada para los tres y paso libre en
+  las públicas).
+
+**Límites.**
+- Que el sitio pueda ser leído no garantiza que aparezca en ChatGPT search o en Perplexity.
+- Que esos rastreadores no entrenan es lo que declaran sus empresas; el sitio no lo verifica. Si
+  alguno cambia de política, el bloqueo vuelve con un grupo `Disallow: /`.
+- No se abrieron `Claude-User` ni `Perplexity-User`, que no estaban en lo aprobado; abrirlos queda
+  como una propuesta aparte.
+
+---
+
 ## Decisión 31 — LinkedIn en el perfil: el enlace y el PDF
 
 **Estado:** Pedido por el autor (2026-10-16): «arreglá lo de LinkedIn sin UI». Es el hallazgo que

@@ -1,22 +1,21 @@
 # Jobby
 
-Jobby does not authorize automated scraping, crawling, bulk extraction,
-dataset creation, retrieval-augmented ingestion, model training, model
-evaluation, synthetic data generation, or any other AI-related reuse of any
-part of this application.
+Jobby lets AI search and answer engines read, index and cite its public pages with a link
+back, and does not authorize any other automated reuse.
 
-This restriction applies to the entire product, including:
-- Public marketing pages
-- Pricing pages
-- Terms and privacy pages
-- Authentication pages
-- Dashboard and onboarding routes
-- API routes and internal endpoints
-- User profiles, CVs, uploaded documents, job reports, match scores, ATS
-  reports, interview kits, billing data, and any authenticated user content
+Allowed, on public pages that need no sign-in:
+- Search crawlers that surface the site in their results: OAI-SearchBot and PerplexityBot.
+- Fetches a person asks for in the moment: ChatGPT-User.
 
-AI crawlers, automated agents, and dataset collection systems are not allowed
-to access, store, summarize, index, train on, or redistribute Jobby content
-without prior written permission.
+Not allowed anywhere in the product:
+- Model training, model evaluation, dataset creation, synthetic data generation, bulk
+  extraction and any other collection that is not a search index (GPTBot, ClaudeBot, CCBot,
+  Google-Extended and similar crawlers).
+- Redistribution of the content without prior written permission.
+
+Not allowed for any automated agent, search crawlers included:
+- Authentication pages, dashboard and onboarding routes, API routes and internal endpoints.
+- User profiles, CVs, uploaded documents, job reports, match scores, ATS reports, interview
+  kits, billing data, and any authenticated user content.
 
 Contact: contacto@jobby.ai
