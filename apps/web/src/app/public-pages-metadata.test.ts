@@ -39,6 +39,23 @@ describe("public pages metadata", () => {
     expect(String(root.title).length).toBeLessThanOrEqual(60);
   });
 
+  // Quien busca «jobby web» o «jobby cv» tiene que encontrar esas palabras en lo que Google lee.
+  it("uses the search wording «Jobby web» and «analizador de CV» in the home and pricing metadata", () => {
+    for (const page of [root, pricing]) {
+      expect(String(page.title)).toContain("Jobby web");
+      expect(String(page.title).toLowerCase()).toContain("analizador de cv");
+      expect(String(page.description)).toContain("Jobby web");
+      expect(String(page.description).toLowerCase()).toContain("cv");
+    }
+  });
+
+  it("keeps the pricing title and every description short enough for the results page", () => {
+    expect(String(pricing.title).length).toBeLessThanOrEqual(60);
+    for (const page of [root, pricing, terms, privacy]) {
+      expect(String(page.description).length).toBeLessThanOrEqual(160);
+    }
+  });
+
   it("sets a self canonical on the legal pages", () => {
     expect(terms.alternates?.canonical).toBe("/terms");
     expect(privacy.alternates?.canonical).toBe("/privacy");

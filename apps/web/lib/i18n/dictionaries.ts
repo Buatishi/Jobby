@@ -223,7 +223,7 @@ export const dictionaries: Record<Language, TranslationTree> = {
       finalCta: "Tu próxima postulación, con datos",
       finalCtaSubtitle: "Subí tu CV y sabé dónde estás parado.",
       footerDescription:
-        "IA para entender mejor cada postulación antes de aplicar.",
+        "Jobby web: analizador de CV con IA para entender mejor cada postulación antes de aplicar.",
       guides: "Guías",
       privacy: "Privacidad",
       terms: "Términos"
@@ -604,7 +604,7 @@ export const dictionaries: Record<Language, TranslationTree> = {
       finalCta: "Your next application, backed by data",
       finalCtaSubtitle: "Upload your CV and see where you stand.",
       footerDescription:
-        "AI to understand each application better before you apply.",
+        "Jobby web: AI CV analyzer to understand each application better before you apply.",
       // Las guías están solo en español: la etiqueta lo avisa en inglés.
       guides: "Guides (in Spanish)",
       privacy: "Privacy",
