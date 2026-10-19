@@ -16,11 +16,11 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  // Título de la pestaña y de Google: dice qué hace (CV, match score, ATS). El lema queda para
-  // el hero y para las tarjetas al compartir el enlace.
-  title: "Jobby — Match score y ATS: compará tu CV con el puesto",
+  // Título de la pestaña y de Google: dice cómo se busca el sitio («Jobby web») y qué hace (CV,
+  // match score, ATS). El lema queda para el hero y para las tarjetas al compartir el enlace.
+  title: "Jobby web — Analizador de CV: match score y ATS con IA",
   description:
-    "Jobby compara tu CV con un puesto real usando IA: match score, compatibilidad ATS, gaps y recomendaciones para postularte mejor.",
+    "Jobby web analiza tu CV con IA: lo compara con un puesto real y te da match score, compatibilidad ATS, gaps y recomendaciones para postularte mejor.",
   // Código público de Google Search Console para verificar la propiedad del sitio.
   verification: {
     google: "lJJeKc6H3k7puFsEJ8sNu8oxCA1tdUr6KnTL3REmFQo"

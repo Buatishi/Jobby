@@ -57,6 +57,12 @@ describe("landing sections", () => {
     expect(html).toContain('href="/terms"');
   });
 
+  it("says in the footer what Jobby web is, with the words people search for", () => {
+    const html = render(<Closing />);
+
+    expect(html).toContain("Jobby web: analizador de CV con IA");
+  });
+
   it("states the privacy and no-invention promises", () => {
     const html = render(<Promises />);
 

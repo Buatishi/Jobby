@@ -1640,3 +1640,33 @@ amplias.
 - El contenido describe criterios de Jobby y consejos generales; cada empresa usa su propio sistema
   de selección. El pie de cada guía lo aclara.
 - Hay que revisarlo y mantenerlo: si cambia la fórmula, `facts.ts` y el texto cambian juntos.
+
+---
+
+## Actualización — Decisión 30 (2026-10-19): «Jobby web» y «analizador de CV» en lo que Google lee
+
+**Estado:** Pedido por el autor (objetivo: aparecer en la mayor cantidad de búsquedas y lo más
+arriba posible, con el dominio `jobbyweb.vercel.app`). El texto exacto se mostró antes de
+implementarlo; la aprobación final es la revisión del PR, que no se mergea sin ella.
+
+**Medición.** El sitio sale primero en «jobbyweb» porque esa palabra única coincide con el dominio
+y nadie más la usa. En «jobby web» no aparece en la primera página: es una búsqueda de dos palabras
+que se decide por el contenido, y la home no decía «web» en el título, la descripción ni el texto
+visible (el h1 es el lema), mientras que otros sitios con «jobby» en el nombre sí la tienen.
+
+**Elegido.**
+- Título de la home: «Jobby web — Analizador de CV: match score y ATS con IA» (54 caracteres) y
+  descripción con «Jobby web». Reemplaza al título de la actualización anterior, que Google todavía
+  no había vuelto a leer.
+- Pie de la home (visible, en español e inglés): «Jobby web: analizador de CV con IA para entender
+  mejor cada postulación antes de aplicar.» Es el único texto visible que se toca: el h1 y el
+  diseño de la v2 quedan como estaban.
+- `/pricing`: título «Planes y precios del analizador de CV — Jobby web» y descripción con las
+  mismas palabras.
+- Tests: la home y precios nombran «Jobby web» y «analizador de CV»; los títulos no pasan de 60
+  caracteres ni las descripciones de 160; el pie contiene la frase.
+
+**Límites.** No garantiza posición: Google puede reescribir el título y el efecto es lento. «Analizador
+de CV» es una búsqueda genérica que dominan sitios con años de enlaces; lo realista es ganar las
+búsquedas con «Jobby» más un término. Siguen abiertos los enlaces entrantes, más guías para
+búsquedas largas y el dominio propio.
