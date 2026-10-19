@@ -1,6 +1,8 @@
 import {
   ATS_FORMAT_PENALTIES,
   ATS_KEYWORD_POINTS,
+  CV_OPTIMIZATIONS_PER_MONTH,
+  FREE_JOB_ANALYSES_PER_MONTH,
   FULL_RELEVANCE_PERCENT,
   GAP_THRESHOLD_PERCENT,
   MATCH_SCORE_WEIGHTS,
@@ -131,7 +133,11 @@ const queEsUnAts: Guide = {
       ]
     }
   ],
-  related: ["palabras-clave-del-cv", "como-adaptar-tu-cv-a-una-oferta"]
+  related: [
+    "palabras-clave-del-cv",
+    "como-adaptar-tu-cv-a-una-oferta",
+    "cv-compatible-con-ats"
+  ]
 };
 
 const queEsElMatchScore: Guide = {
@@ -236,7 +242,11 @@ const queEsElMatchScore: Guide = {
       ]
     }
   ],
-  related: ["como-adaptar-tu-cv-a-una-oferta", "palabras-clave-del-cv"]
+  related: [
+    "como-adaptar-tu-cv-a-una-oferta",
+    "palabras-clave-del-cv",
+    "habilidades-para-poner-en-el-cv"
+  ]
 };
 
 const comoAdaptarTuCv: Guide = {
@@ -320,7 +330,11 @@ const comoAdaptarTuCv: Guide = {
       ]
     }
   ],
-  related: ["palabras-clave-del-cv", "que-es-el-match-score"]
+  related: [
+    "palabras-clave-del-cv",
+    "que-es-el-match-score",
+    "optimizar-cv-con-ia"
+  ]
 };
 
 const palabrasClave: Guide = {
@@ -423,14 +437,414 @@ const palabrasClave: Guide = {
       ]
     }
   ],
-  related: ["como-adaptar-tu-cv-a-una-oferta", "que-es-un-ats"]
+  related: [
+    "como-adaptar-tu-cv-a-una-oferta",
+    "que-es-un-ats",
+    "analizar-cv-con-ia"
+  ]
+};
+
+const cvCompatibleConAts: Guide = {
+  slug: "cv-compatible-con-ats",
+  title: "Cómo hacer un CV compatible con ATS",
+  seoTitle: "CV compatible con ATS: lista de control | Jobby",
+  description:
+    "Lista de control para que un sistema de seguimiento de candidatos lea bien tu CV: formato, títulos, fechas, archivo y plantillas, con ejemplos.",
+  intro:
+    "Un CV compatible con ATS no es un CV feo ni uno sin personalidad. Es un CV cuyo contenido se puede leer como texto y donde cada dato está en el lugar en que un sistema espera encontrarlo. Esta guía es una lista de control con ejemplos para revisar el tuyo antes de postularte. Si primero querés entender qué es un ATS y cómo lo usa un equipo de selección, empezá por la guía «Qué es un ATS y cómo lee tu CV».",
+  sections: [
+    {
+      heading: "Los puntos que conviene revisar",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "Una sola columna. Con dos columnas, el sistema puede leer una línea de cada lado y mezclar una fecha con el cargo equivocado.",
+            "Sin tablas para ordenar el contenido. Una tabla que se ve prolija puede convertirse en texto desordenado al leerla.",
+            "Sin imágenes que contengan información. Si tu experiencia o tus habilidades están dentro de una imagen, el sistema no las puede leer como texto.",
+            "Títulos de sección habituales, como Experiencia, Educación, Habilidades e Idiomas.",
+            "Fechas escritas siempre igual y cargos siempre en el mismo orden.",
+            "Datos de contacto en el cuerpo del documento, no solo en el encabezado o en el pie.",
+            "Un archivo con texto seleccionable, no una foto ni un escaneo de tu CV."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Ejemplos: qué escribir y qué evitar",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "Títulos: «Experiencia laboral» en lugar de «Mi recorrido»; «Educación» en lugar de «Dónde aprendí»; «Habilidades» en lugar de «Mis superpoderes».",
+            "Fechas: «03/2022 – 08/2024» o «marzo 2022 – agosto 2024», pero sin mezclar los dos estilos en el mismo CV.",
+            "Cargos: «Analista de datos, Empresa X, 03/2022 – 08/2024», con el mismo orden en todos los puestos.",
+            "Habilidades: «Python, SQL, Power BI» escrito como texto, en lugar de tres barras de nivel dibujadas.",
+            "Contacto: tu correo y tu teléfono escritos en el cuerpo del documento, y no solo como íconos en un costado."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Un diseño cuidado que se siga leyendo bien",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "Que un sistema pueda leer tu CV no obliga a que sea una página gris. Se puede lograr un buen aspecto con recursos que no rompen la lectura:"
+        },
+        {
+          type: "list",
+          items: [
+            "Jerarquía con negritas y tamaños de letra distintos para los títulos, en lugar de columnas o recuadros.",
+            "Espacios en blanco entre secciones para que respire.",
+            "Viñetas simples para los logros de cada puesto.",
+            "Una sola tipografía común y legible, con un color de acento como máximo."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Plantillas: cómo elegir una",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "Muchas plantillas vienen con columnas, íconos y barras de nivel de fábrica. Antes de usar una, hacé esta prueba de tres minutos:"
+        },
+        {
+          type: "steps",
+          items: [
+            "Guardá tu CV en el formato en que lo vas a enviar.",
+            "Abrí el archivo, seleccioná todo el texto y copialo.",
+            "Pegalo en un bloc de notas.",
+            "Fijate que las secciones sigan en orden, que cada cargo conserve su fecha y que no falte nada que estuviera en el encabezado.",
+            "Si el texto sale mezclado o incompleto, elegí otra plantilla o simplificá esta."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Cómo revisarlo con Jobby",
+      blocks: [
+        {
+          type: "paragraph",
+          text: `En el análisis ATS de Jobby, el formato le resta puntos al resultado: ${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título de sección no es de los habituales. El reporte también te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no.`
+        },
+        {
+          type: "paragraph",
+          text: "Son criterios de Jobby, pensados como una guía práctica, y no las reglas de un ATS en particular: cada empresa usa uno distinto. Un CV que se lee bien es una condición necesaria, pero no suficiente, porque la decisión final siempre es de la empresa."
+        }
+      ]
+    }
+  ],
+  related: ["que-es-un-ats", "palabras-clave-del-cv", "analizar-cv-con-ia"]
+};
+
+const analizarCvConIa: Guide = {
+  slug: "analizar-cv-con-ia",
+  title: "Analizar tu CV con IA: qué puede decirte y qué no",
+  seoTitle: "Analizar tu CV con IA: qué esperar | Jobby",
+  description:
+    "Qué puede analizar una herramienta de IA en tu CV, cómo leer el resultado y qué límites tiene. Con el ejemplo de cómo lo hace Jobby.",
+  intro:
+    "Analizar el CV con inteligencia artificial sirve para mirarlo como lo haría alguien que no te conoce: qué entiende, qué le falta y qué no encaja con un puesto. Es una ayuda para decidir qué corregir, no un veredicto. Esta guía explica qué se puede analizar, cómo leer un resultado y qué límites tiene.",
+  sections: [
+    {
+      heading: "Qué puede analizar una herramienta",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "El formato: si el archivo se puede leer como texto y si la estructura es simple.",
+            "Las secciones: si están las habituales y si los títulos se reconocen.",
+            "Las palabras clave: qué términos de la oferta aparecen en tu CV, tal cual o con otro nombre.",
+            "Los requisitos: tus habilidades, tu nivel de experiencia, tus idiomas y tus estudios frente a lo que pide el puesto.",
+            "La coherencia: si los cargos y las fechas del CV coinciden con los de tu perfil de LinkedIn."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Con puesto o sin puesto",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "Un análisis sin puesto solo puede opinar sobre el formato y la claridad del documento. Para saber si tu CV encaja hace falta una oferta concreta, porque lo que «falta» depende de lo que esa oferta pide."
+        },
+        {
+          type: "paragraph",
+          text: "Por eso conviene analizar el CV contra los puestos a los que de verdad pensás postularte, y no contra uno genérico."
+        }
+      ]
+    },
+    {
+      heading: "Cómo leer el resultado",
+      blocks: [
+        {
+          type: "steps",
+          items: [
+            "Mirá primero qué requisitos faltan, antes que el número. El detalle te dice qué corregir; el número solo lo resume.",
+            "Distinguí lo que no tenés de lo que tenés con otro nombre. Si la oferta dice «API REST» y tu CV dice «servicios web», lo que cambia es la redacción, no tu experiencia.",
+            "Revisá cada recomendación y quedate con las que son ciertas para vos. Una herramienta no conoce tu historia completa.",
+            "Corregí el CV y repetí el análisis con el mismo puesto para ver qué cambió.",
+            "Repetilo con otros puestos. Un puntaje sirve para comparar ofertas entre sí y decidir dónde conviene postularte primero."
+          ]
+        },
+        {
+          type: "paragraph",
+          text: "Un puntaje no mide tu valor como profesional. Mide cuánto se parece tu CV, tal como está escrito hoy, a lo que pide una oferta."
+        }
+      ]
+    },
+    {
+      heading: "Límites que conviene tener presentes",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "Una IA puede interpretar mal un dato o pasar por alto un matiz.",
+            "No conoce el sistema de selección de cada empresa ni cómo decide la persona que revisa.",
+            "No reemplaza que alguien de confianza lea tu CV.",
+            "Un buen resultado no asegura que te llamen: la decisión es de la empresa.",
+            "Tu CV tiene datos personales. Antes de subirlo a una herramienta, leé qué hace con ellos."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Cómo lo hace Jobby",
+      blocks: [
+        {
+          type: "paragraph",
+          text: `En Jobby cargás tu CV una vez y pegás el puesto. El análisis devuelve un match score de 0 a 100 con los requisitos que cumplís, los que cumplís en parte y los que faltan, un reporte ATS con las palabras clave y el formato, y los gaps ordenados por impacto. El plan gratis incluye ${FREE_JOB_ANALYSES_PER_MONTH} análisis de puestos por mes.`
+        },
+        {
+          type: "paragraph",
+          text: "El equipo de administración de Jobby solo ve métricas agregadas, nunca el contenido de tu CV."
+        }
+      ]
+    }
+  ],
+  related: [
+    "que-es-el-match-score",
+    "cv-compatible-con-ats",
+    "optimizar-cv-con-ia"
+  ]
+};
+
+const optimizarCvConIa: Guide = {
+  slug: "optimizar-cv-con-ia",
+  title: "Optimizar el CV con IA sin inventar experiencia",
+  seoTitle: "Optimizar el CV con IA sin inventar | Jobby",
+  description:
+    "Cómo usar IA para reescribir tu CV para un puesto sin sumar experiencia que no tenés: qué pedir, qué revisar y cómo comprobar las palabras clave.",
+  intro:
+    "Pedirle a una IA que mejore tu CV para un puesto puede ahorrarte horas, pero tiene un riesgo conocido: los modelos de lenguaje tienden a completar. Si algo falta, pueden escribir una cifra, una herramienta o una empresa que nunca existieron. Optimizar tiene que ser reordenar y reformular lo que ya hiciste, no sumar lo que no hiciste. Esta guía explica cómo usar la IA sin inventar, qué revisar y cómo lo resuelve Jobby.",
+  sections: [
+    {
+      heading: "Qué sí y qué no conviene pedirle",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "La IA es buena para reformular y ordenar, y no puede saber qué hiciste vos. Conviene pedirle que:"
+        },
+        {
+          type: "list",
+          items: [
+            "Reformule tus logros con verbos de acción y más claridad.",
+            "Ponga primero la experiencia más cercana al puesto.",
+            "Use el vocabulario de la oferta para describir lo que de verdad hiciste.",
+            "Acorte los párrafos largos."
+          ]
+        },
+        {
+          type: "paragraph",
+          text: "Y conviene no dejar que:"
+        },
+        {
+          type: "list",
+          items: [
+            "Invente cifras, porcentajes o plazos.",
+            "Sume empresas, cargos, títulos o fechas.",
+            "Agregue herramientas que no usaste.",
+            "Exagere el nivel de lo que hiciste."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Cómo pedírselo",
+      blocks: [
+        {
+          type: "steps",
+          items: [
+            "Pasale tu CV completo y la oferta, así trabaja con el contexto real.",
+            "Escribí la regla de forma explícita: «Trabajá solo con lo que está en mi CV. No agregues experiencia, empresas, fechas ni cifras».",
+            "Pedile una sección por vez, para poder revisar cada cambio.",
+            "Pedile que indique qué cambió en cada sección y por qué.",
+            "Si el resultado trae un dato que no es tuyo, borralo o pedí otra versión."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Qué revisar antes de usar el resultado",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "Cada cifra, fecha y nombre propio, contra tu CV original.",
+            "Cada herramienta o tecnología nombrada: ¿la usaste de verdad?",
+            "Que el nivel que sugiere sea el real.",
+            "Que suene a vos y no a una copia del aviso.",
+            "Que no se repitan las mismas frases en distintas secciones."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "La trampa de las palabras clave",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "Cuando una IA lee la oferta, tiende a incluir sus palabras clave en tu CV aunque no figuren en tu experiencia. El CV puede verse más alineado, pero te deja expuesto: si escribís una herramienta que nunca usaste, una pregunta en la entrevista alcanza para dejarlo en evidencia."
+        },
+        {
+          type: "paragraph",
+          text: "La regla práctica es simple: una palabra clave entra al CV solo si podés contar en una entrevista dónde y cómo la usaste."
+        }
+      ]
+    },
+    {
+      heading: "Cómo lo hace Jobby",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "El CV Optimizer de Jobby reescribe las secciones de tu CV que cubren poco lo que pide un puesto. Al hacerlo le pide a la IA que trabaje con lo que ya está en tu CV, sin sumar experiencia, empresas ni fechas."
+        },
+        {
+          type: "paragraph",
+          text: "Después cruza el texto nuevo con el análisis ATS de tu CV. Si el texto menciona una palabra clave que tu CV no respalda, la muestra como «Sin respaldo en tu CV», con el aviso de usarla solo si de verdad tenés esa experiencia. El puntaje ATS que muestra, antes y después, cuenta solo lo que tu CV respalda."
+        },
+        {
+          type: "paragraph",
+          text: `Podés descargar el CV optimizado en PDF, en una sola columna. El plan gratis incluye ${CV_OPTIMIZATIONS_PER_MONTH.free} optimizaciones por mes y el premium, ${CV_OPTIMIZATIONS_PER_MONTH.premium}. La revisión final es siempre tuya: leé el texto nuevo contra tu CV antes de enviarlo.`
+        }
+      ]
+    }
+  ],
+  related: [
+    "como-adaptar-tu-cv-a-una-oferta",
+    "palabras-clave-del-cv",
+    "analizar-cv-con-ia"
+  ]
+};
+
+const habilidadesParaElCv: Guide = {
+  slug: "habilidades-para-poner-en-el-cv",
+  title: "Qué habilidades poner en el CV y cómo ordenarlas",
+  seoTitle: "Qué habilidades poner en el CV | Jobby",
+  description:
+    "Qué habilidades incluir en tu CV, cómo separar las técnicas de las blandas, mostrar el nivel y cuánto pesan en el match score de Jobby.",
+  intro:
+    "La sección de habilidades suele ser la más leída y la peor armada: listas largas, sin orden y sin nada que las respalde. Una buena lista es corta, está ordenada según lo que pide el puesto y cada ítem se apoya en tu experiencia. Esta guía te ayuda a elegir qué incluir, cómo mostrar el nivel y qué peso tienen en el match score.",
+  sections: [
+    {
+      heading: "Habilidades técnicas y blandas",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "Las habilidades técnicas, o duras, se pueden enseñar y comprobar: herramientas, tecnologías, métodos e idiomas. Las blandas son formas de trabajar con otras personas, como la comunicación, el liderazgo o la organización."
+        },
+        {
+          type: "list",
+          items: [
+            "Técnicas, por ejemplo: Python, SQL, Excel avanzado, contabilidad de costos, diseño en Figma.",
+            "Blandas, por ejemplo: comunicación, trabajo en equipo, liderazgo, resolución de problemas."
+          ]
+        },
+        {
+          type: "paragraph",
+          text: "Las técnicas van bien en una lista. Las blandas funcionan mejor cuando se ven en tus logros: «Coordiné con tres áreas la migración del sistema de turnos» dice más sobre coordinación que la palabra «liderazgo» suelta en una lista."
+        }
+      ]
+    },
+    {
+      heading: "Cómo elegir cuáles incluir",
+      blocks: [
+        {
+          type: "steps",
+          items: [
+            "Leé la oferta y subrayá las habilidades que pide.",
+            "Escribí al lado cuáles usaste de verdad y dónde.",
+            "Incluí las que podés defender en una entrevista con un ejemplo concreto.",
+            "Ordená la lista poniendo primero las que la oferta menciona más o marca como obligatorias.",
+            "Sacá las que ya no usás y las que no aportan al puesto."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Cómo mostrar el nivel",
+      blocks: [
+        {
+          type: "paragraph",
+          text: "Las barras, las estrellas y los puntos de nivel no dicen cuánto sabés, y un sistema de lectura no los interpreta como texto. Hay formas más claras de mostrarlo:"
+        },
+        {
+          type: "list",
+          items: [
+            "Agrupar por nivel: «Uso diario: Python, SQL. Conocimiento básico: Docker».",
+            "Sumar el tiempo o el contexto de uso: «Excel avanzado: tablas dinámicas y macros, 4 años».",
+            "Indicar el idioma con una escala conocida, como B2 del marco europeo, o con palabras claras: básico, intermedio o avanzado."
+          ]
+        }
+      ]
+    },
+    {
+      heading: "Cuánto pesan en el match score",
+      blocks: [
+        {
+          type: "paragraph",
+          text: `En el match score de Jobby, las habilidades son el componente de mayor peso: ${MATCH_SCORE_WEIGHTS[0].label} (${formatPercent(MATCH_SCORE_WEIGHTS[0].percent)}). Jobby cuenta cuántas de las que pide el puesto están en tu perfil, incluidas las variantes conocidas y las de significado parecido.`
+        },
+        {
+          type: "paragraph",
+          text: `Las ${MATCH_SCORE_WEIGHTS[5].label.toLowerCase()} pesan ${formatPercent(MATCH_SCORE_WEIGHTS[5].percent)}. Se detectan en la descripción y en los logros de tu experiencia, y por eso conviene mostrarlas ahí. Esos pesos son criterios de Jobby, no una regla general del mercado.`
+        }
+      ]
+    },
+    {
+      heading: "Errores frecuentes",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "Listas de decenas de ítems, que diluyen las que de verdad importan.",
+            "Habilidades sin ninguna experiencia que las respalde.",
+            "Nombrar la misma herramienta de dos formas distintas en distintas partes del CV, sin unirlas.",
+            "Mezclar en una misma lista habilidades, tareas y títulos.",
+            "Poner primero lo que más te gusta en lugar de lo que más pide el puesto."
+          ]
+        }
+      ]
+    }
+  ],
+  related: [
+    "que-es-el-match-score",
+    "palabras-clave-del-cv",
+    "como-adaptar-tu-cv-a-una-oferta"
+  ]
 };
 
 export const GUIDES: Guide[] = [
   queEsUnAts,
   queEsElMatchScore,
   comoAdaptarTuCv,
-  palabrasClave
+  palabrasClave,
+  cvCompatibleConAts,
+  analizarCvConIa,
+  optimizarCvConIa,
+  habilidadesParaElCv
 ];
 
 export function getGuide(slug: string): Guide | undefined {
