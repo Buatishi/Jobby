@@ -1303,6 +1303,34 @@ hay verificación en Search Console que lo confirme.
 
 ---
 
+## Actualización — Decisión 30 (2026-10-19): título de la home y organización
+
+**Estado:** Pedido por el autor, con aprobación explícita.
+
+**Medición (Search Console y Google, 2026-10-18).** La home ya está indexada (último rastreo el
+2026-10-15, canónica declarada igual a la elegida por Google) y el sitemap se leyó sin errores
+con 4 páginas descubiertas. Con Google en español, el sitio aparece primero en «jobby match
+score» y en «jobbyweb», pero no en la primera página de «jobby web» ni de «jobby cv», donde
+compiten sitios con la marca en el dominio (`jobby.lat`, `jobby.com.do`, `jobby.tn`). El
+título de la home no nombraba ni el CV, ni el ATS, ni el match score.
+
+**Elegido.**
+- Título de la home: «Jobby — Match score y ATS: compará tu CV con el puesto» (54 caracteres, por
+  debajo de los ~60 que Google suele mostrar completos). Dice qué hace el producto sin repetir
+  palabras. El lema («Sabé cuánto matcheás antes de aplicar») sigue en el hero y en el título de
+  Open Graph y Twitter, que son las tarjetas al compartir el enlace, no lo que lee Google.
+- Nodo JSON-LD `Organization` en la home, con nombre, URL y `sameAs`. `sameAs` vive en
+  `lib/seo/site.ts` (`SITE_SAME_AS`) y hoy tiene un solo valor: el repositorio público de GitHub.
+- No se declara logo, contacto, fundadores ni LinkedIn: no hay logo propio publicado ni un perfil
+  de LinkedIn del proyecto, y un perfil personal sería un dato personal que el sitio no debe
+  publicar. Cuando exista un perfil del proyecto se agrega a `SITE_SAME_AS`.
+
+**Límites.** No garantiza posición: el efecto de un título es lento y el peso grande lo siguen
+teniendo los enlaces entrantes y el dominio. El dominio propio y la decisión sobre los
+rastreadores de IA siguen abiertos, como en la Decisión 30.
+
+---
+
 ## Actualización — Decisión 14 (2026-10-16)
 
 **Estado:** Ampliada, con aprobación del autor.
