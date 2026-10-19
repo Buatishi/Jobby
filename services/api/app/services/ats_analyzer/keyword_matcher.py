@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from app.services.ai_gateway import AIGateway
 from app.services.match_engine.common import cosine_similarity, normalize_text
+from app.services.skill_names import canonical_skill_key
 
 KeywordStatus = Literal["literal", "semantic", "missing"]
 
@@ -129,6 +130,13 @@ async def analyze_keywords(
     keywords = await extract_job_keywords(job, ai_gateway)
     cv_terms = _cv_terms(primary_cv)
     normalized_cv = {normalize_text(term): term for term in cv_terms}
+    # Un alias o una traducción también es literal: «Integración de APIs» es
+    # «API Integrations». Se mira después de la búsqueda de siempre.
+    cv_by_key: dict[str, str] = {}
+    for term in cv_terms:
+        key = canonical_skill_key(term)
+        if key:
+            cv_by_key.setdefault(key, term)
     literals: dict[str, str] = {}
     for keyword in keywords:
         normalized_keyword = normalize_text(keyword)
@@ -140,6 +148,7 @@ async def analyze_keywords(
             ),
             None,
         )
+        literal = literal or cv_by_key.get(canonical_skill_key(keyword))
         if literal:
             literals[keyword] = literal
 
