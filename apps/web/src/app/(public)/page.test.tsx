@@ -59,7 +59,8 @@ describe("LandingPage search metadata", () => {
     const nodes = JSON.parse(match![1]) as Array<{ "@type": string }>;
     expect(nodes.map((node) => node["@type"])).toEqual([
       "WebSite",
-      "WebApplication"
+      "WebApplication",
+      "Organization"
     ]);
   });
 });

@@ -26,6 +26,19 @@ describe("public pages metadata", () => {
     }
   });
 
+  it("names the brand and what it does in the home title", () => {
+    const title = String(root.title);
+
+    expect(title.startsWith("Jobby")).toBe(true);
+    expect(title).toMatch(/\bCV\b/);
+    expect(title).toMatch(/\bATS\b/);
+    expect(title.toLowerCase()).toContain("match score");
+  });
+
+  it("keeps the home title short enough for the results page", () => {
+    expect(String(root.title).length).toBeLessThanOrEqual(60);
+  });
+
   it("sets a self canonical on the legal pages", () => {
     expect(terms.alternates?.canonical).toBe("/terms");
     expect(privacy.alternates?.canonical).toBe("/privacy");

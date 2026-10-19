@@ -1,9 +1,10 @@
-import { SITE_NAME, SITE_URL } from "@/lib/seo/site";
+import { SITE_NAME, SITE_SAME_AS, SITE_URL } from "@/lib/seo/site";
 
 export type JsonLdNode = Record<string, unknown>;
 
 // Datos estructurados de la home. Solo afirma lo que el producto ya muestra: sin
-// valoraciones ni reseñas, que serían datos inventados.
+// valoraciones ni reseñas, que serían datos inventados. La organización lleva solo nombre,
+// URL y `sameAs`: no hay logo propio ni datos de contacto públicos que declarar.
 export function buildHomeStructuredData(): JsonLdNode[] {
   return [
     {
@@ -30,6 +31,13 @@ export function buildHomeStructuredData(): JsonLdNode[] {
         price: "0",
         priceCurrency: "USD"
       }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+      sameAs: SITE_SAME_AS
     }
   ];
 }
