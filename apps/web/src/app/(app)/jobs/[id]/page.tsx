@@ -17,10 +17,12 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { planOf } from "@/lib/auth/permissions";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
+import type { Recommendation } from "@/lib/jobs/recommendation";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 import { cn } from "@/lib/utils";
 
 import { InterviewPrepLink } from "./interview-prep-link";
+import { RecommendationCard } from "./recommendation-card";
 
 type MatchReport = {
   id: string;
@@ -33,13 +35,7 @@ type MatchReport = {
     sub_scores?: Record<string, number>;
     reasoning?: string;
   } | null;
-  recommendations:
-    | Array<{
-        title?: string;
-        description?: string;
-        priority?: "low" | "medium" | "high";
-      }>
-    | null;
+  recommendations: Recommendation[] | null;
   user_rating: number | null;
   job: {
     job_title?: string | null;
@@ -250,29 +246,10 @@ export default function MatchReportPage() {
           <CardContent>
             <div className="space-y-3">
               {(report.recommendations ?? []).map((recommendation, index) => (
-                <div
-                  className="rounded-2xl border border-border p-4"
+                <RecommendationCard
                   key={`${recommendation.title}-${index}`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">
-                      {recommendation.title ?? recommendation.description}
-                    </p>
-                    <Badge
-                      className={cn(
-                        recommendation.priority === "high" && "border-primary"
-                      )}
-                      variant="outline"
-                    >
-                      {recommendation.priority ?? "medium"}
-                    </Badge>
-                  </div>
-                  {recommendation.description ? (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {recommendation.description}
-                    </p>
-                  ) : null}
-                </div>
+                  recommendation={recommendation}
+                />
               ))}
             </div>
           </CardContent>
