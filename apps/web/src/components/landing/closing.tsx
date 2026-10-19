@@ -29,6 +29,9 @@ export function Closing() {
           <p className="mt-1">{t("landing.footerDescription")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-5">
+          <Link className="hover:text-brand-ink" href="/guias">
+            {t("landing.guides")}
+          </Link>
           <Link className="hover:text-brand-ink" href="/privacy">
             {t("landing.privacy")}
           </Link>

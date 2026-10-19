@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { I18nProvider } from "@/lib/i18n/provider";
+import { Closing } from "@/src/components/landing/closing";
 import { Features } from "@/src/components/landing/features";
 import { JobNetwork } from "@/src/components/landing/job-network";
 import { Plans } from "@/src/components/landing/plans";
@@ -45,6 +46,15 @@ describe("landing sections", () => {
     expect(html).toContain("CV Optimizer: 3 por mes");
     expect(html).toContain("CV Optimizer con IA avanzada: 30 por mes");
     expect(html).toContain('href="/register"');
+  });
+
+  it("links the guides from the footer so they are not orphan pages", () => {
+    const html = render(<Closing />);
+
+    expect(html).toContain('href="/guias"');
+    expect(html).toContain(">Guías<");
+    expect(html).toContain('href="/privacy"');
+    expect(html).toContain('href="/terms"');
   });
 
   it("states the privacy and no-invention promises", () => {
