@@ -1592,3 +1592,51 @@ persona vuelve a analizar el puesto.
   «AngularJS». Infla el puntaje; corregirlo lo baja en esos casos (opción B).
 - Los nombres compuestos («Office (Word, Excel, PowerPoint)», «Agile / Scrum») no se parten en
   componentes, así que «Excel» no coincide con el primero.
+
+---
+
+## Decisión 32 — Guías públicas para llegar a quien busca sin conocer Jobby
+
+**Estado:** Pedido por el autor (2026-10-19, punto 4 de la lista de posicionamiento). El texto es un
+borrador redactado con asistencia de IA: **el autor lo revisa y lo hace suyo antes de publicarlo**.
+
+**Relevamiento.** Google indexaba 4 URLs (home, precios, términos y privacidad); todo lo demás
+está detrás del login. Una persona que busca «cómo saber si mi CV pasa un ATS» no tenía a dónde
+llegar, y la home ya sale primera en «jobby match score» y «jobbyweb» pero no en búsquedas más
+amplias.
+
+**Elegido.**
+- Una sección `/guias` con cuatro guías: `que-es-un-ats`, `que-es-el-match-score`,
+  `como-adaptar-tu-cv-a-una-oferta` y `palabras-clave-del-cv`. Son Server Components con
+  `generateStaticParams`: el build las genera como HTML estático (el texto está en la respuesta, no
+  depende de JavaScript) y un slug que no existe responde 404.
+- El contenido vive en `lib/guides/guides.ts` como datos tipados, no dentro de JSX; las cifras del
+  producto viven aparte, en `lib/guides/facts.ts`.
+- Solo en español: es el idioma de las búsquedas que se quieren captar. En el pie de la home el
+  enlace dice «Guías» y, en inglés, «Guides (in Spanish)».
+- Cada página lleva canónica propia, título de hasta 60 caracteres y su tarjeta para compartir
+  (`lib/seo/share.ts`; las tarjetas de una página reemplazan a las del layout raíz, no se mezclan).
+  Las guías y el índice entran al sitemap y se enlazan desde el pie de la home y entre sí, para que
+  no queden huérfanas.
+- No se declaran datos estructurados `Article`: no hay autor ni fecha que el sitio pueda respaldar.
+
+**Cómo se evita publicar algo falso.**
+- Toda cifra del producto sale de `facts.ts` y `lib/guides/guides.test.ts` la compara con el código
+  del backend: los seis pesos del match score (`formula.py`), el umbral de brecha, la fracción de
+  habilidades que da relevancia plena (`s_relevance.py`), los descuentos de formato del ATS
+  (`format_checker.py`) y lo que suma cada palabra clave (`scoring.py`). Si la fórmula cambia y la
+  guía no, el test falla. Se comprobó que detecta un peso cambiado, un porcentaje inventado y una
+  promesa de resultado.
+- Las guías no citan estadísticas de mercado ni prometen entrevistas o contrataciones (un test
+  rechaza porcentajes que no sean del producto y palabras como «garantizamos»).
+- Lo que el producto hace hoy y la guía no afirma: la guía de palabras clave **no** dice que el ATS
+  distinga «Java» de «JavaScript», porque la regla «contenida en» del ATS no respeta límites de
+  palabra (hallazgo abierto de la Decisión 31). El consejo de no mezclarlos va como consejo de
+  redacción para la persona, no como comportamiento del sistema.
+
+**Límites.**
+- No garantiza posición ni tráfico: son búsquedas muy competidas y el sitio es nuevo. El efecto, si
+  llega, es lento y se mide en Search Console.
+- El contenido describe criterios de Jobby y consejos generales; cada empresa usa su propio sistema
+  de selección. El pie de cada guía lo aclara.
+- Hay que revisarlo y mantenerlo: si cambia la fórmula, `facts.ts` y el texto cambian juntos.

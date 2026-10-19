@@ -224,6 +224,7 @@ export const dictionaries: Record<Language, TranslationTree> = {
       finalCtaSubtitle: "Subí tu CV y sabé dónde estás parado.",
       footerDescription:
         "IA para entender mejor cada postulación antes de aplicar.",
+      guides: "Guías",
       privacy: "Privacidad",
       terms: "Términos"
     },
@@ -604,6 +605,8 @@ export const dictionaries: Record<Language, TranslationTree> = {
       finalCtaSubtitle: "Upload your CV and see where you stand.",
       footerDescription:
         "AI to understand each application better before you apply.",
+      // Las guías están solo en español: la etiqueta lo avisa en inglés.
+      guides: "Guides (in Spanish)",
       privacy: "Privacy",
       terms: "Terms"
     },
