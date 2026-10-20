@@ -1678,3 +1678,107 @@ visible (el h1 es el lema), mientras que otros sitios con «jobby» en el nombre
 de CV» es una búsqueda genérica que dominan sitios con años de enlaces; lo realista es ganar las
 búsquedas con «Jobby» más un término. Siguen abiertos los enlaces entrantes, más guías para
 búsquedas largas y el dominio propio.
+
+---
+
+## Decisión 33 — El reporte ATS se calcula una vez y después se lee
+
+**Estado:** Pedido por el autor a partir de la queja de una persona usuaria real. Cambio listo para
+revisión: **la migración 031 no está aplicada en ninguna base** y el PR no se mergea sin la
+aprobación del autor. El texto es un borrador redactado con asistencia de IA que el autor revisa y
+hace suyo.
+
+**Medición previa** (2026-10-19 y 2026-10-20, cuenta real, horarios de los registros de Render):
+abrir un reporte ATS tardaba de 6 a 9 segundos cada vez y cada apertura gastaba una de las 5
+consultas diarias del plan gratuito (50 en premium). Abrir el mismo reporte tres veces seguidas
+gastaba tres.
+
+**Causa** (confirmada en el código). `GET /ats/{job_id}` rehacía todo y no guardaba nada: (1)
+`extract_job_keywords` pedía las palabras clave del puesto a DeepSeek, y como es una IA salían
+distintas en cada apertura; (2) `_semantic_matches` pedía a OpenAI los vectores de las palabras y
+de los términos del CV, aunque las skills del perfil ya guardan el suyo; (3) el límite diario se
+descontaba antes de mirar si ya había un resultado.
+
+**Elegido.**
+- **Un reporte guardado por puesto** en la tabla nueva `ats_reports` (migración 031, clave primaria
+  `job_id`): puntaje, `keyword_matches`, `format_issues`, el documento del CV principal con el que se
+  calculó, una huella de su `parsed_data` y la versión del algoritmo (`ATS_REPORT_VERSION`).
+  Va en una tabla aparte y no en columnas de `job_descriptions` porque el modelo `JobDescription`
+  devuelve las columnas que no conoce (`extra="allow"`) y el reporte lleva fragmentos del CV
+  (`matched_text`) que no deben salir en `GET /jobs`.
+- **Cuándo vale.** El reporte guardado se sirve si coinciden el id del CV principal, la huella de su
+  `parsed_data` y la versión del algoritmo. Se usó la huella del contenido y no `updated_at`:
+  releer un CV reemplaza `parsed_data` sin tocar esa fecha (solo `set-primary` la actualiza). Si el
+  CV principal cambia, el reporte se recalcula. Subir `ATS_REPORT_VERSION` al cambiar una regla del
+  cálculo (por ejemplo, si se aprueba el límite de palabra) hace que lo guardado con la regla vieja
+  se recalcule en vez de seguir mostrándose.
+- **Palabras clave estables.** Son las del reporte (`keyword_matches[].keyword`): no hay otra
+  columna que mantener sincronizada. La primera vez que se abre el reporte de un puesto se extraen
+  con IA, como hasta ahora (así se completan también los puestos anteriores a este cambio, que no
+  tienen nada guardado); desde entonces, cada recálculo (por ejemplo, tras cambiar el CV) las
+  reutiliza y no vuelve a consultar a la IA.
+- **Límite diario.** Solo cuenta calcular un reporte nuevo (primera vez, o rehacerlo tras cambiar el
+  CV principal). Releer uno guardado no gasta nada, ni siquiera con el cupo del día agotado. El 429
+  conserva el esquema de error estándar (`ATS_RATE_LIMIT_EXCEEDED`, con `limit` y `reset_at`). Un
+  reporte desactualizado con el cupo agotado también da 429: no hay forma de recalcularlo.
+- **`POST /ats/optimize`** parte del mismo reporte guardado (así «antes» coincide con lo que la
+  persona vio y las palabras clave no cambian entre el reporte y la optimización) y, si no hay uno
+  vigente, lo calcula y lo guarda sin gastar el límite del ATS (tiene su propio cupo mensual,
+  Decisión 25).
+- **Vectores ya guardados.** Los términos del CV que son skills del perfil se comparan con el vector
+  que ya está en `skills.embedding`, buscado por nombre exacto: el mismo modelo sobre el mismo texto
+  da el mismo vector, así que el resultado no cambia (una prueba compara los estados con y sin
+  vectores guardados). Los términos sin vector (experiencia, estudios, skills cargadas a mano) siguen
+  yendo a OpenAI en un lote, y los vectores guardados de otro tamaño se descartan. La lectura de
+  `skills` solo ocurre si hay palabras sin coincidencia literal.
+- El puntaje y cada coincidencia no cambian para las mismas palabras clave: la suite del ATS
+  (`test_ats_reality.py`, `test_skill_aliases_in_matching.py`) pasa sin modificar.
+
+**Alternativa descartada: sacar las palabras clave al analizar el puesto.** Sumaría al paso del
+análisis, que la persona mira esperando (Decisión 23), una llamada a DeepSeek de varios segundos por
+cada puesto, también por los que nunca abren el ATS, y igual haría falta el camino de la primera
+apertura para los puestos que ya existen. Costo de no hacerlo: la primera apertura de cada reporte
+sigue incluyendo esa llamada. Si el autor prefiere pagarla antes, la opción que no suma espera es
+pedirlas en la tarea de comparación, en paralelo con la explicación con IA; no se implementó.
+
+**Si la migración todavía no está aplicada.** Toda lectura y escritura de `ats_reports` se atrapa y
+se registra como aviso: el reporte se calcula en cada apertura y gasta la consulta, igual que antes
+de este cambio. Una prueba lo cubre simulando la tabla ausente.
+
+**Orden de despliegue (cambio de esquema: requiere aprobación explícita del autor).**
+1. Aplicar `031_ats_report_cache.sql` primero en `jobby-test` y comprobar la tabla, la política y que
+   `anon` y `authenticated` no tengan privilegios.
+2. Aplicarla en producción (`jobby`). Es aditiva: una tabla nueva que el código viejo no lee.
+3. Recién después, mergear y desplegar el código.
+
+**Qué cambia para la persona.**
+- Releer un reporte ya visto es una lectura de la base y no gasta el límite.
+- Las palabras clave de un puesto dejan de cambiar entre aperturas. La primera apertura después de
+  desplegar recalcula (no hay nada guardado todavía) y gasta una consulta; las palabras clave que
+  salgan pueden diferir de las que la persona vio antes.
+- Cambiar el CV principal recalcula el reporte (gasta una consulta) sin cambiar las palabras clave.
+- Editar el puesto con `PATCH /jobs/{id}` no vuelve a extraer palabras clave: sus datos editables
+  son título, empresa, seniority, modalidad y salario, y corregirlos no debe cambiar el reporte.
+- No hay botón para pedir palabras clave nuevas de un puesto.
+
+**Datos de personas.** `ats_reports.keyword_matches[].matched_text` copia fragmentos del CV. La tabla
+sigue el esquema de acceso del resto (RLS por dueño, sin privilegios para `anon` ni `authenticated`),
+ningún endpoint de administración la lee (el admin solo ve métricas agregadas) y se borra en cascada
+con el puesto y con la cuenta.
+
+**Límites y pendientes.**
+- Dos primeras aperturas simultáneas del mismo reporte calculan las dos y gastan dos consultas;
+  gana la última escritura. Es el comportamiento de antes y es raro.
+- No se midió en producción después del cambio: el objetivo es menos de 1 segundo al releer. Se
+  mide al desplegar, con los registros de Render.
+- Siguen siendo decisiones del autor, sin tocar: qué fuentes cuentan como evidencia, qué cuenta como
+  palabra clave, la regla «contenida en» sin límite de palabra y cualquier cambio en el puntaje.
+- La reutilización de vectores es una optimización chica: el lote de términos del CV sigue existiendo
+  mientras haya experiencia o estudios en el CV.
+- **Pruebas:** `tests/unit/test_ats_report_cache.py`. Primera apertura calcula y guarda; la segunda no
+  llama a la IA ni a los vectores y no gasta el límite; cambiar el CV principal, releerlo o subir la
+  versión del algoritmo invalida; un puesto sin nada guardado se completa; la 6.ª apertura de un
+  reporte nuevo del plan gratuito da 429 y lo ya calculado se sigue leyendo; una fila dañada se
+  recalcula; sin la tabla el reporte funciona como antes. La migración se probó dos veces seguidas
+  en un PostgreSQL 16 descartable (cascada, `ON CONFLICT (job_id)` y sin acceso para la clave
+  pública), no en las bases de Supabase.

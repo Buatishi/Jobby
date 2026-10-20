@@ -143,7 +143,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-1-vista-c.pdf](pdf/laminas/d
 | D2 | Perfil maestro | Perfil, habilidades, experiencia, educación, idiomas y certificaciones | `master_profiles`, `skills`, `experiences`, `educations`, `languages`, `certifications`, `rejected_skills` |
 | D3 | Documentos de CV | Archivos PDF y su estado de procesamiento | `uploaded_documents` y el bucket privado `cv-documents` de Storage |
 | D4 | Puestos | Ofertas estructuradas con su vector | `job_descriptions` |
-| D5 | Resultados de compatibilidad | Match Score y detalle por puesto | `job_matches` |
+| D5 | Resultados de compatibilidad | Match Score y detalle por puesto, y el último reporte ATS de cada puesto | `job_matches`, `ats_reports` |
 | D6 | Kits de entrevista | Kits generados y su valoración | `interview_kits` |
 | D7 | Caché de LinkedIn | Perfiles ya leídos, para no repetir la lectura | `linkedin_scrape_cache` |
 | D8 | Estado de tareas y límites | Estado de las tareas, límites de uso y eventos de pago ya procesados | Redis (Upstash) |

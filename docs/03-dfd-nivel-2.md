@@ -73,7 +73,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-4.pdf](pdf/laminas
 | 4.1 | Calcular los puntajes de compatibilidad | Cruza perfil y puesto en seis criterios (habilidades 35 %, seniority 25 %, empresa 15 %, estudios 10 %, idiomas 10 %, blandas 5 %) y calcula el MatchScore, el potencial, la representación y el origen de la brecha. La similitud de habilidades usa vectores (coseno desde 0,82). El puntaje se multiplica por la relevancia del puesto para el área de la persona: sin ninguna skill en común queda en 0,15 de su valor (Decisión 29). | `services/match_engine/`; `tasks/analysis.py` |
 | 4.2 | Explicar el resultado con IA y guardarlo | Pide una explicación y de 3 a 5 recomendaciones (DeepSeek en el plan gratuito, Claude en premium) y guarda el resultado. | `tasks/analysis.py`; `services/ai_gateway/` |
 | 4.3 | Entregar el reporte y registrar la valoración | Devuelve el reporte de compatibilidad y guarda la valoración de 1 a 5 de la persona. | `GET /matches/{id}`; `PATCH /matches/{id}/rating` |
-| 4.4 | Armar el reporte ATS | Extrae las palabras clave del puesto, las compara con el CV (exacta, por significado desde 0,75 o faltante), revisa el formato y calcula el puntaje. Antes verifica el límite del plan (5 por día en el gratuito). No guarda el reporte. | `GET /ats/{job_id}`; `services/ats_analyzer/` |
+| 4.4 | Armar el reporte ATS | Si el puesto ya tiene un reporte guardado para el CV principal de hoy, lo devuelve sin más: no usa IA ni vectores y no gasta el límite. Si no (primera vez, o cambió el CV principal), verifica el límite del plan (5 reportes nuevos por día en el gratuito), toma las palabras clave del puesto (las del último reporte, o las extrae con IA la primera vez), las compara con el CV (exacta, por significado desde 0,75 o faltante) reutilizando los vectores que ya guardan las habilidades, revisa el formato, calcula el puntaje y guarda el reporte (Decisión 33). | `GET /ats/{job_id}`; `services/ats_analyzer/` |
 | 4.5 | Analizar la brecha de realidad | Compara lo que la persona confirmó con lo que el CV puede demostrar y lo ordena de menor a mayor coherencia. | `GET /profiles/reality-gap`; `services/reality_gap/` |
 | 4.6 | Optimizar el CV con IA | Antes verifica el límite del plan (3 por mes con DeepSeek en el gratuito, 30 con Claude en premium; Decisión 25). Reescribe solo las secciones con baja cobertura ATS, sin inventar experiencia, y devuelve el texto original, el nuevo, las palabras agregadas y el motivo. Después verifica cada palabra contra el reporte ATS: las que el CV no respalda se marcan para que la persona las confirme, y calcula el puntaje antes y después contando solo lo verificado (Decisión 24). | `POST /ats/optimize`; `ats_analyzer/cv_optimizer.py` |
 | 4.7 | Armar el resumen del panel | Junta el porcentaje de perfil, un consejo y los últimos resultados para la pantalla principal. | `GET /dashboard/summary` |
@@ -95,10 +95,10 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-4.pdf](pdf/laminas
 | F25.4 Palabras y términos a vectorizar (4 → IA) | 4.4 → IA |
 | F27.4 Vectores de significado (IA → 4) | IA → 4.4 |
 | Plan de la persona (D1 → 4) | D1 → 4.2, 4.4 y 4.6 |
-| Perfil y habilidades (D2 → 4) | D2 → 4.1, 4.5 y 4.7 |
+| Perfil y habilidades (D2 → 4) | D2 → 4.1, 4.4, 4.5 y 4.7 |
 | Texto del CV principal (D3 → 4) | D3 → 4.1, 4.4, 4.5 y 4.6 |
 | Puesto estructurado (D4 → 4) | D4 → 4.1, 4.3, 4.4 y 4.6 |
-| Resultados de compatibilidad (4 ↔ D5) | 4.2 y 4.3 → D5; D5 → 4.3 y 4.7 |
+| Resultados de compatibilidad (4 ↔ D5) | 4.2, 4.3 y 4.4 → D5; D5 → 4.3, 4.4 y 4.7 |
 | Estado de la tarea (4 ↔ D8) | 4.1, 4.4 y 4.6 → D8; D8 → 4.8 |
 
 ## 4. Corrección del nivel 1

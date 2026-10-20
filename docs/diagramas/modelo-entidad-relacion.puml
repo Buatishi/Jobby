@@ -1,6 +1,7 @@
 @startuml
 ' Modelo entidad-relación de Jobby. Fuente: services/api/migrations/001 a 026, contrastado el 2026-09-23
 ' con la base de Supabase (15 tablas del esquema public, RLS activo en todas). No se dibuja auth.users salvo como referencia.
+' ats_reports viene de la migración 031 (2026-10-20, Decisión 33): se aplica a Supabase antes de desplegar ese cambio.
 !pragma layout smetana
 hide circle
 hide methods
@@ -15,7 +16,7 @@ skinparam ClassAttributeIconSize 0
 skinparam legendBackgroundColor #FFFFFF
 skinparam legendBorderColor #9AA5B1
 
-title Modelo de datos de Jobby (esquema public de Supabase, 15 tablas)
+title Modelo de datos de Jobby (esquema public de Supabase, 16 tablas)
 
 entity "auth.users\n(Supabase Auth)" as authusers #EDEFF2 {
   id : uuid <<PK>>
@@ -174,6 +175,18 @@ entity job_matches #E8DFF5 {
   created_at : timestamptz
 }
 
+entity ats_reports #E8DFF5 {
+  * job_id : uuid <<PK, FK>>
+  --
+  * user_id : uuid <<FK>>
+  * cv_document_id : uuid  (CV principal usado)
+  * cv_fingerprint : text  (huella de parsed_data)
+  * report_version : int2
+  * ats_score : int2
+  * keyword_matches, format_issues : jsonb
+  * computed_at : timestamptz
+}
+
 entity interview_kits #E8DFF5 {
   * id : uuid <<PK>>
   --
@@ -221,12 +234,14 @@ users ||--o{ interview_kits
 master_profiles ||--o{ interview_kits
 job_descriptions ||--o{ interview_kits
 job_matches |o--o{ interview_kits
+users ||--o{ ats_reports
+job_descriptions ||--o| ats_reports
 users ||--o{ linkedin_scrape_cache
 
 legend right
   |<#D5EBE3> Cuenta, plan y roles |<#D6E2F3> Perfil maestro y sus datos |
   |<#FFE9AE> Archivos y caché |<#E8DFF5> Puestos y resultados |
   Patas de gallo: ||  uno y solo uno · o{  cero o muchos · |o  cero o uno. Con asterisco (*): NOT NULL.
-  20 FK: 18 en cascada, interview_kits.match_id en SET NULL y users.role impide borrar un rol en uso.
+  22 FK: 20 en cascada, interview_kits.match_id en SET NULL y users.role impide borrar un rol en uso.
 endlegend
 @enduml

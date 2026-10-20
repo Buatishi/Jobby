@@ -2,6 +2,8 @@
 ' DFD nivel 2 del proceso 4 (Evaluar compatibilidad). Descompone el proceso 4 del nivel 1 de docs/01-dfd.md.
 ' Verificado el 2026-09-21 contra services/api/app/tasks/analysis.py (run_match), app/services/match_engine/*,
 ' app/api/v1/matches.py, ats.py, dashboard.py, profiles.py (reality-gap) y app/services/ats_analyzer/*.
+' Actualizado el 2026-10-20 (Decisión 33): 4.4 lee y guarda el último reporte ATS de cada puesto (D5) y
+' reutiliza los vectores de las habilidades (D2).
 ' Notación: rectángulo = entidad externa, elipse numerada = proceso, cilindro D# = almacén de datos.
 !pragma layout smetana
 top to bottom direction
@@ -60,8 +62,11 @@ P43 --> U : F12.1 Reporte\nde compatibilidad
 D4 --> P44 : Puesto y sus requisitos
 D3 --> P44 : Texto del CV principal
 D1 --> P44 : Plan de la persona
-P44 --> D8 : Contador de reportes del día
-P44 --> IA : F24.4 Instrucciones para extraer\npalabras clave\nF25.4 Palabras y términos\na vectorizar
+D2 --> P44 : Vectores de\nlas habilidades
+D5 --> P44 : Último reporte ATS\ny palabras clave del puesto
+P44 --> D5 : Reporte ATS nuevo\ny sus palabras clave
+P44 --> D8 : Contador de reportes\nnuevos del día
+P44 --> IA : F24.4 Instrucciones para extraer\npalabras clave (solo la primera vez)\nF25.4 Palabras y términos\na vectorizar
 IA --> P44 : F26.4 Palabras clave del puesto\nF27.4 Vectores de significado
 P44 --> U : F12.2 Reporte ATS
 
