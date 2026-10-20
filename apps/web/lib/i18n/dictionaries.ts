@@ -327,7 +327,9 @@ export const dictionaries: Record<Language, TranslationTree> = {
         "Primero analizá un puesto. Luego vas a poder abrir su reporte y revisar keywords, coincidencias y problemas de formato.",
       atsAnalyzeNew: "Analizar nuevo job",
       atsLoading: "Cargando jobs...",
-      atsLoadError: "No se pudieron cargar los jobs."
+      atsLoadError: "No se pudieron cargar los jobs.",
+      ratingThanks: "Gracias por tu feedback.",
+      ratingSaveError: "No pudimos guardar tu calificación. Probá de nuevo."
     },
     admin: {
       title: "Administración",
@@ -716,7 +718,9 @@ export const dictionaries: Record<Language, TranslationTree> = {
         "Analyze a job first. Then you will be able to open its report and review keywords, matches, and formatting issues.",
       atsAnalyzeNew: "Analyze a new job",
       atsLoading: "Loading jobs...",
-      atsLoadError: "Could not load the jobs."
+      atsLoadError: "Could not load the jobs.",
+      ratingThanks: "Thanks for your feedback.",
+      ratingSaveError: "We could not save your rating. Please try again."
     },
     admin: {
       title: "Administration",
