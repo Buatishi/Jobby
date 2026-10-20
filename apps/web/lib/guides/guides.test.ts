@@ -231,4 +231,23 @@ describe("guide figures match the backend code", () => {
     );
     expect(ats).toContain("suma 0,5");
   });
+
+  it("describes the ATS report with the marks the page really shows", () => {
+    const page = readFileSync(
+      fileURLToPath(
+        new URL("../../src/app/(app)/ats/[id]/page.tsx", import.meta.url)
+      ),
+      "utf8"
+    );
+    for (const mark of ["✓", "~", "✗"]) {
+      expect(page).toContain(`return "${mark}"`);
+    }
+
+    const analysis = guideText(getGuide("analizar-cv-con-ia")!);
+    expect(analysis).toContain("presente (✓), parecida (~) o faltante (✗)");
+    // «Cumple / Parcial / Falta» es el ejemplo de la landing, no lo que muestra el reporte.
+    for (const guide of GUIDES) {
+      expect(guideText(guide)).not.toContain("cumplís en parte");
+    }
+  });
 });

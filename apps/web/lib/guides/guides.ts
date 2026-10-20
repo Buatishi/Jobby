@@ -325,7 +325,7 @@ const comoAdaptarTuCv: Guide = {
       blocks: [
         {
           type: "paragraph",
-          text: "En Jobby cargás tu CV una vez y pegás el puesto. El sistema compara tu perfil con la oferta requisito por requisito y te muestra el match score, qué habilidades coinciden y cuáles faltan, y el análisis ATS. Con eso decidís qué reescribir antes de postularte, y podés repetirlo con cada puesto nuevo."
+          text: "En Jobby cargás tu CV una vez y pegás el puesto. El sistema compara tu perfil con la oferta y te muestra el match score con su detalle y recomendaciones, y un reporte ATS que marca qué palabras clave del puesto están en tu CV y cuáles faltan. Con eso decidís qué reescribir antes de postularte, y podés repetirlo con cada puesto nuevo."
         }
       ]
     }
@@ -615,7 +615,7 @@ const analizarCvConIa: Guide = {
       blocks: [
         {
           type: "paragraph",
-          text: `En Jobby cargás tu CV una vez y pegás el puesto. El análisis devuelve un match score de 0 a 100 con los requisitos que cumplís, los que cumplís en parte y los que faltan, un reporte ATS con las palabras clave y el formato, y los gaps ordenados por impacto. El plan gratis incluye ${FREE_JOB_ANALYSES_PER_MONTH} análisis de puestos por mes.`
+          text: `En Jobby cargás tu CV una vez y pegás el puesto. El análisis devuelve un match score de 0 a 100 con el detalle de sus seis componentes y recomendaciones priorizadas, y un reporte ATS que marca cada palabra clave del puesto como presente (✓), parecida (~) o faltante (✗) y revisa el formato. El plan gratis incluye ${FREE_JOB_ANALYSES_PER_MONTH} análisis de puestos por mes.`
         },
         {
           type: "paragraph",
