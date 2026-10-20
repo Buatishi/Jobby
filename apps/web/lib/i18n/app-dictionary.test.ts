@@ -34,4 +34,10 @@ describe("app dictionary", () => {
       expect(es).toContain(key);
     }
   });
+
+  it("keeps the keys the match rating card reads", () => {
+    for (const key of ["ratingThanks", "ratingSaveError"]) {
+      expect(es).toContain(key);
+    }
+  });
 });

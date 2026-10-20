@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Info, Star } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
@@ -19,10 +19,10 @@ import { planOf } from "@/lib/auth/permissions";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import type { Recommendation } from "@/lib/jobs/recommendation";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
-import { cn } from "@/lib/utils";
 
 import { AtsReportLink } from "./ats-report-link";
 import { InterviewPrepLink } from "./interview-prep-link";
+import { MatchRating } from "./match-rating";
 import { RecommendationCard } from "./recommendation-card";
 
 type MatchReport = {
@@ -57,7 +57,6 @@ export default function MatchReportPage() {
   const params = useParams<{ id: string }>();
   const [report, setReport] = useState<MatchReport | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [rating, setRating] = useState<number | null>(null);
   const [profileConfidence, setProfileConfidence] = useState<
     "high" | "medium" | null
   >(null);
@@ -70,7 +69,6 @@ export default function MatchReportPage() {
           `/api/v1/matches/${params.id}`
         );
         setReport(matchReport);
-        setRating(matchReport.user_rating);
       } catch (requestError) {
         setError(
           requestError instanceof Error
@@ -101,23 +99,6 @@ export default function MatchReportPage() {
     () => report?.score_breakdown?.sub_scores ?? {},
     [report?.score_breakdown]
   );
-
-  async function submitRating(nextRating: number) {
-    if (!report) {
-      return;
-    }
-
-    const updated = await apiClient<MatchReport>(
-      `/api/v1/matches/${report.id}/rating`,
-      {
-        method: "PATCH",
-        idempotent: true,
-        body: JSON.stringify({ rating: nextRating })
-      }
-    );
-    setReport(updated);
-    setRating(updated.user_rating);
-  }
 
   if (error) {
     return (
@@ -265,31 +246,11 @@ export default function MatchReportPage() {
             <CardDescription>Qué tan útil fue este análisis?</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  aria-label={`Rating ${value}`}
-                  className="rounded-full p-1 hover:bg-muted"
-                  key={value}
-                  onClick={() => void submitRating(value)}
-                  type="button"
-                >
-                  <Star
-                    className={cn(
-                      "h-7 w-7",
-                      rating && value <= rating
-                        ? "fill-secondary text-secondary"
-                        : "text-muted-foreground"
-                    )}
-                  />
-                </button>
-              ))}
-            </div>
-            {rating ? (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Gracias por tu feedback.
-              </p>
-            ) : null}
+            <MatchRating
+              initialRating={report.user_rating}
+              key={report.id}
+              matchId={report.id}
+            />
 
             <InterviewPrepLink plan={plan} />
           </CardContent>
