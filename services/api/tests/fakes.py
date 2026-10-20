@@ -31,6 +31,7 @@ class FakeTableQuery:
         self.update_payload: dict[str, Any] | None = None
         self.insert_payload: dict[str, Any] | None = None
         self.upsert_payload: dict[str, Any] | list[dict[str, Any]] | None = None
+        self.upsert_conflict: str | None = None
         self.should_delete = False
         self.single_row = False
         self.allow_empty_single = False
@@ -74,8 +75,13 @@ class FakeTableQuery:
         self.insert_payload = payload
         return self
 
-    def upsert(self, payload: dict[str, Any] | list[dict[str, Any]]) -> FakeTableQuery:
+    def upsert(
+        self,
+        payload: dict[str, Any] | list[dict[str, Any]],
+        on_conflict: str | None = None,
+    ) -> FakeTableQuery:
         self.upsert_payload = payload
+        self.upsert_conflict = on_conflict
         return self
 
     def delete(self) -> FakeTableQuery:
@@ -110,12 +116,14 @@ class FakeTableQuery:
             upserted_rows = []
             for payload in payloads:
                 # Como PostgREST: con un `id` que ya existe actualiza esa fila; sin `id`
-                # (o con uno nuevo) inserta.
+                # (o con uno nuevo) inserta. Con `on_conflict` la fila se busca por esa
+                # columna (la clave de la tabla), como lo hace `ON CONFLICT (columna)`.
+                key = self.upsert_conflict or "id"
                 current = next(
                     (
                         row
                         for row in rows
-                        if "id" in payload and row.get("id") == payload["id"]
+                        if key in payload and row.get(key) == payload[key]
                     ),
                     None,
                 )
@@ -233,6 +241,7 @@ class FakeSupabase:
             "certifications": [],
             "job_descriptions": [],
             "job_matches": [],
+            "ats_reports": [],
             "linkedin_scrape_cache": [],
             "interview_kits": [],
             # Mismos permisos que siembra la migración 026.
