@@ -20,6 +20,25 @@ describe("app dictionary", () => {
     expect(en).toEqual(es);
   });
 
+  it("names the dashboard figure as an average, in both languages", () => {
+    expect(es).not.toContain("globalScore");
+    expect((dictionaries.es.app as Tree).averageScore).toBe(
+      "Promedio de tus últimos 5 análisis"
+    );
+    expect((dictionaries.en.app as Tree).averageScore).toBe(
+      "Average of your last 5 analyses"
+    );
+
+    for (const key of [
+      "averageScoreHint",
+      "averageScoreEmptyHint",
+      "potentialScoreHint",
+      "representationScoreHint"
+    ]) {
+      expect(es).toContain(key);
+    }
+  });
+
   it("keeps the keys the ATS entry points read", () => {
     for (const key of [
       "viewAtsReport",

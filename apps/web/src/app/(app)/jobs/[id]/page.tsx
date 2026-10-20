@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { AtsReportLink } from "./ats-report-link";
 import { InterviewPrepLink } from "./interview-prep-link";
 import { RecommendationCard } from "./recommendation-card";
+import { SecondaryScores } from "./secondary-scores";
 
 type MatchReport = {
   id: string;
@@ -195,16 +196,10 @@ export default function MatchReportPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-6 grid gap-2 text-sm">
-              <div className="flex justify-between">
-                <span>Potential Score</span>
-                <strong>{report.potential_score ?? 0}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span>Representation Score</span>
-                <strong>{report.representation_score ?? 0}</strong>
-              </div>
-            </div>
+            <SecondaryScores
+              potential={report.potential_score}
+              representation={report.representation_score}
+            />
           </CardContent>
         </Card>
 
