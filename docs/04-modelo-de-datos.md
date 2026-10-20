@@ -8,8 +8,8 @@ el 2026-09-24 con las migraciones 023 a 027: dos funciones (una restaura la del 
 otra verifica que la sesión de un token siga abierta), índices, el cierre de privilegios de la
 clave pública y los roles con sus permisos (dos tablas nuevas y la columna `users.role`).
 Actualizado el 2026-10-20 con la tabla `ats_reports` de la migración 031 (Decisión 33): aplicada y
-verificada ese día en el proyecto de pruebas (columnas, claves, política y privilegios contra su
-catálogo); falta aplicarla en producción, antes de desplegar el cambio.
+verificada ese día en el proyecto de pruebas y en producción (columnas, claves, política y
+privilegios contra su catálogo), antes de desplegar el cambio.
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)
 
