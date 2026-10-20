@@ -1,9 +1,9 @@
 """El reporte ATS se calcula una vez y después se lee (Decisión 33).
 
-Antes cada apertura rehacía todo: pedía las keywords a la IA (y salían distintas cada vez),
-pedía los vectores a OpenAI y gastaba una de las 5 consultas diarias del plan gratuito.
-Ahora el último reporte de cada puesto se guarda, con sus keywords, y vale mientras no
-cambie el CV principal.
+Antes cada apertura rehacía todo: pedía las keywords a la IA (y salían distintas cada
+vez), pedía los vectores a OpenAI y gastaba una de las 5 consultas diarias del plan
+gratuito. Ahora el último reporte de cada puesto se guarda, con sus keywords, y vale
+mientras no cambie el CV principal.
 """
 
 import json
@@ -64,7 +64,9 @@ async def _free_user() -> CurrentUser:
     return CurrentUser(id="user-1", supabase_uid="auth-user-1", email="p@example.com")
 
 
-def _cv_document(document_id: str = "doc-1", *, primary: bool = True) -> dict[str, Any]:
+def _cv_document(
+    document_id: str = "doc-1", *, primary: bool = True
+) -> dict[str, Any]:
     return {
         "id": document_id,
         "user_id": "user-1",
@@ -92,7 +94,9 @@ def _job(job_id: str = "job-1") -> dict[str, Any]:
 
 def _world(jobs: int = 1) -> FakeSupabase:
     supabase = FakeSupabase()
-    supabase.tables["job_descriptions"].extend(_job(f"job-{n}") for n in range(1, jobs + 1))
+    supabase.tables["job_descriptions"].extend(
+        _job(f"job-{n}") for n in range(1, jobs + 1)
+    )
     supabase.tables["uploaded_documents"].append(_cv_document())
     return supabase
 
@@ -475,7 +479,7 @@ async def _baseline(known: dict[str, list[float]] | None) -> tuple[Any, KeywordG
 
 
 @pytest.mark.asyncio
-async def test_vectors_already_saved_are_not_asked_for_again_and_the_result_is_the_same() -> None:
+async def test_saved_vectors_are_not_asked_again_and_the_result_is_the_same() -> None:
     without, plain = await _baseline(None)
     with_known, reusing = await _baseline({"Diseño de APIs": [1.0, 0.0, 0.0]})
 
@@ -488,7 +492,7 @@ async def test_vectors_already_saved_are_not_asked_for_again_and_the_result_is_t
 
 
 @pytest.mark.asyncio
-async def test_when_every_term_has_a_saved_vector_only_the_keywords_are_embedded() -> None:
+async def test_with_a_saved_vector_for_every_term_only_keywords_are_embedded() -> None:
     cv = _cv_document()
     cv["parsed_data"]["experiences"] = []
     fake = KeywordGateway()
