@@ -21,6 +21,7 @@ import type { Recommendation } from "@/lib/jobs/recommendation";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 import { cn } from "@/lib/utils";
 
+import { AtsReportLink } from "./ats-report-link";
 import { InterviewPrepLink } from "./interview-prep-link";
 import { RecommendationCard } from "./recommendation-card";
 
@@ -146,9 +147,12 @@ export default function MatchReportPage() {
     <main className="min-h-screen bg-white p-4 pb-14">
       <PageBanner
         actions={
-          <Badge className="border-white/30 text-white" variant="outline">
-            Gap: {report.gap_origin ?? "none"}
-          </Badge>
+          <>
+            <Badge className="border-white/30 text-white" variant="outline">
+              Gap: {report.gap_origin ?? "none"}
+            </Badge>
+            <AtsReportLink jobId={report.job_id} />
+          </>
         }
         className="mb-5"
         description={report.job?.company_name ?? "Empresa sin identificar"}

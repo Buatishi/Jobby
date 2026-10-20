@@ -317,7 +317,17 @@ export const dictionaries: Record<Language, TranslationTree> = {
       urlReadFail:
         "No pudimos leer esa URL. Pegá el texto del puesto para continuar.",
       analysisQueued: "Analizando... te avisamos cuando esté listo.",
-      analysisStartFail: "No se pudo iniciar el análisis."
+      analysisStartFail: "No se pudo iniciar el análisis.",
+      viewAtsReport: "Ver reporte ATS",
+      atsListTitle: "Elegí un puesto para ver su reporte ATS",
+      atsListDescription:
+        "Abrí el reporte de cualquiera de tus puestos analizados para revisar keywords, coincidencias y problemas de formato.",
+      atsEmptyTitle: "Elegí un job para ver su reporte ATS",
+      atsEmptyDescription:
+        "Primero analizá un puesto. Luego vas a poder abrir su reporte y revisar keywords, coincidencias y problemas de formato.",
+      atsAnalyzeNew: "Analizar nuevo job",
+      atsLoading: "Cargando jobs...",
+      atsLoadError: "No se pudieron cargar los jobs."
     },
     admin: {
       title: "Administración",
@@ -696,7 +706,17 @@ export const dictionaries: Record<Language, TranslationTree> = {
       analysisComplete: "Analysis complete. You can review the job now.",
       urlReadFail: "We could not read that URL. Paste the job text to continue.",
       analysisQueued: "Analyzing... we will let you know when it is ready.",
-      analysisStartFail: "Could not start the analysis."
+      analysisStartFail: "Could not start the analysis.",
+      viewAtsReport: "View ATS report",
+      atsListTitle: "Pick a job to see its ATS report",
+      atsListDescription:
+        "Open the report of any of your analyzed jobs to review keywords, matches, and formatting issues.",
+      atsEmptyTitle: "Pick a job to see its ATS report",
+      atsEmptyDescription:
+        "Analyze a job first. Then you will be able to open its report and review keywords, matches, and formatting issues.",
+      atsAnalyzeNew: "Analyze a new job",
+      atsLoading: "Loading jobs...",
+      atsLoadError: "Could not load the jobs."
     },
     admin: {
       title: "Administration",
