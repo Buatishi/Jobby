@@ -7,6 +7,9 @@ columnas del diagrama se compararon una a una con `information_schema` y coincid
 el 2026-09-24 con las migraciones 023 a 027: dos funciones (una restaura la del CV principal y
 otra verifica que la sesión de un token siga abierta), índices, el cierre de privilegios de la
 clave pública y los roles con sus permisos (dos tablas nuevas y la columna `users.role`).
+Actualizado el 2026-10-20 con la tabla `ats_reports` de la migración 031 (Decisión 33): aplicada y
+verificada ese día en el proyecto de pruebas y en producción (columnas, claves, política y
+privilegios contra su catálogo), antes de desplegar el cambio.
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)
 
@@ -40,6 +43,7 @@ A3 en [pdf/laminas/modelo-entidad-relacion.pdf](pdf/laminas/modelo-entidad-relac
 | `rejected_skills` | Habilidades que la persona rechazó al revisar el resultado del CV. | Sí (bajo) |
 | `job_descriptions` | Puestos analizados: texto original, datos estructurados y vector. | Texto pegado por la persona |
 | `job_matches` | Resultado de comparar perfil y puesto: MatchScore, potencial, representación, origen de la brecha, desglose, recomendaciones y valoración de 1 a 5. | Derivado del perfil |
+| `ats_reports` | Último reporte ATS de cada puesto (migración 031): puntaje, palabras clave con su estado, problemas de formato, y con qué CV principal y qué versión del algoritmo se calculó. Las palabras clave del puesto son las del reporte. | Derivado del CV: incluye fragmentos de su texto |
 | `interview_kits` | Kits de entrevista del plan premium: preguntas, notas, estado y valoración. | Sí |
 | `linkedin_scrape_cache` | Caché de siete días de las páginas de LinkedIn leídas para un kit. | Puede incluir datos de terceros |
 
@@ -57,10 +61,12 @@ A3 en [pdf/laminas/modelo-entidad-relacion.pdf](pdf/laminas/modelo-entidad-relac
 | `users` – `job_descriptions` | 1 a 0..N | `job_descriptions.user_id` | CASCADE |
 | `users`, `master_profiles` y `job_descriptions` – `job_matches` | 1 a 0..N cada una | `user_id`, `profile_id` y `job_id` | CASCADE |
 | `users`, `master_profiles` y `job_descriptions` – `interview_kits` | 1 a 0..N cada una | `user_id`, `profile_id` y `job_id` | CASCADE |
+| `users` – `ats_reports` | 1 a 0..N | `ats_reports.user_id` | CASCADE |
+| `job_descriptions` – `ats_reports` | 1 a 0..1 | `ats_reports.job_id` (clave primaria) | CASCADE |
 | `job_matches` – `interview_kits` | 0..1 a 0..N | `interview_kits.match_id` (opcional) | SET NULL |
 | `users` – `linkedin_scrape_cache` | 1 a 0..N | `linkedin_scrape_cache.user_id` | CASCADE |
 
-De las 20 claves foráneas entre tablas de la aplicación, 18 borran en cascada,
+De las 22 claves foráneas entre tablas de la aplicación, 20 borran en cascada,
 `interview_kits.match_id` queda vacía (el kit se conserva) y `users.role` impide borrar un rol
 que alguien tiene asignado. La clave hacia `auth.users` no borra
 en cascada: por eso el borrado de cuenta elimina primero la fila de `users` y después la identidad.
@@ -72,13 +78,14 @@ comparaciones (`job_matches`) o kits (`interview_kits`), para que nadie pierda r
 ## 4. Reglas que impone la base
 
 - **Unicidad:** `users.supabase_uid`, un perfil por persona, un solo CV principal por persona
-  (índice parcial), una ranura por CV y una lectura de LinkedIn por persona y enlace.
+  (índice parcial), una ranura por CV, una lectura de LinkedIn por persona y enlace y un solo
+  reporte ATS por puesto (`ats_reports.job_id`).
 - **Sin acceso con la clave pública:** desde la migración 025 (2026-09-23), los roles `anon` y
   `authenticated` no tienen ningún privilegio sobre las tablas, tampoco sobre las que se creen
   después: la web no las lee ni las escribe y todo pasa por la API. Antes, con su propio token,
   una persona podía cambiarse el plan a premium escribiendo su fila por la API REST de
   Supabase (se reprodujo en el proyecto de pruebas; `services/api/tests/sql/`).
-- **Acceso por dueño (RLS):** las 15 tablas mantienen seguridad por fila como segunda barrera
+- **Acceso por dueño (RLS):** las 16 tablas mantienen seguridad por fila como segunda barrera
   (`roles` y `role_permissions` sin políticas: solo las lee la API).
   La API usa la clave de servicio, que no pasa por RLS, así que en sus consultas el
   aislamiento entre personas depende de filtrar por el usuario que sale del token.

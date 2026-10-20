@@ -1,4 +1,5 @@
 import json
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -7,6 +8,10 @@ from app.services.match_engine.common import cosine_similarity, normalize_text
 from app.services.skill_names import canonical_skill_key
 
 KeywordStatus = Literal["literal", "semantic", "missing"]
+
+# Los vectores que ya existen para algunos términos del CV (los de las skills del
+# perfil), por texto exacto. Se piden recién cuando hay que comparar por significado.
+VectorLoader = Callable[[], Awaitable[Mapping[str, Sequence[float]]]]
 
 
 @dataclass(frozen=True)
@@ -100,17 +105,25 @@ async def _semantic_matches(
     cv_terms: list[str],
     gateway: AIGateway,
     threshold: float,
+    saved_vectors: VectorLoader | None = None,
 ) -> dict[str, str]:
     """Primer término del CV parecido a cada keyword que no apareció literal.
 
     Pide los vectores en dos lotes: antes se pedía uno por palabra y los del CV se
-    repetían por cada keyword faltante (10 faltantes y 40 términos: 410 llamadas).
+    repetían por cada keyword faltante (10 faltantes y 40 términos: 410 llamadas). Los
+    términos que ya tienen vector guardado no entran al segundo lote: el mismo modelo
+    sobre el mismo texto da el mismo vector, así que el resultado no cambia.
     """
     if not keywords or not cv_terms:
         return {}
 
     keyword_vectors = await gateway.embed_many(keywords)
-    term_vectors = await gateway.embed_many(cv_terms)
+    known = await _usable_saved_vectors(saved_vectors, keyword_vectors)
+    missing = list(dict.fromkeys(term for term in cv_terms if term not in known))
+    requested = await gateway.embed_many(missing) if missing else []
+    fresh = dict(zip(missing, requested, strict=True))
+    term_vectors = [known[term] if term in known else fresh[term] for term in cv_terms]
+
     matches: dict[str, str] = {}
     for keyword, keyword_vector in zip(keywords, keyword_vectors, strict=True):
         for term, term_vector in zip(cv_terms, term_vectors, strict=True):
@@ -120,14 +133,34 @@ async def _semantic_matches(
     return matches
 
 
+async def _usable_saved_vectors(
+    loader: VectorLoader | None,
+    keyword_vectors: Sequence[Sequence[float]],
+) -> Mapping[str, Sequence[float]]:
+    """Solo los guardados con el mismo tamaño que los recién pedidos: otro tamaño es de
+    otro modelo y compararlo daría 0 sin avisar."""
+    if loader is None or not keyword_vectors:
+        return {}
+    size = len(keyword_vectors[0])
+    return {
+        term: vector for term, vector in (await loader()).items() if len(vector) == size
+    }
+
+
 async def analyze_keywords(
     job: dict[str, Any],
     primary_cv: dict[str, Any],
     gateway: AIGateway | None = None,
     semantic_threshold: float = 0.75,
+    *,
+    keywords: list[str] | None = None,
+    saved_vectors: VectorLoader | None = None,
 ) -> ATSKeywordResult:
+    """`keywords` son las que el puesto ya tiene guardadas: con ellas no se consulta a
+    la IA, que daría otras cada vez."""
     ai_gateway = gateway or AIGateway()
-    keywords = await extract_job_keywords(job, ai_gateway)
+    if keywords is None:
+        keywords = await extract_job_keywords(job, ai_gateway)
     cv_terms = _cv_terms(primary_cv)
     normalized_cv = {normalize_text(term): term for term in cv_terms}
     # Un alias o una traducción también es literal: «Integración de APIs» es
@@ -158,6 +191,7 @@ async def analyze_keywords(
         cv_terms,
         ai_gateway,
         semantic_threshold,
+        saved_vectors,
     )
 
     matches: list[KeywordMatch] = []
