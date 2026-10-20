@@ -1791,3 +1791,36 @@ con el puesto y con la cuenta.
   upserts = una fila con el último puntaje, lectura y escritura con «permiso denegado» para `anon` y
   `authenticated`, y cascada al borrar el puesto; no quedó ningún dato de prueba (ese bloque solo se
   corrió en `jobby-test`).
+
+---
+
+## Actualización — Decisión 33 (2026-10-20): el tope diario de ATS del plan gratuito pasa de 5 a 10
+
+**Estado:** Pedido y aprobado por el autor el mismo día en que el tope lo dejó sin poder abrir
+reportes.
+
+**Qué pasó (medido).** Los registros de Render (hora UTC, el día del tope empieza a las 00:00 Z) muestran
+5 aperturas con 200 entre las 03:03 y las 03:42 (cuatro del mismo reporte) y dos con 429 desde las
+03:42. El autor dijo «hoy no hice ningún ATS, solo revisé los que tenía»: era cierto, y era justo lo
+que gastaba el cupo, porque hasta el #105 releer un reporte lo recalculaba y contaba como uno nuevo.
+El contador vive en Redis (`rate:ats:{persona}:{día UTC}`), se reinicia a las 00:00 UTC (21:00 en
+Argentina) y también suma los intentos rechazados.
+
+**Por qué el #105 solo no alcanzaba.** Releer un reporte guardado no gasta cupo, pero la tabla
+`ats_reports` arrancó vacía: la primera apertura de cada reporte lo calcula, lo guarda y gasta una
+consulta. La cuenta tiene 6 puestos, así que con 5 por día no podía ver todos aunque esperara al
+reinicio.
+
+**Elegido.** `rate_limits._rule`: el plan gratuito pasa de 5 a **10** reportes nuevos por día; premium
+sigue en 50. El 10 iguala a los análisis de puestos gratuitos por mes (10): cada puesto genera como
+mucho un reporte nuevo por versión del CV, así que el tope diario deja de ser lo que impide ver los
+reportes de los puestos que la persona tiene. Las pruebas del tope (`test_rate_limits.py` y
+`test_ats_report_cache.py`) pasan a 10 y a 11 puestos.
+
+**Costo.** Cada reporte nuevo es una llamada de texto a DeepSeek (palabras clave) y hasta dos lotes
+de vectores de OpenAI; no se midió su costo por reporte. Queda acotado: 10 por día por persona y solo
+reportes nuevos, no relecturas.
+
+**Lo que no cambia (queda como estaba).** El día se cuenta en UTC; los intentos rechazados siguen
+sumando; premium; y la regla de que solo un reporte nuevo, o rehecho tras cambiar el CV principal,
+gasta cupo.

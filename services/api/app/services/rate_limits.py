@@ -40,7 +40,10 @@ def _rule(kind: RateLimitKind, tier: str) -> RateLimitRule:
     if kind == RateLimitKind.JOBS:
         return RateLimitRule(limit=None if premium else 10, period="month")
     if kind == RateLimitKind.ATS:
-        return RateLimitRule(limit=50 if premium else 5, period="day")
+        # Cuenta reportes NUEVOS: releer uno guardado no gasta. 10 al día en el plan
+        # gratis iguala a los análisis de puestos por mes, así que el tope diario no
+        # impide ver los reportes de los puestos que la persona tiene.
+        return RateLimitRule(limit=50 if premium else 10, period="day")
     if kind == RateLimitKind.CV_OPTIMIZATION:
         return RateLimitRule(limit=30 if premium else 3, period="month")
     if kind == RateLimitKind.DOCUMENT_UPLOADS:
