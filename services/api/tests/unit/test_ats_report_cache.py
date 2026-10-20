@@ -312,33 +312,33 @@ def test_a_job_with_saved_keywords_never_asks_the_ai(
     assert gateway.generate_calls == 0
 
 
-def test_the_sixth_new_report_of_the_day_is_blocked_on_the_free_plan(
+def test_the_eleventh_new_report_of_the_day_is_blocked_on_the_free_plan(
     client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
 ) -> None:
-    supabase = _world(jobs=6)
+    supabase = _world(jobs=11)
     _serve(supabase)
 
-    statuses = [_open(client, f"job-{n}").status_code for n in range(1, 6)]
-    blocked = _open(client, "job-6")
+    statuses = [_open(client, f"job-{n}").status_code for n in range(1, 11)]
+    blocked = _open(client, "job-11")
 
-    assert statuses == [200] * 5
+    assert statuses == [200] * 10
     assert blocked.status_code == 429
     body = blocked.json()
     assert body["code"] == "ATS_RATE_LIMIT_EXCEEDED"
     assert body["error"] == "Límite diario de ATS alcanzado"
-    assert body["details"]["limit"] == 5
+    assert body["details"]["limit"] == 10
     assert "reset_at" in body["details"]
     # Lo ya calculado se sigue leyendo aunque el cupo del día se agotó.
     assert _open(client, "job-1").status_code == 200
-    assert len(supabase.tables["ats_reports"]) == 5
+    assert len(supabase.tables["ats_reports"]) == 10
 
 
 def test_a_stale_report_is_not_served_once_the_limit_is_spent(
     client: TestClient, gateway: KeywordGateway
 ) -> None:
-    supabase = _world(jobs=5)
+    supabase = _world(jobs=10)
     _serve(supabase)
-    for n in range(1, 6):
+    for n in range(1, 11):
         assert _open(client, f"job-{n}").status_code == 200
 
     supabase.tables["uploaded_documents"][0]["parsed_data"]["skills"].append(

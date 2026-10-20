@@ -12,19 +12,19 @@ from tests.fakes import FakeRedis
 
 
 @pytest.mark.asyncio
-async def test_free_ats_allows_five_reports_a_day_and_blocks_the_sixth(
+async def test_free_ats_allows_ten_reports_a_day_and_blocks_the_eleventh(
     fake_redis: FakeRedis,
 ) -> None:
     counts = [
         await increment_rate_limit("user-1", "free", RateLimitKind.ATS)
-        for _ in range(5)
+        for _ in range(10)
     ]
 
     with pytest.raises(RateLimitExceededError) as exceeded:
         await increment_rate_limit("user-1", "free", RateLimitKind.ATS)
 
-    assert counts == [1, 2, 3, 4, 5]
-    assert exceeded.value.limit == 5
+    assert counts == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    assert exceeded.value.limit == 10
     (key,) = fake_redis.values
     assert key.startswith("rate:ats:user-1:")
     # El contador vence solo: la clave recibe su tiempo de vida con el primer uso.
@@ -108,7 +108,7 @@ async def test_document_uploads_are_ten_a_day_for_free_and_fifty_for_premium(
 async def test_document_uploads_do_not_share_a_counter_with_the_ats_report(
     fake_redis: FakeRedis,
 ) -> None:
-    for _ in range(5):
+    for _ in range(10):
         await increment_rate_limit("user-1", "free", RateLimitKind.ATS)
     with pytest.raises(RateLimitExceededError):
         await increment_rate_limit("user-1", "free", RateLimitKind.ATS)
