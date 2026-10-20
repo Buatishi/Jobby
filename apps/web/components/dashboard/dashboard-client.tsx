@@ -32,11 +32,7 @@ import {
   type DashboardSummary
 } from "@/lib/dashboard/summary";
 import { useI18n } from "@/lib/i18n/provider";
-import {
-  getScoreColor,
-  getScoreColorOnDark,
-  getScoreLabel
-} from "@/lib/utils/score-colors";
+import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
 type DashboardViewProps = {
   summary: DashboardSummary | undefined;
@@ -91,6 +87,12 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
     summary?.completeness_pct ?? summary?.completeness
   );
   const matches = (summary?.latest_matches ?? summary?.matches ?? []).slice(0, 5);
+  // Sin análisis, la API cae a la completitud del perfil: no es un promedio de matches.
+  const hasNoAnalyses = summary !== undefined && matches.length === 0;
+  const scoreLabel = hasNoAnalyses ? t("app.completeness") : t("app.averageScore");
+  const scoreHint = hasNoAnalyses
+    ? t("app.averageScoreEmptyHint")
+    : t("app.averageScoreHint");
   const missingTip =
     summary?.missing_tip ?? summary?.most_valuable_missing_field ?? null;
   const profileActionMessage =
@@ -147,10 +149,11 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
           </div>
 
           <div className="grid justify-items-center gap-2 text-[13px] font-medium text-neutral-400">
+            {/* Neutro a propósito: el promedio no es una nota, así que no usa el semáforo. */}
             <ScoreRing
-              className="h-[148px] w-[148px]"
-              color={getScoreColorOnDark(employabilityScore)}
-              label={`${t("app.globalScore")}: ${employabilityScore}/100`}
+              className="h-[148px] w-[148px] text-neutral-200"
+              color="currentColor"
+              label={`${scoreLabel}: ${employabilityScore}/100`}
               trackColor="#3A3A37"
               value={employabilityScore}
             >
@@ -158,7 +161,10 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
                 <CountUp value={employabilityScore} />
               </span>
             </ScoreRing>
-            <span>{t("app.globalScore")}</span>
+            <span className="max-w-[16rem] text-center">{scoreLabel}</span>
+            <p className="max-w-[16rem] text-center text-xs font-normal leading-5">
+              {scoreHint}
+            </p>
           </div>
         </div>
       </DarkPanel>
@@ -173,7 +179,7 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
         <StatCard label={t("app.completeness")}>
           <CountUp value={completenessPct} />%
         </StatCard>
-        <StatCard label={t("app.globalScore")}>
+        <StatCard label={scoreLabel}>
           <CountUp value={employabilityScore} />
         </StatCard>
         <StatCard label={t("app.latestMatches")}>

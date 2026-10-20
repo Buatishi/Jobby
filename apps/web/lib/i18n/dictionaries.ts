@@ -287,7 +287,15 @@ export const dictionaries: Record<Language, TranslationTree> = {
       completeness: "Completeness del perfil",
       goal: "Meta: 100%",
       completeProfile: "Completar perfil",
-      globalScore: "Score global",
+      averageScore: "Promedio de tus últimos 5 análisis",
+      averageScoreHint:
+        "Promedio simple de tus últimos análisis. Un puesto de otro rubro lo baja: no es una nota de tu perfil.",
+      averageScoreEmptyHint:
+        "Todavía no analizaste ningún puesto. Mientras tanto, mostramos la completitud de tu perfil.",
+      potentialScoreHint:
+        "Tu puntaje si el componente de skills fuera 100: cuánto podrías subir cerrando esa brecha.",
+      representationScoreHint:
+        "Porcentaje de tus skills confirmadas que figuran en tu CV. No mide el encaje con el puesto.",
       analysisHero: "Hero de análisis",
       analyzeNewJob: "Analizá un nuevo puesto",
       analyzeDescription:
@@ -680,7 +688,15 @@ export const dictionaries: Record<Language, TranslationTree> = {
       completeness: "Profile completeness",
       goal: "Goal: 100%",
       completeProfile: "Complete profile",
-      globalScore: "Global score",
+      averageScore: "Average of your last 5 analyses",
+      averageScoreHint:
+        "Simple average of your latest analyses. A job from another field pulls it down: it is not a grade for your profile.",
+      averageScoreEmptyHint:
+        "You have not analyzed any job yet. Until then, we show your profile completeness.",
+      potentialScoreHint:
+        "Your score if the skills component were 100: how much you could gain by closing that gap.",
+      representationScoreHint:
+        "Share of your confirmed skills that appear in your CV. It does not measure fit with the job.",
       analysisHero: "Analysis hero",
       analyzeNewJob: "Analyze a new job",
       analyzeDescription:
