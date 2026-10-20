@@ -1610,6 +1610,14 @@ amplias.
   `como-adaptar-tu-cv-a-una-oferta` y `palabras-clave-del-cv`. Son Server Components con
   `generateStaticParams`: el build las genera como HTML estático (el texto está en la respuesta, no
   depende de JavaScript) y un slug que no existe responde 404.
+- Ampliación (2026-10-19, siguiente paso del plan de posicionamiento): cuatro guías más, cada una
+  con una búsqueda objetivo: `cv-compatible-con-ats` («cv compatible con ats»),
+  `analizar-cv-con-ia` («analizar cv con ia»), `optimizar-cv-con-ia` («optimizar cv con ia») y
+  `habilidades-para-poner-en-el-cv` («habilidades para poner en el cv»). Cada una de las cuatro
+  guías anteriores enlaza a una nueva. Siguen siendo borradores con IA que el autor revisa antes
+  de mergear. Lo que dicen del CV Optimizer («Sin respaldo en tu CV», puntaje ATS antes y después,
+  PDF de una columna) se contrastó con `cv_optimizer.py` y `optimized-cv-result.tsx`; los topes del
+  plan salen de `facts.ts` y `guides.test.ts` los compara con `rate_limits.py`.
 - El contenido vive en `lib/guides/guides.ts` como datos tipados, no dentro de JSX; las cifras del
   producto viven aparte, en `lib/guides/facts.ts`.
 - Solo en español: es el idioma de las búsquedas que se quieren captar. En el pie de la home el

@@ -65,6 +65,11 @@ export const ATS_FORMAT_PENALTIES = {
 // `ats_analyzer/scoring.py` (`score_keyword_coverage`): lo que suma cada palabra clave.
 export const ATS_KEYWORD_POINTS = { literal: 1, semantic: 0.5 } as const;
 
+// `services/api/app/services/rate_limits.py` (`_rule`): análisis de puestos del plan gratis por
+// mes y optimizaciones de CV por mes de cada plan.
+export const FREE_JOB_ANALYSES_PER_MONTH = 10;
+export const CV_OPTIMIZATIONS_PER_MONTH = { free: 3, premium: 30 } as const;
+
 export function formatPercent(value: number): string {
   return `${value} %`;
 }

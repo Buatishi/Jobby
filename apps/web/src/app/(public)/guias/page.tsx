@@ -7,7 +7,7 @@ import { GuideShell } from "@/src/components/guides/guide-shell";
 
 const title = "Guías para tu CV y tus postulaciones | Jobby";
 const description =
-  "Guías de Jobby sobre ATS, match score, palabras clave y cómo adaptar tu CV a cada oferta de trabajo.";
+  "Guías de Jobby sobre ATS, match score, palabras clave y habilidades, y cómo analizar, adaptar y optimizar tu CV con IA para cada oferta.";
 
 export const metadata: Metadata = {
   title,

@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import {
   ATS_FORMAT_PENALTIES,
   ATS_KEYWORD_POINTS,
+  CV_OPTIMIZATIONS_PER_MONTH,
+  FREE_JOB_ANALYSES_PER_MONTH,
   FULL_RELEVANCE_PERCENT,
   GAP_THRESHOLD_PERCENT,
   MATCH_SCORE_WEIGHTS
@@ -177,6 +179,45 @@ describe("guide figures match the backend code", () => {
     expect(Number(match?.[2])).toBe(ATS_KEYWORD_POINTS.semantic);
   });
 
+  it("uses the monthly limits of each plan", () => {
+    const source = readService("rate_limits.py");
+    const jobs = source.match(
+      /RateLimitKind\.JOBS:\s*return RateLimitRule\(limit=None if premium else (\d+),\s*period="month"/
+    );
+    const optimizations = source.match(
+      /RateLimitKind\.CV_OPTIMIZATION:\s*return RateLimitRule\(limit=(\d+) if premium else (\d+),\s*period="month"/
+    );
+
+    expect(Number(jobs?.[1])).toBe(FREE_JOB_ANALYSES_PER_MONTH);
+    expect(Number(optimizations?.[2])).toBe(CV_OPTIMIZATIONS_PER_MONTH.free);
+    expect(Number(optimizations?.[1])).toBe(CV_OPTIMIZATIONS_PER_MONTH.premium);
+  });
+
+  it("writes the figures the newer guides cite", () => {
+    const checklist = guideText(getGuide("cv-compatible-con-ats")!);
+    expect(checklist).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
+    expect(checklist).toContain(
+      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título`
+    );
+
+    const analysis = guideText(getGuide("analizar-cv-con-ia")!);
+    expect(analysis).toContain(
+      `${FREE_JOB_ANALYSES_PER_MONTH} análisis de puestos por mes`
+    );
+
+    const optimizer = guideText(getGuide("optimizar-cv-con-ia")!);
+    expect(optimizer).toContain(
+      `${CV_OPTIMIZATIONS_PER_MONTH.free} optimizaciones por mes`
+    );
+    expect(optimizer).toContain(`el premium, ${CV_OPTIMIZATIONS_PER_MONTH.premium}`);
+
+    const skills = guideText(getGuide("habilidades-para-poner-en-el-cv")!);
+    expect(skills).toContain(
+      `${MATCH_SCORE_WEIGHTS[0].label} (${MATCH_SCORE_WEIGHTS[0].percent} %)`
+    );
+    expect(skills).toContain(`pesan ${MATCH_SCORE_WEIGHTS[5].percent} %`);
+  });
+
   it("writes the figures it cites in the guide text", () => {
     const matchScore = guideText(getGuide("que-es-el-match-score")!);
     for (const weight of MATCH_SCORE_WEIGHTS) {
@@ -189,5 +230,24 @@ describe("guide figures match the backend code", () => {
       `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título`
     );
     expect(ats).toContain("suma 0,5");
+  });
+
+  it("describes the ATS report with the marks the page really shows", () => {
+    const page = readFileSync(
+      fileURLToPath(
+        new URL("../../src/app/(app)/ats/[id]/page.tsx", import.meta.url)
+      ),
+      "utf8"
+    );
+    for (const mark of ["✓", "~", "✗"]) {
+      expect(page).toContain(`return "${mark}"`);
+    }
+
+    const analysis = guideText(getGuide("analizar-cv-con-ia")!);
+    expect(analysis).toContain("presente (✓), parecida (~) o faltante (✗)");
+    // «Cumple / Parcial / Falta» es el ejemplo de la landing, no lo que muestra el reporte.
+    for (const guide of GUIDES) {
+      expect(guideText(guide)).not.toContain("cumplís en parte");
+    }
   });
 });
