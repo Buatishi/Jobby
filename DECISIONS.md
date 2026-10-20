@@ -1684,8 +1684,8 @@ búsquedas largas y el dominio propio.
 ## Decisión 33 — El reporte ATS se calcula una vez y después se lee
 
 **Estado:** Pedido por el autor a partir de la queja de una persona usuaria real. Cambio listo para
-revisión: **la migración 031 no está aplicada en ninguna base** y el PR no se mergea sin la
-aprobación del autor. El texto es un borrador redactado con asistencia de IA que el autor revisa y
+revisión: la migración 031 se aplicó y verificó en `jobby-test` el 2026-10-20 (con aprobación del
+autor) y **sigue pendiente en producción (`jobby`)**; el PR no se mergea sin la aprobación del autor. El texto es un borrador redactado con asistencia de IA que el autor revisa y
 hace suyo.
 
 **Medición previa** (2026-10-19 y 2026-10-20, cuenta real, horarios de los registros de Render):
@@ -1747,7 +1747,7 @@ de este cambio. Una prueba lo cubre simulando la tabla ausente.
 
 **Orden de despliegue (cambio de esquema: requiere aprobación explícita del autor).**
 1. Aplicar `031_ats_report_cache.sql` primero en `jobby-test` y comprobar la tabla, la política y que
-   `anon` y `authenticated` no tengan privilegios.
+   `anon` y `authenticated` no tengan privilegios. **Hecho el 2026-10-20** (ver abajo).
 2. Aplicarla en producción (`jobby`). Es aditiva: una tabla nueva que el código viejo no lee.
 3. Recién después, mergear y desplegar el código.
 
@@ -1781,4 +1781,10 @@ con el puesto y con la cuenta.
   reporte nuevo del plan gratuito da 429 y lo ya calculado se sigue leyendo; una fila dañada se
   recalcula; sin la tabla el reporte funciona como antes. La migración se probó dos veces seguidas
   en un PostgreSQL 16 descartable (cascada, `ON CONFLICT (job_id)` y sin acceso para la clave
-  pública), no en las bases de Supabase.
+  pública). El 2026-10-20 se aplicó en `jobby-test` y se comprobó contra su catálogo: 9 columnas,
+  clave primaria `job_id`, dos claves foráneas con cascada, índice por `user_id`, RLS activo, la
+  política de dueño, y `anon` y `authenticated` sin ningún privilegio (`service_role` sí). Un bloque
+  con la identidad de cada rol, deshecho al final como `tests/sql/direct_table_access.sql`, dio dos
+  upserts = una fila con el último puntaje, lectura y escritura con «permiso denegado» para `anon` y
+  `authenticated`, y cascada al borrar el puesto; no quedó ningún dato de prueba. Producción no se
+  tocó.

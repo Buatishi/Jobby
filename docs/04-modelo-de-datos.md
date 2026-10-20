@@ -7,9 +7,9 @@ columnas del diagrama se compararon una a una con `information_schema` y coincid
 el 2026-09-24 con las migraciones 023 a 027: dos funciones (una restaura la del CV principal y
 otra verifica que la sesión de un token siga abierta), índices, el cierre de privilegios de la
 clave pública y los roles con sus permisos (dos tablas nuevas y la columna `users.role`).
-Actualizado el 2026-10-20 con la tabla `ats_reports` de la migración 031 (Decisión 33): esa tabla
-se verificó en una base de PostgreSQL de prueba, no en la de Supabase; la 031 se aplica primero
-en el proyecto de pruebas y después en producción, antes de desplegar el cambio.
+Actualizado el 2026-10-20 con la tabla `ats_reports` de la migración 031 (Decisión 33): aplicada y
+verificada ese día en el proyecto de pruebas (columnas, claves, política y privilegios contra su
+catálogo); falta aplicarla en producción, antes de desplegar el cambio.
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)
 
