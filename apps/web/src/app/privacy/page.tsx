@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { LanguageToggle } from "@/components/language-toggle";
 import { useI18n } from "@/lib/i18n/provider";
+import { SITE_CONTACT_EMAIL } from "@/lib/seo/site";
 
 const content = {
   es: {
@@ -45,7 +46,7 @@ const content = {
       {
         title: "Contacto",
         body:
-          "Para consultas de privacidad o eliminación de datos, escribinos a contacto@jobby.ai. Esta política es una base inicial revisable por asesoría legal."
+          `Para consultas de privacidad o eliminación de datos, escribinos a ${SITE_CONTACT_EMAIL}. Esta política es una base inicial revisable por asesoría legal.`
       }
     ],
     notice:
@@ -90,7 +91,7 @@ const content = {
       {
         title: "Contact",
         body:
-          "For privacy questions or data deletion requests, contact us at contacto@jobby.ai. This policy is an initial baseline that should be reviewed by legal counsel."
+          `For privacy questions or data deletion requests, contact us at ${SITE_CONTACT_EMAIL}. This policy is an initial baseline that should be reviewed by legal counsel.`
       }
     ],
     notice:
