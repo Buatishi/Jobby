@@ -1865,3 +1865,124 @@ LemonSqueezy, la API y la web. Los dos casos del piso fallan con el entorno viej
 0.11.10 se probó con la lectura de un PDF generado, no con un CV real subido en producción; eso se comprueba
 después del despliegue. Los 13 tests de `test_real_database.py` no corren en la máquina del autor, solo en
 el CI.
+
+---
+
+## Decisión 34 — El formato del CV se lee del PDF y el ATS avisa cuando no lo pudo evaluar
+
+**Estado:** Pedido a partir de un hallazgo del 2026-10-21. Cambio listo para revisión en un PR
+abierto; **no está mergeado**: mergearlo despliega, baja el puntaje ATS de los CV de varias
+columnas, con imágenes o con tablas que se lean desde entonces, y eso lo decide el autor. El texto
+es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-21, código y base de producción). `parsed_data.format_flags` (`has_tables`,
+`multi_column`, `has_images`, `headers`) solo se **leía**, en `ats_analyzer/format_checker.py`;
+ninguna parte de `services/api/app` lo escribía. En producción había 2 CV leídos y ninguno tenía la
+clave. Consecuencia: las penalizaciones de formato (tablas −10, varias columnas −10, imágenes −10,
+títulos no habituales −5; `ATS_FORMAT_PENALTIES` en `apps/web/lib/guides/facts.ts`) no se aplicaban
+nunca y el reporte decía «No detectamos problemas de formato» para cualquier CV. Las guías públicas
+(«Qué es un ATS…» y «CV compatible con ATS») dicen que Jobby las resta: no era cierto en la práctica.
+
+**Segundo problema, el mismo origen.** `pdf_extractor.py` leía con `page.extract_text()`, que agrupa
+por renglón de la hoja: en un CV de dos columnas **intercala** un renglón de cada lado. Una persona
+con una plantilla de Canva (dos columnas, foto, títulos poco habituales) quedó con 4 habilidades
+leídas de más de 20: las que listaba en la barra lateral salían pegadas a las viñetas de la otra
+columna («Python • Mentoría a dos personas…»), y por eso el ATS le marcaba como faltantes SQL, Git,
+Linux o React.
+
+**Elegido.**
+- **Se anota el formato al leer el CV** (`cv_parser/pdf_layout.py`, la misma pasada de `pdfplumber`,
+  local, sin IA ni costo) y se guarda en `parsed_data.format_flags` con la forma que ya leía el
+  chequeo. Solo para `type = cv`: el ATS evalúa el CV que la persona envía, no la exportación de
+  LinkedIn. Si el análisis del diseño falla, la lectura sigue con el texto plano de siempre y **la
+  clave no se escribe** (un `{}` diría «sin problemas»).
+- **Varias columnas.** Hay un hueco vertical de al menos 10 pt (cuatro espacios de texto de 10 pt)
+  que cruzan a lo sumo el 10 % de los renglones (el nombre o un título de ancho completo) y, a cada
+  lado, una columna de al menos 6 renglones de texto seguidos, separados por poco más que el alto
+  de una letra. Se descartan así los casos que dejan un hueco parecido sin ser columnas: las fechas
+  alineadas a la derecha (un renglón cada varios), las viñetas con sangría ancha (la viñeta no es
+  texto) y un encabezado con el contacto a un costado (menos de 6 renglones). Se midió con CV
+  sintéticos hechos con `reportlab` (solo para calibrar; no es dependencia). Los 9 de columnas
+  (barra lateral a izquierda o a derecha, con pocos renglones o con títulos en minúscula, columnas
+  iguales, tres columnas, banner arriba, interlineado doble) dieron «varias columnas»; los 5 de una
+  columna (fechas en una tabla sin bordes, texto justificado, grilla de habilidades, tabla con
+  bordes, contacto a la derecha) no. El umbral de 10 pt sale de dos columnas justificadas con el
+  hueco variable: se detecta desde 12 pt y no a 10 pt o menos, que ya es el tamaño de un espacio
+  estirado de texto justificado.
+- **Imágenes.** Cuenta una imagen que ocupe al menos el 0,5 % de la hoja (una foto, un logo): los
+  íconos de contacto de las plantillas (unos 20 × 20 pt, 0,08 %) no. Es una decisión mía sobre el
+  texto «si tiene imágenes»: sin el umbral, un solo ícono restaría 10 puntos.
+- **Tablas.** `find_tables()` con bordes visibles y al menos dos celdas con texto: una línea bajo un
+  título o un recuadro no son una tabla. Una tabla **sin bordes** no se detecta (si arma columnas,
+  sí cuenta como varias columnas).
+- **Títulos de sección.** Renglones de hasta 4 palabras, sin números, con estilo de título (tamaño
+  1,2 veces el del cuerpo, o negrita en mayúsculas) y que compartan ese estilo con al menos otro
+  renglón. Quedan afuera el texto más grande de la primera hoja (el nombre), los cargos en negrita
+  del tamaño del cuerpo y un CV con un solo título. Se prefiere perder un título a inventarlo: cada
+  título de más puede restar 5 puntos que la persona no merece. Para compararlos con
+  `STANDARD_HEADERS` se ignoran mayúsculas, acentos y los dos puntos finales (antes «Educación»,
+  con acento, contaba como no habitual aunque `educacion` esté en la lista).
+- **Texto en orden de lectura.** Si la hoja tiene columnas, cada una se lee entera, la izquierda
+  antes que la derecha, y los renglones de ancho completo cortan el orden de arriba abajo. Una hoja
+  de una columna se lee exactamente igual que antes (una prueba compara el texto con el de
+  `extract_text()`). En los 14 PDFs el conjunto de palabras es idéntico antes y después (no se
+  pierde texto) y las habilidades de la barra lateral que quedan solas en su renglón pasan, por
+  ejemplo, de 6 a 17 de 17 (barra a la izquierda con foto), de 10 a 17 (banner arriba) o de 1 a 13
+  (tres columnas). El tiempo por hoja sube de unos 35 ms a unos 40 ms en las plantillas de columnas;
+  el caso más caro medido (una hoja de una columna con seis renglones armados con tablas sin bordes)
+  pasó de 49 a 84 ms. `find_tables()` tardó hasta 1,7 s en una hoja con 6.000 trazos vectoriales
+  (un máximo de 20 hojas por CV); no se le puso tope.
+- **El reporte ATS dice cuándo no se pudo evaluar.** `ATSReport.format_evaluated` es `false` cuando
+  el CV principal no tiene `format_flags` (leído antes de este cambio, o con el análisis fallido): la
+  pantalla muestra «No pudimos evaluar el formato de este CV» con cómo evaluarlo, en vez de «No
+  detectamos problemas de formato». Sin banderas no se descuenta nada, así que **el puntaje de esos
+  CV no cambia**. No se guarda en `ats_reports` (sin migración): sale del CV principal, cuya huella
+  ya valida el reporte guardado.
+- **`ATS_REPORT_VERSION` pasa de 1 a 2** (Decisión 33): lo guardado con el algoritmo viejo deja de
+  servirse y se recalcula en la próxima apertura. Estrictamente, un reporte guardado de un CV sin
+  banderas daría lo mismo recalculado; se sube igual porque la regla del cálculo cambió y es lo que
+  esa decisión pide.
+
+**Qué cambia para la persona.**
+- Los CV ya leídos **no se reprocesan solos**. Para evaluar el formato de uno hay que **volver a
+  subirlo** (Mi perfil → Mejorar perfil, paso 2: reemplaza al CV del slot 1 y lo vuelve a leer, con
+  la misma llamada a la IA de siempre): queda con banderas y su reporte se recalcula.
+- Un CV leído desde el despliegue pierde hasta 35 puntos de ATS: −10 por tablas, −10 por varias
+  columnas, −10 por imágenes y −5 por títulos no habituales (piso en 0). Por ejemplo, una plantilla
+  de dos columnas con foto y «Perfil académico» baja 25 puntos.
+- La primera vez que se abra cada reporte después del despliegue se recalcula (por la versión) y
+  cuenta para el tope diario: 10 en el plan gratuito. Las palabras clave del puesto no cambian
+  (Decisión 33).
+- El texto que recibe la IA de un CV de columnas es el de cada columna entera: debería rendir más
+  habilidades que las 4 que se leyeron antes. No se midió con la IA real ni con el CV de esa persona
+  (no se usan datos personales reales).
+
+**Decisiones que quedan en manos del autor.**
+- **Mergear** (despliega, reinicia la API de Render y baja puntajes de los CV que se lean desde
+  entonces).
+- **El vocabulario de `STANDARD_HEADERS`.** Tal como está solo admite `experiencia`, `educacion`,
+  `habilidades`, `idiomas`, `certificaciones` y sus equivalentes en inglés, así que «Experiencia
+  laboral», «Formación académica», «Perfil» o «Proyectos» cuentan como no habituales y restan 5.
+  Probablemente sea lo que más CV penalice. No lo amplié: es qué se considera «habitual», y las
+  guías públicas lo describen con esa palabra. Propuesta aparte: sumar esos títulos a la lista.
+- **El umbral de imágenes** (0,5 %): con otro valor cambia qué íconos cuentan.
+- **Si las guías deben aclarar** que «imágenes» son fotos y logos y no íconos. El texto actual sigue
+  siendo exacto en lo que dice; no se tocó.
+
+**Límites conocidos.**
+- Una tabla sin bordes no cuenta como tabla; un CV de tres o más columnas se marca como varias y se
+  lee mejor que antes, pero no perfecto; un título con las letras muy separadas («P E R F I L») se
+  lee como letras sueltas y no se reconoce; un nombre centrado que cae dentro de la columna derecha
+  se lee después de la barra lateral (no se pierde, solo cambia de lugar).
+- La viñeta de algunas fuentes se lee como `(cid:127)` (pasaba antes y pasa ahora; la IA la ignora).
+- No hay migración ni cambios en `render.yaml`, variables de entorno o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_pdf_layout.py` (PDFs armados a mano, sin dependencias: dos columnas con
+foto, barra lateral angosta, nombre de ancho completo, una columna igual que antes, fechas y viñetas
+que no son columnas, ícono contra foto, tabla con bordes contra línea y recuadro, títulos, y que un
+fallo del análisis no rompe la lectura), `test_format_checker.py` (penalizaciones, títulos sin
+acentos, estado «evaluado»), `test_ats_report_cache.py` (versión 1 recalculada, puntaje con
+penalizaciones, estado «no evaluado» guardado y recalculado al releer) y `test_async_tasks.py` (las
+banderas se guardan con el CV, no con el PDF de LinkedIn, y de punta a punta con un PDF de dos
+columnas). Frontend: `format-issues-card.test.tsx` y las claves en ambos idiomas. Se verificó que
+todos fallaban contra el código anterior.
