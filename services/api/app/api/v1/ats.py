@@ -17,7 +17,10 @@ from app.services.ats_analyzer.cv_optimizer import (
     optimize_cv_sections,
     score_after_optimization,
 )
-from app.services.ats_analyzer.format_checker import check_cv_format
+from app.services.ats_analyzer.format_checker import (
+    check_cv_format,
+    format_was_evaluated,
+)
 from app.services.ats_analyzer.keyword_matcher import analyze_keywords
 from app.services.ats_analyzer.report_store import (
     fetch_report_row,
@@ -119,6 +122,7 @@ async def _build_ats_report(
             )
             for issue in format_issues
         ],
+        format_evaluated=format_was_evaluated(primary_cv),
     )
 
 

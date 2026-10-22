@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Check, Loader2, Lock, Wand2, X } from "lucide-react";
+import { Loader2, Lock, Wand2 } from "lucide-react";
 
 import { PageBanner } from "@/components/page-banner";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,11 @@ import { apiClient } from "@/lib/api/client";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
 import {
+  FormatIssuesCard,
+  formatWasEvaluated,
+  type FormatIssue
+} from "./format-issues-card";
+import {
   OptimizedCVResult,
   type ATSOptimizeResponse
 } from "./optimized-cv-result";
@@ -33,11 +38,9 @@ type ATSReport = {
     status: KeywordStatus;
     matched_text: string | null;
   }>;
-  format_issues: Array<{
-    code: string;
-    message: string;
-    penalty: number;
-  }>;
+  format_issues: FormatIssue[];
+  /** false: el CV se leyó antes del chequeo de formato; `format_issues` vacío no es «sin problemas». */
+  format_evaluated?: boolean;
 };
 
 function statusLabel(status: KeywordStatus) {
@@ -213,34 +216,10 @@ export default function ATSReportPage() {
       </section>
 
       <section className="mt-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Issues de formato</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {report.format_issues.length > 0 ? (
-              <div className="space-y-3">
-                {report.format_issues.map((issue) => (
-                  <div
-                    className="flex items-center justify-between rounded-2xl border border-border p-4"
-                    key={issue.code}
-                  >
-                    <div className="flex items-center gap-3">
-                      <X className="h-5 w-5 text-destructive" />
-                      <p className="font-medium">{issue.message}</p>
-                    </div>
-                    <Badge variant="outline">-{issue.penalty}</Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 rounded-2xl border border-border p-4">
-                <Check className="h-5 w-5 text-secondary" />
-                <p className="font-medium">No detectamos problemas de formato.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <FormatIssuesCard
+          evaluated={formatWasEvaluated(report)}
+          issues={report.format_issues}
+        />
       </section>
 
       <section className="mt-4">

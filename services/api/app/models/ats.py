@@ -20,6 +20,10 @@ class ATSReport(BaseModel):
     ats_score: int
     keyword_matches: list[ATSKeywordMatch]
     format_issues: list[ATSFormatIssue]
+    # False cuando el CV principal no tiene banderas de formato (se leyó antes de que
+    # existieran): `format_issues` vacío significa entonces «no se miró», no «sin
+    # problemas».
+    format_evaluated: bool = True
 
 
 class ATSOptimizeRequest(BaseModel):
