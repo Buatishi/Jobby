@@ -1824,3 +1824,44 @@ reportes nuevos, no relecturas.
 **Lo que no cambia (queda como estaba).** El día se cuenta en UTC; los intentos rechazados siguen
 sumando; premium; y la regla de que solo un reporte nuevo, o rehecho tras cambiar el CV principal,
 gasta cupo.
+
+---
+
+## Actualización — Decisión 28 (2026-10-21): `certifi` y `pillow`
+
+**Estado:** Pedido por el autor tras el rojo del escaneo de Trivy en el PR #107.
+
+**Qué encontró Trivy.** Ocho hallazgos altos o críticos con versión corregida, todos en
+`services/api/poetry.lock` (`pnpm-lock.yaml`: cero): `certifi` 2026.6.17 (crítico, GHSA-6q48-6c7w-9gw2:
+el paquete incluye raíces de emSign con claves intermedias comprometidas; corregido en 2026.10.19) y
+`pillow` 12.3.0 (siete avisos, corregidos en 13.0.0: uno crítico en el decodificador JPEG, que el informe
+corta, denegación de servicio con imágenes de ancho cero, con un GIF armado, con lecturas fuera de
+límites en el decodificador y en el codificador de TIFF y con un PDF armado al agregar páginas, y una fuga
+por memoria no inicializada al decodificar TIFF). Aparecieron porque se actualizó la base de
+vulnerabilidades: el escaneo falla en cualquier PR aunque el PR no toque dependencias.
+
+**Alcance real** (analizado, no supuesto).
+- `certifi` es el almacén de certificados de todo el HTTPS de salida (`httpx`, `httpcore`, `requests` y
+  `sentry-sdk`), o sea de las llamadas de la API a los servicios externos. Quien pudiera usar esas claves
+  en la red entre la API y esos servicios podría suplantarlos. Es el de más peso, aunque exige una
+  posición en la red.
+- `pillow` solo lo trae `pdfplumber` (`Pillow>=12.2.0`, sin tope). El código propio no lo importa y la app
+  solo llama a `extract_text()` sobre los PDF subidos, que no decodifica sus imágenes: el riesgo directo hoy
+  es bajo. Se cierra igual porque la detección de formato del CV va a mirar las imágenes de los PDF.
+- `braces` (alta, alerta 80 de Dependabot) sigue sin versión corregida y ya está analizada más arriba
+  (herramientas de compilación y de lint, no corre al atender pedidos). No se toca.
+
+**Elegido.** `poetry update certifi pillow --lock`: solo esos dos cambian en el lock (`certifi` 2026.6.17 →
+2026.10.19 y `pillow` 12.3.0 → 13.0.0); `pyproject.toml` no cambia. Dos casos nuevos en
+`test_dependency_floor.py` fijan el piso de versión, como se hizo con `multidict`.
+
+**Verificado.** En un entorno nuevo instalado desde el lock: los 935 tests del backend pasan (sin los de
+base real, que corren en el CI), `mypy app/` y `ruff check app/ tests/` quedan limpios; el texto que
+`extract_pdf_text` saca de un PDF de dos columnas es idéntico con Pillow 12.2 y con 13.0 (mismo hash) y
+`page.to_image` sigue funcionando; con el `certifi` nuevo validan su TLS DeepSeek, OpenAI, Supabase,
+LemonSqueezy, la API y la web. Los dos casos del piso fallan con el entorno viejo y pasan con el nuevo.
+
+**Límites.** Pillow pasa de la versión 12 a la 13, una versión mayor: la compatibilidad con `pdfplumber`
+0.11.10 se probó con la lectura de un PDF generado, no con un CV real subido en producción; eso se comprueba
+después del despliegue. Los 13 tests de `test_real_database.py` no corren en la máquina del autor, solo en
+el CI.
