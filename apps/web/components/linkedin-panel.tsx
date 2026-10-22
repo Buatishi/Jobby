@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
+import { Info } from "lucide-react";
 
+import { PdfPicker } from "@/components/pdf-picker";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,58 +12,20 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient, apiStream } from "@/lib/api/client";
+import { apiClient } from "@/lib/api/client";
 import { fetchAndRemember, useApiResource } from "@/lib/api/use-api-resource";
+import { browserUploadDeps } from "@/lib/documents/browser-deps";
+import { useI18n } from "@/lib/i18n/provider";
 import {
   describeLinkedInDocument,
   parseLinkedInProfileUrl,
   uploadLinkedInPdf,
-  type LinkedInStatus,
-  type LinkedInUploadDeps
+  type LinkedInStatus
 } from "@/lib/linkedin/linkedin";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const STATUS_PATH = "/api/v1/profiles/linkedin";
 const INPUT_CLASS =
   "h-11 w-full rounded-full border border-input bg-background px-5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-const uploadDeps: LinkedInUploadDeps = {
-  userId: async () => {
-    const {
-      data: { session }
-    } = await createSupabaseBrowserClient().auth.getSession();
-    if (!session) {
-      throw new Error("Sesión no disponible.");
-    }
-    return session.user.id;
-  },
-  uploadFile: async (storagePath, file) => {
-    const bucket = process.env.NEXT_PUBLIC_SUPABASE_CV_BUCKET ?? "cv-documents";
-    const { error } = await createSupabaseBrowserClient()
-      .storage.from(bucket)
-      .upload(storagePath, file, { contentType: "application/pdf", upsert: false });
-    if (error) {
-      throw error;
-    }
-  },
-  registerDocument: (body) =>
-    apiClient<{ task_id?: string | null }>("/api/v1/profiles/documents", {
-      method: "POST",
-      body: JSON.stringify(body)
-    }),
-  waitForTask: async (taskId) => {
-    let outcome: { status: string; error?: string | null } = { status: "pending" };
-    await apiStream(`/api/v1/tasks/${taskId}/stream`, (message) => {
-      try {
-        outcome = JSON.parse(message) as typeof outcome;
-      } catch {
-        // Un mensaje que no es JSON no cambia cómo terminó la tarea.
-      }
-    });
-    return outcome;
-  },
-  newId: () => crypto.randomUUID()
-};
 
 /** La URL del perfil de LinkedIn y el PDF que se exporta de ahí, en «Mi perfil». */
 export function LinkedInPanel({
@@ -71,6 +34,7 @@ export function LinkedInPanel({
   // Se llama cuando cambia algo que mueve el porcentaje del perfil.
   onProfileChange?: () => void;
 }) {
+  const { t } = useI18n();
   const {
     data: status,
     error: loadError,
@@ -140,7 +104,7 @@ export function LinkedInPanel({
     setNotice(null);
     setIsUploading(true);
     try {
-      await uploadLinkedInPdf(file, status.profile_id, uploadDeps);
+      await uploadLinkedInPdf(file, status.profile_id, browserUploadDeps);
       setFile(null);
       setNotice("PDF de LinkedIn procesado.");
     } catch (requestError) {
@@ -201,40 +165,22 @@ export function LinkedInPanel({
         </form>
 
         <div className="space-y-2">
-          <p className="text-sm font-medium">PDF de tu perfil</p>
-          <p className="text-sm text-muted-foreground">
-            En LinkedIn, desde tu perfil, elegí «Recursos» (o «Más») y después «Guardar
-            en PDF». Subí ese archivo acá: marcamos cuáles de tus skills figuran en
-            LinkedIn. No agregamos skills nuevas a tu perfil.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label className="flex h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-full border border-dashed border-border bg-muted/30 px-5 text-sm">
-              <FileUp className="h-4 w-4 flex-none text-muted-foreground" />
-              <span className="truncate">{file ? file.name : "Seleccionar PDF"}</span>
-              <input
-                accept="application/pdf"
-                className="sr-only"
-                disabled={isUploading}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                type="file"
-              />
-            </label>
-            <Button
-              className="sm:flex-none"
-              disabled={isUploading || !file || !status}
-              onClick={handleUpload}
-              type="button"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Procesando...
-                </>
-              ) : (
-                "Subir PDF"
-              )}
-            </Button>
+          <p className="text-sm font-medium">{t("app.linkedinPdfLabel")}</p>
+          <div className="flex gap-2 rounded-2xl border border-border bg-muted/30 p-3 text-sm">
+            <Info className="mt-0.5 h-4 w-4 flex-none text-muted-foreground" />
+            <p className="font-medium">{t("app.linkedinPdfNotCv")}</p>
           </div>
+          <p className="text-sm text-muted-foreground">{t("app.linkedinPdfHowTo")}</p>
+          <PdfPicker
+            busy={isUploading}
+            busyLabel="Procesando..."
+            file={file}
+            onFileChange={setFile}
+            onUpload={handleUpload}
+            pickLabel="Seleccionar PDF"
+            uploadDisabled={!status}
+            uploadLabel="Subir PDF"
+          />
           <p
             className={
               summary.tone === "failed"

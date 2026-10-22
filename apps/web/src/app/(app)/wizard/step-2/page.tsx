@@ -13,47 +13,16 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { apiClient, apiStream } from "@/lib/api/client";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { saveWizardProgress, type WizardSkillDraft } from "@/lib/wizard/progress";
+import { toSkillDrafts, uploadPrimaryCv, type CvStage } from "@/lib/cv/upload";
+import { browserUploadDeps, fetchProfileId } from "@/lib/documents/browser-deps";
+import { validatePdf } from "@/lib/documents/upload";
+import { saveWizardProgress } from "@/lib/wizard/progress";
 
-type ProfileResponse = {
-  id: string;
+const STAGE_STATUS: Record<CvStage, string> = {
+  uploading: "Subiendo CV a Supabase Storage...",
+  registering: "Registrando documento y encolando parsing...",
+  reading: "Esperando resultado del parser..."
 };
-
-type DocumentResponse = {
-  id: string;
-  task_id?: string;
-};
-
-type ParseResult = {
-  skills?: Array<{
-    name: string;
-    category?: string | null;
-    level?: string | null;
-  }>;
-};
-
-type TaskResponse = {
-  task_id: string;
-  status: "pending" | "processing" | "done" | "failed";
-  result: ParseResult | null;
-  error: string | null;
-};
-
-const maxPdfSize = 10 * 1024 * 1024;
-
-function toSkillDrafts(result: ParseResult | null): WizardSkillDraft[] {
-  return (result?.skills ?? []).map((skill, index) => ({
-    id: `${skill.name}-${index}`,
-    name: skill.name,
-    category: skill.category ?? null,
-    level: skill.level ?? null,
-    source: "CV",
-    confirmed: false,
-    rejected: false
-  }));
-}
 
 export default function WizardStepTwoPage() {
   const router = useRouter();
@@ -63,104 +32,48 @@ export default function WizardStepTwoPage() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  async function waitForParsing(nextTaskId: string) {
-    await apiStream(`/api/v1/tasks/${nextTaskId}/stream`, (message) => {
-      const task = JSON.parse(message) as TaskResponse;
-      setStatus(
-        task.status === "done"
-          ? "CV procesado correctamente."
-          : `Procesando CV: ${task.status}`
-      );
-
-      if (task.status === "done") {
-        saveWizardProgress({
-          currentStep: 3,
-          taskId: nextTaskId,
-          parsedSkills: toSkillDrafts(task.result)
-        });
-        router.push("/wizard/step-3");
-      }
-
-      if (task.status === "failed") {
-        setError(task.error ?? "No se pudo procesar el CV.");
-      }
-    });
-  }
-
   async function handleUpload() {
     if (!selectedFile) {
       setError("Seleccioná un PDF antes de continuar.");
       return;
     }
 
-    if (selectedFile.type !== "application/pdf") {
-      setError("El archivo debe ser PDF.");
-      return;
-    }
-
-    if (selectedFile.size > maxPdfSize) {
-      setError("El PDF no puede superar 10MB.");
+    const invalid = validatePdf(selectedFile);
+    if (invalid) {
+      setError(invalid);
       return;
     }
 
     setError(null);
     setIsUploading(true);
-    setStatus("Subiendo CV a Supabase Storage...");
+    setStatus(STAGE_STATUS.uploading);
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        throw new Error("Sesión no disponible.");
-      }
-
-      const profile = await apiClient<ProfileResponse>("/api/v1/profiles/me");
-      const bucket = process.env.NEXT_PUBLIC_SUPABASE_CV_BUCKET ?? "cv-documents";
-      const storagePath = `${session.user.id}/${crypto.randomUUID()}-${selectedFile.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(storagePath, selectedFile, {
-          contentType: "application/pdf",
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      setStatus("Registrando documento y encolando parsing...");
-      const document = await apiClient<DocumentResponse>(
-        "/api/v1/profiles/documents",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            profile_id: profile.id,
-            type: "cv",
-            cv_slot: 1,
-            is_primary: true,
-            storage_path: storagePath,
-            original_filename: selectedFile.name,
-            mime_type: selectedFile.type,
-            file_size: selectedFile.size
-          })
-        }
-      );
-
-      if (!document.task_id) {
-        throw new Error("El backend no devolvió el task de parsing.");
-      }
-
-      setTaskId(document.task_id);
-      saveWizardProgress({
-        currentStep: 2,
-        documentId: document.id,
-        taskId: document.task_id
+      // La misma subida que usa la tarjeta «Tu CV» de «Mi perfil»: valida el PDF, lo guarda,
+      // lo registra como CV principal (casillero 1) y espera a que se lea.
+      const profileId = await fetchProfileId();
+      const uploaded = await uploadPrimaryCv(selectedFile, profileId, browserUploadDeps, {
+        onStage: (stage) => setStatus(STAGE_STATUS[stage]),
+        onRegistered: ({ documentId, taskId: nextTaskId }) => {
+          setTaskId(nextTaskId);
+          saveWizardProgress({ currentStep: 2, documentId, taskId: nextTaskId });
+        },
+        onTaskUpdate: (task) =>
+          setStatus(
+            task.status === "done"
+              ? "CV procesado correctamente."
+              : `Procesando CV: ${task.status}`
+          )
       });
-      setStatus("Esperando resultado del parser...");
-      await waitForParsing(document.task_id);
+
+      if (uploaded.status === "done") {
+        saveWizardProgress({
+          currentStep: 3,
+          taskId: uploaded.taskId,
+          parsedSkills: toSkillDrafts(uploaded.result)
+        });
+        router.push("/wizard/step-3");
+      }
     } catch (requestError) {
       setError(
         requestError instanceof Error

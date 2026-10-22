@@ -59,4 +59,42 @@ describe("app dictionary", () => {
       expect(es).toContain(key);
     }
   });
+
+  it("keeps the keys the CV card and the LinkedIn PDF labels read", () => {
+    for (const key of [
+      "cvCardTitle",
+      "cvCardDescription",
+      "cvCardReplaceNote",
+      "cvCardCurrent",
+      "cvCardCurrentNoDate",
+      "cvCardPick",
+      "cvCardUpload",
+      "cvCardProcessing",
+      "cvCardPickFirst",
+      "cvCardUploadError",
+      "cvCardDone",
+      "cvCardStillReading",
+      "cvStageUploading",
+      "cvStageRegistering",
+      "cvStageReading",
+      "cvReadFailedHint",
+      "linkedinPdfLabel",
+      "linkedinPdfNotCv",
+      "linkedinPdfHowTo"
+    ]) {
+      expect(es).toContain(key);
+    }
+  });
+
+  it("tells the CV and the LinkedIn PDF apart in both languages", () => {
+    const esApp = dictionaries.es.app as Tree;
+    const enApp = dictionaries.en.app as Tree;
+
+    expect(esApp.cvCardDescription).toMatch(/empresas/);
+    expect(enApp.cvCardDescription).toMatch(/employers/);
+    expect(esApp.linkedinPdfNotCv).toMatch(/No es tu CV/);
+    expect(esApp.linkedinPdfNotCv).toMatch(/Guardar en PDF/);
+    expect(enApp.linkedinPdfNotCv).toMatch(/not your CV/i);
+    expect(enApp.linkedinPdfNotCv).toMatch(/Save to PDF/);
+  });
 });

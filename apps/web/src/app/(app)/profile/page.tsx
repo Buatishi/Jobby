@@ -2,6 +2,7 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 
+import { CvPanel } from "@/components/cv-panel";
 import { DownloadCVPanel } from "@/components/cv/download-cv-panel";
 import { LinkedInPanel } from "@/components/linkedin-panel";
 import { PageBanner } from "@/components/page-banner";
@@ -34,7 +35,7 @@ export default function ProfilePage() {
     "No se pudo cargar el perfil."
   );
 
-  // LinkedIn mueve el porcentaje: se vuelve a pedir el perfil para mostrarlo al día.
+  // El CV y LinkedIn mueven el porcentaje: se vuelve a pedir el perfil para mostrarlo al día.
   function reloadProfile() {
     void fetchAndRemember<Profile>("/api/v1/profiles/me")
       .then((fresh) => mutate(() => fresh))
@@ -51,6 +52,8 @@ export default function ProfilePage() {
 
       <div className="mt-5 space-y-5">
         <DownloadCVPanel />
+
+        <CvPanel onProfileChange={reloadProfile} />
 
         <LinkedInPanel onProfileChange={reloadProfile} />
 
