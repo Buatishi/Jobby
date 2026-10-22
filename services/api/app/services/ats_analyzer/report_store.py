@@ -29,8 +29,9 @@ logger = logging.getLogger(__name__)
 # Se sube al cambiar cómo se calcula el reporte (reglas de coincidencia, umbral,
 # pesos): lo guardado con la regla vieja deja de servirse y se recalcula en la próxima
 # apertura. La 2 es la primera con el formato del PDF leído de verdad (Decisión 34): la
-# 1 daba siempre «sin problemas de formato».
-ATS_REPORT_VERSION = 2
+# 1 daba siempre «sin problemas de formato». La 3 busca por palabra completa y solo
+# mide habilidades, sin nivel, modalidad, ciudad ni título (Decisión 35).
+ATS_REPORT_VERSION = 3
 
 
 def cv_fingerprint(primary_cv: Mapping[str, Any]) -> str:
