@@ -1,3 +1,10 @@
+import {
+  MAX_PDF_BYTES,
+  registerPdf,
+  validatePdf,
+  type UploadDeps
+} from "@/lib/documents/upload";
+
 // Lo que devuelve GET /api/v1/profiles/linkedin.
 export type LinkedInDocument = {
   id: string;
@@ -15,7 +22,7 @@ export type LinkedInStatus = {
   skills_in_linkedin?: number;
 };
 
-export const MAX_LINKEDIN_PDF_BYTES = 10 * 1024 * 1024;
+export const MAX_LINKEDIN_PDF_BYTES = MAX_PDF_BYTES;
 const MAX_URL_LENGTH = 2048;
 const MIN_USERNAME_LENGTH = 3;
 
@@ -63,21 +70,7 @@ export function parseLinkedInProfileUrl(input: string): LinkedInUrlResult {
   return { ok: true, value: candidate };
 }
 
-export function validateLinkedInPdf(file: {
-  type: string;
-  size: number;
-}): string | null {
-  if (file.type !== "application/pdf") {
-    return "El archivo debe ser un PDF.";
-  }
-  if (file.size === 0) {
-    return "El PDF está vacío.";
-  }
-  if (file.size > MAX_LINKEDIN_PDF_BYTES) {
-    return "El PDF no puede superar 10MB.";
-  }
-  return null;
-}
+export const validateLinkedInPdf = validatePdf;
 
 export type LinkedInDocumentSummary = {
   tone: "empty" | "working" | "done" | "failed";
@@ -113,19 +106,7 @@ export function describeLinkedInDocument(
   };
 }
 
-export type LinkedInUploadDeps = {
-  // Id de la persona en Supabase Auth: la carpeta donde puede guardar archivos.
-  userId: () => Promise<string>;
-  uploadFile: (storagePath: string, file: File) => Promise<void>;
-  registerDocument: (body: Record<string, unknown>) => Promise<{
-    task_id?: string | null;
-  }>;
-  // Espera a que termine la lectura y devuelve cómo terminó.
-  waitForTask: (
-    taskId: string
-  ) => Promise<{ status: string; error?: string | null }>;
-  newId: () => string;
-};
+export type LinkedInUploadDeps = UploadDeps;
 
 /**
  * Sube el PDF de LinkedIn y espera a que se lea. Falla con un mensaje legible; si el
@@ -136,29 +117,13 @@ export async function uploadLinkedInPdf(
   profileId: string,
   deps: LinkedInUploadDeps
 ): Promise<void> {
-  const invalid = validateLinkedInPdf(file);
-  if (invalid) {
-    throw new Error(invalid);
-  }
-
-  const userId = await deps.userId();
-  const storagePath = `${userId}/${deps.newId()}-${file.name}`;
-  await deps.uploadFile(storagePath, file);
-
-  const document = await deps.registerDocument({
+  const { taskId } = await registerPdf(file, deps, {
     profile_id: profileId,
     type: "linkedin",
-    is_primary: false,
-    storage_path: storagePath,
-    original_filename: file.name,
-    mime_type: file.type,
-    file_size: file.size
+    is_primary: false
   });
-  if (!document.task_id) {
-    throw new Error("El servidor no devolvió la tarea de lectura.");
-  }
 
-  const outcome = await deps.waitForTask(document.task_id);
+  const outcome = await deps.waitForTask(taskId);
   if (outcome.status === "failed") {
     throw new Error(outcome.error || "No se pudo leer el PDF de LinkedIn.");
   }

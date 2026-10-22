@@ -48,7 +48,7 @@ la persona o por un evento de LemonSqueezy.
 | CU02 | Iniciar sesión | Visitante | `/login` |
 | CU03 | Recuperar contraseña | Visitante | `/forgot-password`, `/reset-password` |
 | CU04 | Autenticar con Google | Visitante | Botones de `/login` y `/register` |
-| CU05 | Cargar CV | Persona usuaria | Asistente, paso 2; `POST /profiles/documents` |
+| CU05 | Cargar CV | Persona usuaria | Asistente, paso 2 y tarjeta «Tu CV» de «Mi perfil» (para reemplazarlo); `POST /profiles/documents` |
 | CU06 | Estructurar CV con IA | Proveedores de IA | Tarea `parse_cv` |
 | CU07 | Confirmar perfil | Persona usuaria | Asistente, paso 3; `/profiles/skills`, `/profiles/experiences` y afines |
 | CU08 | Analizar puesto | Persona usuaria | `POST /jobs/analyze`; pantalla Jobs |
@@ -71,7 +71,7 @@ la persona o por un evento de LemonSqueezy.
 | CU25 | Editar puesto | Persona usuaria | `PATCH /jobs/{id}`; botón «Editar» de la pantalla Jobs |
 | CU26 | Eliminar puesto | Persona usuaria | `DELETE /jobs/{id}` (409 si tiene comparaciones o kits); botón «Eliminar» de la pantalla Jobs |
 | CU27 | Descargar CV | Persona usuaria | `GET /profiles/cv`; botón «Descargar CV en PDF» del perfil y del reporte ATS (con las secciones optimizadas que la persona elige) |
-| CU28 | Cargar LinkedIn | Persona usuaria | Pantalla «Mi perfil», tarjeta LinkedIn; `PATCH /profiles/me` (enlace), `POST /profiles/documents` con tipo `linkedin` (PDF) y `GET /profiles/linkedin` (estado) |
+| CU28 | Cargar LinkedIn | Persona usuaria | Pantalla «Mi perfil», tarjeta LinkedIn; `PATCH /profiles/me` (enlace), `POST /profiles/documents` con tipo `linkedin` (PDF) y `GET /profiles/linkedin` (estado). Ese PDF es el que descarga LinkedIn con «Guardar en PDF», no el CV: el CV se sube en la tarjeta «Tu CV» (CU05) |
 
 ## 3. Narrativas de los tres casos de uso principales
 
@@ -109,6 +109,11 @@ la persona o por un evento de LemonSqueezy.
   persona ve un mensaje claro sin detalles internos y puede volver al paso 1.
 - **A5 (paso 8), la persona rechaza una habilidad:** queda registrada como rechazada y no se
   vuelve a sugerir.
+- **A6 (después del asistente), reemplazar el CV:** la tarjeta «Tu CV» de «Mi perfil» hace los
+  pasos 2 a 7 con la misma subida del asistente y deja el archivo nuevo como CV principal; no
+  abre la revisión del paso 8. Mientras se sube y se lee, el selector y el botón quedan
+  bloqueados. Si el tope diario de cargas bloquea el pedido, el CV anterior no se toca; si la
+  lectura falla, el anterior ya no está (A2) y hay que volver a subir un PDF.
 
 **Postcondiciones:** el CV queda guardado con estado `done`; los datos confirmados quedan en el
 perfil maestro y sus vectores guardados; la completitud del perfil queda actualizada, lo que

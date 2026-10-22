@@ -337,7 +337,32 @@ export const dictionaries: Record<Language, TranslationTree> = {
       atsLoading: "Cargando jobs...",
       atsLoadError: "No se pudieron cargar los jobs.",
       ratingThanks: "Gracias por tu feedback.",
-      ratingSaveError: "No pudimos guardar tu calificación. Probá de nuevo."
+      ratingSaveError: "No pudimos guardar tu calificación. Probá de nuevo.",
+      cvCardTitle: "Tu CV",
+      cvCardDescription:
+        "Es el archivo que se manda a las empresas. Lo usamos para tu análisis ATS y para calcular el match con cada puesto.",
+      cvCardReplaceNote:
+        "Al subir uno nuevo, reemplaza al que tenías. Si no se puede leer, vas a tener que subirlo de nuevo.",
+      cvCardCurrent: "CV principal: {name} · subido el {date}",
+      cvCardCurrentNoDate: "CV principal: {name}",
+      cvCardPick: "Seleccionar PDF",
+      cvCardUpload: "Subir CV",
+      cvCardProcessing: "Procesando...",
+      cvCardPickFirst: "Elegí el PDF de tu CV antes de subirlo.",
+      cvCardUploadError: "No se pudo subir el CV.",
+      cvCardDone: "CV subido y leído: ya es tu CV principal.",
+      cvCardStillReading:
+        "Tu CV ya está subido y lo seguimos leyendo. Volvé a revisar en un momento.",
+      cvStageUploading: "Subiendo tu CV...",
+      cvStageRegistering: "Registrando tu CV...",
+      cvStageReading: "Leyendo tu CV...",
+      cvReadFailedHint:
+        "Tu CV anterior ya fue reemplazado: subí el PDF de nuevo para que Jobby tenga un CV que leer.",
+      linkedinPdfLabel: "PDF de tu perfil de LinkedIn",
+      linkedinPdfNotCv:
+        "No es tu CV: es el archivo que descarga LinkedIn con «Guardar en PDF». Tu CV se sube en la tarjeta «Tu CV».",
+      linkedinPdfHowTo:
+        "En LinkedIn, desde tu perfil, elegí «Recursos» (o «Más») y después «Guardar en PDF». Subí ese archivo acá: marcamos cuáles de tus skills figuran en LinkedIn. No agregamos skills nuevas a tu perfil."
     },
     admin: {
       title: "Administración",
@@ -736,7 +761,32 @@ export const dictionaries: Record<Language, TranslationTree> = {
       atsLoading: "Loading jobs...",
       atsLoadError: "Could not load the jobs.",
       ratingThanks: "Thanks for your feedback.",
-      ratingSaveError: "We could not save your rating. Please try again."
+      ratingSaveError: "We could not save your rating. Please try again.",
+      cvCardTitle: "Your CV",
+      cvCardDescription:
+        "This is the file you send to employers. We use it for your ATS analysis and to calculate your match with each job.",
+      cvCardReplaceNote:
+        "Uploading a new one replaces the one you had. If it cannot be read, you will need to upload it again.",
+      cvCardCurrent: "Main CV: {name} · uploaded on {date}",
+      cvCardCurrentNoDate: "Main CV: {name}",
+      cvCardPick: "Select PDF",
+      cvCardUpload: "Upload CV",
+      cvCardProcessing: "Processing...",
+      cvCardPickFirst: "Choose your CV PDF before uploading it.",
+      cvCardUploadError: "Could not upload the CV.",
+      cvCardDone: "CV uploaded and read: it is now your main CV.",
+      cvCardStillReading:
+        "Your CV is uploaded and we are still reading it. Check again in a moment.",
+      cvStageUploading: "Uploading your CV...",
+      cvStageRegistering: "Registering your CV...",
+      cvStageReading: "Reading your CV...",
+      cvReadFailedHint:
+        "Your previous CV was already replaced: upload the PDF again so Jobby has a CV to read.",
+      linkedinPdfLabel: "PDF of your LinkedIn profile",
+      linkedinPdfNotCv:
+        "This is not your CV: it is the file LinkedIn downloads with “Save to PDF”. Upload your CV in the “Your CV” card.",
+      linkedinPdfHowTo:
+        "On LinkedIn, from your profile, choose “Resources” (or “More”) and then “Save to PDF”. Upload that file here: we mark which of your skills appear on LinkedIn. We do not add new skills to your profile."
     },
     admin: {
       title: "Administration",
