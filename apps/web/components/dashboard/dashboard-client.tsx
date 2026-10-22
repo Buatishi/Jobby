@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -25,6 +25,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { useApiResource } from "@/lib/api/use-api-resource";
+import { formatToday, greetingKeyForHour } from "@/lib/dashboard/greeting";
 import {
   clampScore,
   getFirstName,
@@ -62,24 +63,22 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
   const { language, t } = useI18n();
 
   const locale = language === "es" ? "es-AR" : "en-US";
-  const today = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        weekday: "long",
-        day: "numeric",
-        month: "long"
-      }).format(new Date()),
-    [locale]
-  );
+  // La hora depende de la zona horaria: el servidor corre en UTC y el navegador en la de la
+  // persona. Si se leyera al renderizar, el HTML del servidor y el primer render del cliente
+  // dirían cosas distintas (React #418). Por eso se lee recién después de montar, y hasta
+  // entonces no se muestra ni saludo ni fecha.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12
-      ? t("app.goodMorning")
-      : hour < 20
-        ? t("app.goodAfternoon")
-        : t("app.goodNight");
+  const today = now ? formatToday(now, locale) : "";
+  const greeting = now ? t(greetingKeyForHour(now.getHours())) : "";
   const displayName = getFirstName(summary);
+  // Sin saludo todavía queda solo el nombre, si ya llegó el resumen.
+  const heading = greeting
+    ? `${greeting}${displayName ? `, ${displayName}` : ""}`
+    : displayName;
   const employabilityScore = clampScore(
     summary?.employability_score ?? summary?.global_score
   );
@@ -113,7 +112,7 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
             <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-neutral-300">
               <span className="inline-flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-brand-bright" />
-                <span className="inline-block first-letter:uppercase">{today}</span>
+                <span className="inline-block min-h-5 first-letter:uppercase">{today}</span>
               </span>
               {isLoading ? (
                 <Badge className="gap-2 border-white/20 bg-white/10 text-white" variant="outline">
@@ -122,9 +121,9 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
                 </Badge>
               ) : null}
             </div>
-            <h1 className="mt-3 text-[clamp(1.875rem,4vw,2.875rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
-              {greeting}
-              {displayName ? `, ${displayName}` : ""}
+            {/* min-h reserva la línea del saludo mientras llega la hora, para que no salte el diseño. */}
+            <h1 className="mt-3 min-h-[1.05em] text-[clamp(1.875rem,4vw,2.875rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
+              {heading}
             </h1>
             <p className="mt-3 max-w-[48ch] text-[15px] font-medium text-neutral-300">
               {profileActionMessage}
@@ -248,12 +247,14 @@ export function DashboardView({ summary, error, isLoading }: DashboardViewProps)
                   const title = match.role ?? match.title ?? match.job_title ?? "";
                   const company = match.company ?? match.company_name ?? "";
                   const date = match.created_at ?? match.analyzed_at;
-                  const formattedDate = date
-                    ? new Intl.DateTimeFormat(locale, {
-                        day: "2-digit",
-                        month: "short"
-                      }).format(new Date(date))
-                    : "";
+                  // Misma razón que la fecha de arriba: el día depende de la zona horaria.
+                  const formattedDate =
+                    date && now
+                      ? new Intl.DateTimeFormat(locale, {
+                          day: "2-digit",
+                          month: "short"
+                        }).format(new Date(date))
+                      : "";
 
                   return (
                     <li

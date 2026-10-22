@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DashboardSummary } from "@/lib/dashboard/summary";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
 
-import { DashboardView } from "@/components/dashboard/dashboard-client";
+import { DashboardClient, DashboardView } from "@/components/dashboard/dashboard-client";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { scoreColorOnDarkGreen, scoreColors } from "@/lib/utils/score-colors";
 
@@ -132,5 +132,93 @@ describe("DashboardView", () => {
 
     expect(html).toContain("No pudimos cargar el resumen");
     expect(html).toContain('id="analizar"');
+  });
+});
+
+describe("DashboardView clock", () => {
+  const originalTimeZone = process.env.TZ;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (originalTimeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimeZone;
+    }
+  });
+
+  function setClock(timeZone: string, isoInstant: string) {
+    process.env.TZ = timeZone;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(isoInstant));
+  }
+
+  // El servidor de Vercel corre en UTC; las personas, en su zona. Mismo instante, horas distintas.
+  const clocks = [
+    { timeZone: "UTC", at: "2026-10-22T02:05:00Z" },
+    { timeZone: "America/Argentina/Buenos_Aires", at: "2026-10-22T02:05:00Z" },
+    { timeZone: "UTC", at: "2026-10-22T15:30:00Z" },
+    { timeZone: "Pacific/Auckland", at: "2026-10-22T22:00:00Z" },
+    { timeZone: "America/Los_Angeles", at: "2026-10-22T07:00:00Z" }
+  ];
+
+  it("sends the same HTML whatever the hour or the time zone of the server", () => {
+    const outputs = clocks.map(({ timeZone, at }) => {
+      setClock(timeZone, at);
+      return render({ summary });
+    });
+
+    // Guarda del test: el reloj falso y la zona se aplicaron de verdad.
+    setClock("America/Argentina/Buenos_Aires", "2026-10-22T02:05:00Z");
+    expect(new Date().getHours()).toBe(23);
+    expect(new Set(outputs).size).toBe(1);
+  });
+
+  it("does not print a greeting or a date before the browser mounts", () => {
+    setClock("UTC", "2026-10-22T02:05:00Z");
+    const html = render({ summary });
+
+    for (const text of ["Buenos días", "Buenas tardes", "Buenas noches"]) {
+      expect(html).not.toContain(text);
+    }
+    expect(html).not.toContain("octubre");
+    expect(html).not.toContain("jueves");
+    // El nombre sigue a la vista: lo trae el resumen, no el reloj.
+    expect(html).toContain("Persona");
+  });
+
+  it("keeps the same HTML when the summary has match dates", () => {
+    const dated: DashboardSummary = {
+      ...summary,
+      latest_matches: [
+        { id: "m1", role: "Backend Developer", score: 86, created_at: "2026-10-22T02:05:00Z" }
+      ]
+    };
+    const outputs = clocks.map(({ timeZone, at }) => {
+      setClock(timeZone, at);
+      return renderToStaticMarkup(
+        <I18nProvider>
+          <DashboardView error={null} isLoading={false} summary={dated} />
+        </I18nProvider>
+      );
+    });
+
+    expect(new Set(outputs).size).toBe(1);
+  });
+
+  it("sends the same HTML from the real page, where the summary has not arrived yet", () => {
+    const outputs = clocks.map(({ timeZone, at }) => {
+      setClock(timeZone, at);
+      return renderToStaticMarkup(
+        <I18nProvider>
+          <DashboardClient />
+        </I18nProvider>
+      );
+    });
+
+    expect(new Set(outputs).size).toBe(1);
+    expect(outputs[0]).not.toContain('href="/jobs/');
+    // Sin hora ni nombre, el título queda vacío hasta montar (con su alto reservado).
+    expect(outputs[0]).toMatch(/<h1 class="[^"]*min-h-\[1\.05em\][^"]*"><\/h1>/);
   });
 });
