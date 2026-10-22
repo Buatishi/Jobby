@@ -1870,10 +1870,10 @@ el CI.
 
 ## Decisión 34 — El formato del CV se lee del PDF y el ATS avisa cuando no lo pudo evaluar
 
-**Estado:** Pedido a partir de un hallazgo del 2026-10-21. Cambio listo para revisión en un PR
-abierto; **no está mergeado**: mergearlo despliega, baja el puntaje ATS de los CV de varias
-columnas, con imágenes o con tablas que se lean desde entonces, y eso lo decide el autor. El texto
-es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+**Estado:** Aprobada. Pedido a partir de un hallazgo del 2026-10-21 y mergeada por pedido del autor
+(PR #109) con los PR #110 y #111 en un solo despliegue: desde entonces baja el puntaje ATS de los CV
+de varias columnas, con imágenes o con tablas que se lean. El texto es un borrador redactado con
+asistencia de IA que el autor revisa y hace suyo.
 
 **Hallazgo** (2026-10-21, código y base de producción). `parsed_data.format_flags` (`has_tables`,
 `multi_column`, `has_images`, `headers`) solo se **leía**, en `ats_analyzer/format_checker.py`;
@@ -1959,7 +1959,7 @@ Linux o React.
 
 **Decisiones que quedan en manos del autor.**
 - **Mergear** (despliega, reinicia la API de Render y baja puntajes de los CV que se lean desde
-  entonces).
+  entonces): resuelta, el autor pidió mergearla.
 - **El vocabulario de `STANDARD_HEADERS`.** Tal como está solo admite `experiencia`, `educacion`,
   `habilidades`, `idiomas`, `certificaciones` y sus equivalentes en inglés, así que «Experiencia
   laboral», «Formación académica», «Perfil» o «Proyectos» cuentan como no habituales y restan 5.
