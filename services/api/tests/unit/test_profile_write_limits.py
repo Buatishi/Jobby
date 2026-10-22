@@ -34,6 +34,7 @@ from app.models.profiles import (
     SkillCreate,
     UploadedDocumentCreate,
 )
+from app.services.cv_parser import PdfContent
 from app.services.cv_parser.ai_structurer import (
     CVStructuredData,
     ParsedEducation,
@@ -296,8 +297,8 @@ async def test_parsing_does_not_go_through_the_write_models(
         }
     )
 
-    async def fake_extract_pdf_text(_path: Path) -> str:
-        return "Python"
+    async def fake_extract_pdf_content(_path: Path) -> PdfContent:
+        return PdfContent("Python", None)
 
     async def fake_structure_cv_text(_text: str) -> CVStructuredData:
         return CVStructuredData(
@@ -321,7 +322,7 @@ async def test_parsing_does_not_go_through_the_write_models(
         async def embed_many(self, texts: list[str]) -> list[list[float]]:
             return [[0.1] * 1536 for _text in texts]
 
-    monkeypatch.setattr(parsing, "extract_pdf_text", fake_extract_pdf_text)
+    monkeypatch.setattr(parsing, "extract_pdf_content", fake_extract_pdf_content)
     monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
 
     await parsing.run_parse_cv(

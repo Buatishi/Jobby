@@ -336,6 +336,11 @@ export const dictionaries: Record<Language, TranslationTree> = {
       atsAnalyzeNew: "Analizar nuevo job",
       atsLoading: "Cargando jobs...",
       atsLoadError: "No se pudieron cargar los jobs.",
+      atsFormatTitle: "Issues de formato",
+      atsFormatClean: "No detectamos problemas de formato.",
+      atsFormatNotEvaluatedTitle: "No pudimos evaluar el formato de este CV.",
+      atsFormatNotEvaluatedHint:
+        "Se leyó antes de que Jobby revisara tablas, columnas e imágenes, así que el puntaje no descuenta nada por formato. Volvé a subir tu CV (Mi perfil → Mejorar perfil) para evaluarlo.",
       ratingThanks: "Gracias por tu feedback.",
       ratingSaveError: "No pudimos guardar tu calificación. Probá de nuevo.",
       cvCardTitle: "Tu CV",
@@ -760,6 +765,11 @@ export const dictionaries: Record<Language, TranslationTree> = {
       atsAnalyzeNew: "Analyze a new job",
       atsLoading: "Loading jobs...",
       atsLoadError: "Could not load the jobs.",
+      atsFormatTitle: "Format issues",
+      atsFormatClean: "We found no format problems.",
+      atsFormatNotEvaluatedTitle: "We could not evaluate the format of this CV.",
+      atsFormatNotEvaluatedHint:
+        "It was read before Jobby checked tables, columns and images, so the score takes nothing off for format. Upload your CV again (My profile → Mejorar perfil) to evaluate it.",
       ratingThanks: "Thanks for your feedback.",
       ratingSaveError: "We could not save your rating. Please try again.",
       cvCardTitle: "Your CV",

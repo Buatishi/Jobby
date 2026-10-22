@@ -16,6 +16,7 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
+from app.services.cv_parser import PdfContent
 from app.services.cv_parser.ai_structurer import (
     CVStructuredData,
     ParsedExperience,
@@ -578,13 +579,13 @@ def _fake_with_cv() -> FakeSupabase:
 def _patch_parser(
     monkeypatch: pytest.MonkeyPatch, structured: CVStructuredData
 ) -> None:
-    async def fake_extract_pdf_text(_path: Any) -> str:
-        return "texto del CV"
+    async def fake_extract_pdf_content(_path: Any) -> PdfContent:
+        return PdfContent("texto del CV", None)
 
     async def fake_structure_cv_text(_text: str) -> CVStructuredData:
         return structured
 
-    monkeypatch.setattr(parsing, "extract_pdf_text", fake_extract_pdf_text)
+    monkeypatch.setattr(parsing, "extract_pdf_content", fake_extract_pdf_content)
     monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
 
 

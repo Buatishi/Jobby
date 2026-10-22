@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from app.services.ats_analyzer.keyword_matcher import _cv_terms
-from app.services.cv_parser import strip_embeddings
+from app.services.cv_parser import PdfContent, strip_embeddings
 from app.services.cv_parser.ai_structurer import CVStructuredData, ParsedSkill
 from app.services.match_engine.formula import _representation_score
 from app.tasks import analysis, parsing
@@ -118,8 +118,8 @@ async def test_parsed_data_does_not_keep_the_skill_vectors(
         ]
     )
 
-    async def fake_extract_pdf_text(_path: Any) -> str:
-        return "texto del CV"
+    async def fake_extract_pdf_content(_path: Any) -> PdfContent:
+        return PdfContent("texto del CV", None)
 
     async def fake_structure_cv_text(_text: str) -> CVStructuredData:
         return CVStructuredData(
@@ -129,7 +129,7 @@ async def test_parsed_data_does_not_keep_the_skill_vectors(
             ]
         )
 
-    monkeypatch.setattr(parsing, "extract_pdf_text", fake_extract_pdf_text)
+    monkeypatch.setattr(parsing, "extract_pdf_content", fake_extract_pdf_content)
     monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
 
     result = await parsing.run_parse_cv(

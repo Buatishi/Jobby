@@ -10,7 +10,7 @@ from app.database import get_supabase_client
 from app.services.account_deletion import capture_exception
 from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
-    extract_pdf_text,
+    extract_pdf_content,
     merge_parsed_skills,
     skills_named_in_linkedin,
     strip_embeddings,
@@ -178,8 +178,8 @@ async def run_parse_cv(
             str(document["storage_path"]),
         )
         temp_pdf_path = await _write_temp_pdf(file_content)
-        extracted_text = await extract_pdf_text(temp_pdf_path)
-        structured_data = await structure_cv_text(extracted_text)
+        pdf_content = await extract_pdf_content(temp_pdf_path)
+        structured_data = await structure_cv_text(pdf_content.text)
         existing_skills = await _fetch_profile_skills(
             supabase_client,
             str(document["profile_id"]),
@@ -204,6 +204,12 @@ async def run_parse_cv(
                 "skills": strip_embeddings(merged_skills),
                 **_structured_sections(structured_data),
             }
+            # Lo que lee el chequeo de formato del ATS. Sin banderas (el análisis del
+            # PDF falló) la clave no se escribe: así el reporte dice «no se pudo
+            # evaluar» en vez de «sin problemas». El PDF de LinkedIn no la lleva: el ATS
+            # evalúa el CV que la persona envía, no esa exportación.
+            if pdf_content.format_flags is not None:
+                parsed_data["format_flags"] = pdf_content.format_flags.to_dict()
         await _execute(
             supabase_client.table("uploaded_documents")
             .update({"status": "done", "parsed_data": parsed_data, "error_msg": None})

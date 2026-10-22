@@ -8,9 +8,11 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
+from app.services.cv_parser import FormatFlags, PdfContent
 from app.services.cv_parser.ai_structurer import CVStructuredData, ParsedSkill
 from app.tasks import parsing
 from tests.fakes import FakeSupabase
+from tests.pdf_builder import Page, Text, build_pdf
 
 
 async def _fake_current_user() -> CurrentUser:
@@ -295,8 +297,12 @@ async def test_run_parse_cv_updates_document_status_and_parsed_data(
         }
     )
 
-    async def fake_extract_pdf_text(_path: Path) -> str:
-        return "Python FastAPI"
+    flags = FormatFlags(
+        has_tables=False, multi_column=True, has_images=True, headers=["PERFIL"]
+    )
+
+    async def fake_extract_pdf_content(_path: Path) -> PdfContent:
+        return PdfContent("Python FastAPI", flags)
 
     async def fake_structure_cv_text(_text: str) -> CVStructuredData:
         return CVStructuredData(
@@ -309,7 +315,7 @@ async def test_run_parse_cv_updates_document_status_and_parsed_data(
             ]
         )
 
-    monkeypatch.setattr(parsing, "extract_pdf_text", fake_extract_pdf_text)
+    monkeypatch.setattr(parsing, "extract_pdf_content", fake_extract_pdf_content)
     monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
 
     result = await parsing.run_parse_cv(
@@ -323,6 +329,131 @@ async def test_run_parse_cv_updates_document_status_and_parsed_data(
     assert document["parsed_data"]["skills"][0]["name"] == "Python"
     assert result["skills"][0]["name"] == "Python"
     assert fake_supabase.tables["skills"][0]["embedding"] == [0.1] * 1536
+    # El formato se guarda con el CV: es lo que lee el chequeo del ATS.
+    assert document["parsed_data"]["format_flags"] == {
+        "has_tables": False,
+        "multi_column": True,
+        "has_images": True,
+        "headers": ["PERFIL"],
+    }
+
+
+def _cv_world(content: bytes, document_type: str = "cv") -> FakeSupabase:
+    supabase = FakeSupabase()
+    supabase.storage.files["user-1/cv.pdf"] = content
+    supabase.tables["uploaded_documents"].append(
+        {
+            "id": "document-1",
+            "user_id": "user-1",
+            "profile_id": "profile-1",
+            "type": document_type,
+            "storage_path": "user-1/cv.pdf",
+            "status": "pending",
+        }
+    )
+    return supabase
+
+
+@pytest.mark.asyncio
+async def test_a_failed_format_analysis_leaves_the_flags_out_of_the_cv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sin banderas el ATS dice «no se pudo evaluar»; con `{}` diría «sin problemas»."""
+    supabase = _cv_world(b"%PDF-1.4 fake")
+
+    async def fake_extract_pdf_content(_path: Path) -> PdfContent:
+        return PdfContent("Python FastAPI", None)
+
+    async def fake_structure_cv_text(_text: str) -> CVStructuredData:
+        return CVStructuredData(skills=[ParsedSkill(name="Python")])
+
+    monkeypatch.setattr(parsing, "extract_pdf_content", fake_extract_pdf_content)
+    monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
+
+    await parsing.run_parse_cv(
+        "document-1",
+        supabase=supabase,
+        gateway=FakeGateway(),  # type: ignore[arg-type]
+    )
+
+    document = supabase.tables["uploaded_documents"][0]
+    assert document["status"] == "done"
+    assert "format_flags" not in document["parsed_data"]
+
+
+@pytest.mark.asyncio
+async def test_a_linkedin_pdf_does_not_get_format_flags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El ATS evalúa el CV que la persona envía, no la exportación de LinkedIn."""
+    supabase = _cv_world(b"%PDF-1.4 fake", document_type="linkedin")
+
+    async def fake_extract_pdf_content(_path: Path) -> PdfContent:
+        return PdfContent(
+            "texto de LinkedIn",
+            FormatFlags(
+                has_tables=False, multi_column=True, has_images=True, headers=[]
+            ),
+        )
+
+    async def fake_structure_cv_text(_text: str) -> CVStructuredData:
+        return CVStructuredData(skills=[ParsedSkill(name="Python")])
+
+    monkeypatch.setattr(parsing, "extract_pdf_content", fake_extract_pdf_content)
+    monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
+
+    await parsing.run_parse_cv(
+        "document-1",
+        supabase=supabase,
+        gateway=FakeGateway(),  # type: ignore[arg-type]
+    )
+
+    assert "format_flags" not in supabase.tables["uploaded_documents"][0]["parsed_data"]
+
+
+@pytest.mark.asyncio
+async def test_a_real_two_column_pdf_is_saved_with_its_flags_and_read_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """De punta a punta con un PDF de verdad: sin simular la lectura."""
+    left = [Text(40, 60 + 14 * n, word) for n, word in enumerate(
+        ["Python", "SQL", "Git", "Linux", "React", "Docker", "Redis", "AWS"]
+    )]
+    right = [
+        Text(230, 60 + 14 * n, line)
+        for n, line in enumerate(
+            [
+                "Desarrollador Backend en Acme",
+                "Construccion de APIs con FastAPI",
+                "Mantenimiento de bases PostgreSQL",
+                "Integracion con servicios de pago",
+                "Monitoreo y alertas en produccion",
+                "Revision de codigo del equipo",
+                "Mentoria a personas junior",
+                "Documentacion tecnica",
+            ]
+        )
+    ]
+    supabase = _cv_world(build_pdf([Page(texts=left + right)]))
+    seen: list[str] = []
+
+    async def fake_structure_cv_text(text: str) -> CVStructuredData:
+        seen.append(text)
+        return CVStructuredData(skills=[ParsedSkill(name="Python")])
+
+    monkeypatch.setattr(parsing, "structure_cv_text", fake_structure_cv_text)
+
+    await parsing.run_parse_cv(
+        "document-1",
+        supabase=supabase,
+        gateway=FakeGateway(),  # type: ignore[arg-type]
+    )
+
+    flags = supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"]
+    assert flags["multi_column"] is True
+    assert flags["has_tables"] is False
+    assert flags["has_images"] is False
+    assert "Python\nSQL\nGit\nLinux\nReact\nDocker\nRedis\nAWS" in seen[0]
 
 
 def test_get_task_status_reads_celery_result(

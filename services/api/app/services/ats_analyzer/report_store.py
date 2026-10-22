@@ -20,6 +20,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.models.ats import ATSFormatIssue, ATSKeywordMatch, ATSReport
+from app.services.ats_analyzer.format_checker import format_was_evaluated
 from app.services.ats_analyzer.keyword_matcher import VectorLoader
 from app.services.match_engine.common import parse_embedding
 
@@ -27,8 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Se sube al cambiar cómo se calcula el reporte (reglas de coincidencia, umbral,
 # pesos): lo guardado con la regla vieja deja de servirse y se recalcula en la próxima
-# apertura.
-ATS_REPORT_VERSION = 1
+# apertura. La 2 es la primera con el formato del PDF leído de verdad (Decisión 34): la
+# 1 daba siempre «sin problemas de formato».
+ATS_REPORT_VERSION = 2
 
 
 def cv_fingerprint(primary_cv: Mapping[str, Any]) -> str:
@@ -91,6 +93,9 @@ def report_from_row(
             ats_score=int(row["ats_score"]),
             keyword_matches=[ATSKeywordMatch.model_validate(item) for item in matches],
             format_issues=[ATSFormatIssue.model_validate(item) for item in issues],
+            # No se guarda: sale del CV principal, que la huella ya comprobó que es el
+            # mismo.
+            format_evaluated=format_was_evaluated(dict(primary_cv)),
         )
     except (KeyError, TypeError, ValueError, ValidationError):
         # Una fila dañada no debe romper el reporte: se recalcula y se reemplaza.

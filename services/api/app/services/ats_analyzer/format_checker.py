@@ -1,3 +1,4 @@
+import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,6 +24,26 @@ STANDARD_HEADERS = {
 }
 
 
+def _normalize_header(header: str) -> str:
+    """Sin mayúsculas, acentos ni dos puntos finales: «Educación:» es «educacion»."""
+    decomposed = unicodedata.normalize("NFKD", header.strip().casefold())
+    plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(plain.removesuffix(":").split())
+
+
+def format_was_evaluated(primary_cv: dict[str, Any]) -> bool:
+    """¿La lectura del CV dejó sus banderas de formato?
+
+    Los CV leídos antes de que existiera esa lectura no las tienen, y tampoco los que
+    fallaron al analizar el diseño del PDF: de esos no se sabe nada, y decir «sin
+    problemas» sería afirmar algo que no se miró.
+    """
+    parsed_data = primary_cv.get("parsed_data")
+    return isinstance(parsed_data, dict) and isinstance(
+        parsed_data.get("format_flags"), dict
+    )
+
+
 def check_cv_format(primary_cv: dict[str, Any]) -> list[FormatIssue]:
     parsed_data = primary_cv.get("parsed_data")
     if not isinstance(parsed_data, dict):
@@ -45,7 +66,7 @@ def check_cv_format(primary_cv: dict[str, Any]) -> list[FormatIssue]:
             non_standard = [
                 str(header)
                 for header in headers
-                if str(header).strip().lower() not in STANDARD_HEADERS
+                if _normalize_header(str(header)) not in STANDARD_HEADERS
             ]
             if non_standard:
                 issues.append(

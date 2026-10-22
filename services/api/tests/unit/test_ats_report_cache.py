@@ -19,10 +19,20 @@ from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
 from app.services.ats_analyzer.keyword_matcher import analyze_keywords
-from app.services.ats_analyzer.report_store import cv_fingerprint
+from app.services.ats_analyzer.report_store import (
+    ATS_REPORT_VERSION,
+    cv_fingerprint,
+)
 from tests.fakes import FakeRedis, FakeSupabase, FakeTableQuery
 
 KEYWORDS = ["Python", "GraphQL", "REST APIs"]
+# Lo que guarda la lectura de un CV sin problemas de formato.
+NO_FORMAT_PROBLEMS = {
+    "has_tables": False,
+    "multi_column": False,
+    "has_images": False,
+    "headers": [],
+}
 
 
 class KeywordGateway:
@@ -76,7 +86,7 @@ def _cv_document(
         "parsed_data": {
             "skills": [{"name": "Python"}, {"name": "Diseño de APIs"}],
             "experiences": [{"title": "Backend dev", "description": "Built services"}],
-            "format_flags": {},
+            "format_flags": {**NO_FORMAT_PROBLEMS},
         },
     }
 
@@ -431,6 +441,103 @@ def test_the_optimizer_reads_the_saved_report_and_the_report_it_leaves_is_free(
     client.post("/api/v1/ats/optimize", json={"job_id": "job-2"})
     _open(client, "job-2")
     assert _queries_spent(fake_redis) == spent
+
+
+def test_a_report_saved_before_the_format_check_existed_is_recalculated(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    """La versión 1 es la de antes de leer el formato del PDF (Decisión 34)."""
+    supabase = _world()
+    _serve(supabase)
+    _open(client)
+
+    supabase.tables["ats_reports"][0]["report_version"] = 1
+    response = _open(client)
+
+    assert response.status_code == 200
+    assert ATS_REPORT_VERSION > 1
+    assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
+    assert _queries_spent(fake_redis) == 2
+    # Se rehace el reporte, no las keywords del puesto.
+    assert gateway.generate_calls == 1
+
+
+def test_the_format_penalties_lower_the_score_of_a_cv_read_with_problems(
+    client: TestClient, gateway: KeywordGateway
+) -> None:
+    supabase = _world()
+    _serve(supabase)
+    clean = _open(client).json()
+
+    supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"] = {
+        **NO_FORMAT_PROBLEMS,
+        "multi_column": True,
+        "has_images": True,
+        "headers": ["Perfil académico"],
+    }
+    flagged = _open(client).json()
+
+    assert clean["format_issues"] == []
+    assert clean["format_evaluated"] is True
+    assert {issue["code"]: issue["penalty"] for issue in flagged["format_issues"]} == {
+        "MULTI_COLUMN": 10,
+        "IMAGES": 10,
+        "NON_STANDARD_HEADERS": 5,
+    }
+    assert flagged["format_evaluated"] is True
+    assert flagged["ats_score"] == clean["ats_score"] - 25
+
+
+def test_a_cv_read_before_the_format_check_is_reported_as_not_evaluated(
+    client: TestClient, gateway: KeywordGateway
+) -> None:
+    supabase = _world()
+    del supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"]
+    _serve(supabase)
+
+    response = _open(client)
+
+    body = response.json()
+    assert body["format_evaluated"] is False
+    # Sin banderas no hay con qué restar: el puntaje es el de las keywords solas.
+    assert body["format_issues"] == []
+    assert body["ats_score"] == 50
+
+
+def test_the_saved_report_remembers_whether_the_format_was_evaluated(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    supabase = _world()
+    del supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"]
+    _serve(supabase)
+
+    first = _open(client).json()
+    second = _open(client).json()
+
+    assert second == first
+    assert second["format_evaluated"] is False
+    # Releerlo del guardado no gasta la consulta diaria.
+    assert _queries_spent(fake_redis) == 1
+
+
+def test_reading_the_same_cv_again_with_the_format_check_recalculates_the_report(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    """Volver a subir/leer el CV es la forma de pasar de «no evaluado» a evaluado."""
+    supabase = _world()
+    parsed_data = supabase.tables["uploaded_documents"][0]["parsed_data"]
+    del parsed_data["format_flags"]
+    _serve(supabase)
+    before = _open(client).json()
+
+    parsed_data["format_flags"] = {**NO_FORMAT_PROBLEMS, "has_tables": True}
+    after = _open(client).json()
+
+    assert before["format_evaluated"] is False
+    assert after["format_evaluated"] is True
+    assert [issue["code"] for issue in after["format_issues"]] == ["TABLES"]
+    assert after["ats_score"] == before["ats_score"] - 10
+    assert _queries_spent(fake_redis) == 2
 
 
 # --- unidades -------------------------------------------------------------------------
