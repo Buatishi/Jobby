@@ -38,4 +38,15 @@ describe("security-sensitive dependencies keep their minimum version", () => {
     expect(versions.length).toBeGreaterThan(0);
     expect(versions.filter((version) => !atLeast(version, "7.1.6"))).toEqual([]);
   });
+
+  // Next 15.5.28 corrige GHSA-2464-fhr4-w9xw (ejecución remota de código sin autenticación
+  // en la optimización de imágenes con SVG, crítica) y CVE-2026-94482 (denegación de
+  // servicio contra Server Actions, alta). Es lo que sirve cada página de la web
+  // (Decisión 28).
+  it("resolves next to 15.5.28 or newer only", () => {
+    const versions = resolvedVersions("next");
+
+    expect(versions.length).toBeGreaterThan(0);
+    expect(versions.filter((version) => !atLeast(version, "15.5.28"))).toEqual([]);
+  });
 });
