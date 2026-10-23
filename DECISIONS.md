@@ -2067,3 +2067,38 @@ escritas como frase, texto libre del puesto, repetidas; «Git» en «Digital», 
 una lista; lo que se le pide a la IA y que lo guardado se filtra sin consultarla) y
 `test_ats_report_cache.py` (un reporte de la versión 2 con «Junior» y «Buenos Aires» guardados se
 rehace sin ellos y sin volver a la IA). Se verificó que los nuevos fallaban contra el código anterior.
+
+---
+
+## Actualización — Decisión 28 (2026-10-23): `next`
+
+**Estado:** Pedido por el autor tras el rojo del escaneo de Trivy en `main` (merge del PR #112). Cambio
+listo para revisión en un PR abierto; **no está mergeado**: mergearlo despliega la web en Vercel.
+
+**Qué encontró Trivy.** Dos hallazgos con versión corregida, ambos en `pnpm-lock.yaml`
+(`services/api/poetry.lock`: cero), sobre `next` 15.5.27:
+- **GHSA-2464-fhr4-w9xw (crítico):** ejecución remota de código sin autenticación en la API de
+  optimización de imágenes cuando hay archivos SVG, en Linux con glibc. Afecta de 10.0.0 a 15.5.27 y de
+  16.0.0 a 16.4.0; corregido en 15.5.28 y 16.4.1 (el aviso también acepta `sharp` 0.35.5 o más).
+- **CVE-2026-94482 (alto):** denegación de servicio con pedidos armados contra Server Actions.
+
+Aparecieron porque la base de Trivy se actualizó: el escaneo del PR #112 había pasado dos días antes.
+
+**Alcance en este repositorio.** El código no importa `next/image` y `next.config.ts` no configura
+`images`. **No se comprobó** si `/_next/image` queda alcanzable con esa configuración, ni cómo lo sirve
+Vercel; no se afirma que el sitio fuera explotable. Se actualiza igual porque es crítico y la corrección es
+un parche del mismo minor.
+
+**Elegido.** `next` de 15.5.27 a **15.5.28**: `apps/web/package.json` pasa a `^15.5.28` y el lock cambia
+solo en `next`, `@next/env` y los ocho binarios `@next/swc-*` con sus hashes (45 líneas). Se hizo con
+`pnpm install --lockfile-only` porque `pnpm up next@^15.5.28` también re-resolvía `esbuild`, `rollup` y otras
+dependencias sin relación (731 líneas), lo que no era necesario. `eslint-config-next` queda en 15.5.27: no
+figura en los avisos. Los `overrides` del lock siguen igual. Un test de piso en
+`lib/security/dependency-floor.test.ts` avisa si el lock vuelve a una `next` anterior.
+
+**Verificado.** `pnpm install --frozen-lockfile`, `typecheck`, `lint`, los 492 tests de la web,
+`pnpm build` (Next.js 15.5.28, 25 páginas, con valores de relleno en las variables públicas) y Trivy local
+con los mismos argumentos que el workflow: 0 hallazgos con el cambio, 2 sin él.
+
+**Lo que no cambia.** El backend, los workflows, `render.yaml`, las variables de entorno y los webhooks.
+**Decisión del autor:** mergear (despliega la web).
