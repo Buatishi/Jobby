@@ -462,6 +462,33 @@ def test_a_report_saved_before_the_format_check_existed_is_recalculated(
     assert gateway.generate_calls == 1
 
 
+def test_a_report_saved_with_non_skill_keywords_is_recalculated_without_them(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    """La versión 2 guardaba «Junior» o «Buenos Aires» como si fueran habilidades
+    (Decisión 35): al rehacer el reporte se filtran, sin pedirle otras a la IA."""
+    supabase = _world()
+    _serve(supabase)
+    _open(client)
+
+    saved = supabase.tables["ats_reports"][0]
+    saved["report_version"] = 2
+    saved["keyword_matches"] = [
+        {"keyword": word, "status": "missing", "matched_text": None}
+        for word in ["Python", "GraphQL", "Junior", "Buenos Aires", "Full time"]
+    ]
+    response = _open(client)
+
+    assert response.status_code == 200
+    assert [item["keyword"] for item in response.json()["keyword_matches"]] == [
+        "Python",
+        "GraphQL",
+    ]
+    assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
+    assert ATS_REPORT_VERSION > 2
+    assert gateway.generate_calls == 1
+
+
 def test_the_format_penalties_lower_the_score_of_a_cv_read_with_problems(
     client: TestClient, gateway: KeywordGateway
 ) -> None:

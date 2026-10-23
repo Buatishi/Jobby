@@ -1,9 +1,11 @@
 import json
+import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from app.services.ai_gateway import AIGateway
+from app.services.ats_analyzer.keyword_filter import skill_keywords
 from app.services.match_engine.common import cosine_similarity, normalize_text
 from app.services.skill_names import canonical_skill_key
 
@@ -89,10 +91,16 @@ async def extract_job_keywords(
         "match_reasoning",
         "free",
         (
-            "Extraé keywords ATS concretas de este job. Devolvé JSON estricto "
-            'con forma {"keywords": ["Python", "React"]}. Incluí skills, '
-            "frameworks, herramientas, seniority, idiomas y títulos requeridos.\n\n"
-            f"{_job_text(job)}"
+            "Extraé las habilidades que pide este job para filtrar CVs con un ATS. "
+            "Devolvé JSON estricto con forma "
+            '{"keywords": ["Python", "React"]}. Incluí solo habilidades: lenguajes, '
+            "frameworks, librerías, herramientas, plataformas, metodologías, "
+            "certificaciones e idiomas, cada una con su nombre corto y común "
+            '("SQL", no "Escritura de consultas SQL"; "Inglés", no "Inglés nivel '
+            'intermedio"). No incluyas el título del puesto, el nivel o seniority, la '
+            "modalidad (remoto, híbrido, presencial), el tipo de jornada, la ciudad o "
+            "el país, la empresa, ni tareas o responsabilidades escritas como "
+            f"frases.\n\n{_job_text(job)}"
         ),
         system="Sos un extractor ATS. Respondé solo JSON válido.",
         json_mode=True,
@@ -147,6 +155,18 @@ async def _usable_saved_vectors(
     }
 
 
+def _contains_whole_word(text: str, keyword: str) -> bool:
+    """¿`keyword` aparece en `text` como palabra completa (los dos en minúsculas)?
+
+    «Git» no está en «Digital», ni «SQL» en «PostgreSQL», ni «C» en «C++»: a los lados
+    no puede haber una letra, un número, `+` ni `#`. Un punto sí: cierra una oración.
+    """
+    if not keyword:
+        return False
+    pattern = rf"(?<![\w+#]){re.escape(keyword)}(?![\w+#])"
+    return re.search(pattern, text) is not None
+
+
 async def analyze_keywords(
     job: dict[str, Any],
     primary_cv: dict[str, Any],
@@ -157,10 +177,12 @@ async def analyze_keywords(
     saved_vectors: VectorLoader | None = None,
 ) -> ATSKeywordResult:
     """`keywords` son las que el puesto ya tiene guardadas: con ellas no se consulta a
-    la IA, que daría otras cada vez."""
+    la IA, que daría otras cada vez. Las de la IA y las guardadas pasan por el mismo
+    filtro: solo cuentan las habilidades (`keyword_filter`)."""
     ai_gateway = gateway or AIGateway()
     if keywords is None:
         keywords = await extract_job_keywords(job, ai_gateway)
+    keywords = skill_keywords(keywords, job)
     cv_terms = _cv_terms(primary_cv)
     normalized_cv = {normalize_text(term): term for term in cv_terms}
     # Un alias o una traducción también es literal: «Integración de APIs» es
@@ -177,7 +199,7 @@ async def analyze_keywords(
             (
                 original
                 for normalized, original in normalized_cv.items()
-                if normalized_keyword == normalized or normalized_keyword in normalized
+                if _contains_whole_word(normalized, normalized_keyword)
             ),
             None,
         )

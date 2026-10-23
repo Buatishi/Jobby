@@ -1986,3 +1986,84 @@ penalizaciones, estado «no evaluado» guardado y recalculado al releer) y `test
 banderas se guardan con el CV, no con el PDF de LinkedIn, y de punta a punta con un PDF de dos
 columnas). Frontend: `format-issues-card.test.tsx` y las claves en ambos idiomas. Se verificó que
 todos fallaban contra el código anterior.
+
+---
+
+## Decisión 35 — El ATS mide habilidades reales del aviso y las busca por palabra completa
+
+**Estado:** Pedida por el autor el 2026-10-22. Cambio listo para revisión en un PR abierto; **no está
+mergeado**: mergearlo despliega y cambia el puntaje de los reportes ATS ya calculados, que se rehacen
+la primera vez que se abren. El texto es un borrador redactado con asistencia de IA que el autor revisa
+y hace suyo.
+
+**Hallazgo** (2026-10-21, reportes guardados en producción y código). Dos reglas hacían que el ATS
+midiera cosas que no son habilidades y que marcara coincidencias que no lo eran:
+
+- **Qué se pedía.** `extract_job_keywords` le ordenaba a la IA incluir «skills, frameworks,
+  herramientas, seniority, idiomas y títulos requeridos». Los reportes guardados traen «Junior», el
+  título del puesto entero, «Modalidad híbrida», «Vicente López», «Seniority mínimo 1 año de
+  experiencia» o tareas como «Escritura de consultas SQL y mantenimiento de base de datos». Nada de
+  eso se escribe en un CV: cuenta como faltante y baja el puntaje de quien sí cumple.
+- **Cómo se buscaba.** La coincidencia literal era «el texto está contenido en el término del CV»:
+  «Git» aparecía en «Digital» (se vio en el reporte de un puesto real con el CV de la persona),
+  «SQL» en «PostgreSQL», «Java» en «JavaScript» y «Go» en «Django».
+
+**Elegido.**
+- **Se le pide otra cosa a la IA.** Solo habilidades (lenguajes, frameworks, librerías, herramientas,
+  plataformas, metodologías, certificaciones e idiomas), con su nombre corto y común («SQL», no
+  «Escritura de consultas SQL»), y se le dice qué dejar afuera: título, nivel, modalidad, jornada,
+  ciudad o país, empresa y tareas escritas como frase.
+- **Un filtro propio, conservador, como segunda defensa** (`ats_analyzer/keyword_filter.py`), porque la
+  IA no es determinista. Descarta: palabras de nivel, modalidad y jornada («junior», «híbrida», «full
+  time», incluidos el femenino y «home office»); el título del puesto y el nombre de la empresa
+  enteros (un «Python» dentro del título sigue valiendo); lo que el puesto guarda como nivel y
+  modalidad, que es texto libre y suele traer el lugar; una ciudad o país de una lista corta; y toda
+  keyword de más de 5 palabras (una tarea escrita como frase). Quita repetidas.
+- **El filtro corre sobre las keywords de la IA y sobre las ya guardadas del puesto.** Un reporte
+  viejo no vuelve a pedirle keywords a la IA (Decisión 33): se rehace con las que tenía, ya filtradas.
+- **Palabra completa.** La keyword tiene que aparecer rodeada de algo que no sea letra, número, `+`
+  ni `#`: «C» no está en «C++» ni «Git» en «Digital»; un punto al final de la oración no cuenta como
+  parte de la palabra («Python.»). Los alias y las traducciones («API REST» y «REST APIs») siguen
+  contando como literales por su camino de siempre.
+- **`ATS_REPORT_VERSION` pasa de 2 a 3** (Decisión 33): lo guardado con las reglas viejas deja de
+  servirse y se recalcula en la próxima apertura.
+
+**Medido con los reportes reales** (solo lectura, 2026-10-22): el puesto de Iquall pasa de 36 a 29
+keywords (salen el título, «Modalidad híbrida», «Vicente López», «Seniority mínimo 1 año…», la
+residencia y dos frases largas) y el puesto de prueba de 20 a 15 (salen el título, «Junior» y tres
+frases). Con el CV actual de la persona, el puesto de prueba pasaría de 32 a unos 47 (10 de 15
+habilidades presentes, menos 20 de formato); es una cuenta, no una medición del reporte nuevo.
+
+**Qué cambia para la persona.**
+- La primera vez que se abra cada reporte después del despliegue se recalcula y cuenta para el tope
+  diario (10 en el plan gratuito). Las keywords del puesto no se piden de nuevo a la IA.
+- Sube el puntaje de quien perdía puntos por «Junior», la ciudad o el título, y puede bajar el de quien
+  tenía de más una coincidencia por texto contenido («SQL» por «PostgreSQL»).
+- Un puesto analizado desde el despliegue pide keywords más cortas y solo de habilidades.
+
+**Decisiones que quedan en manos del autor.**
+- **Mergear** (despliega, reinicia la API de Render y cambia puntajes de reportes ya vistos).
+- **La lista de ciudades y países** (`_PLACES`): es corta a propósito; quien trabaje en otra región la
+  amplía. Fuera de ella, lo evita el pedido a la IA.
+- **El tope de 5 palabras** (`MAX_SKILL_WORDS`): descarta tareas escritas como frase; con 4 se iría
+  también «Testing y mantenimiento de software».
+- **Si las habilidades blandas cuentan** («Comunicación», «Autonomía», «Trabajo en equipo»): hoy
+  cuentan, igual que antes, y casi nunca coinciden de forma literal con un CV.
+
+**Límites conocidos.**
+- Quedan como keywords, en los puestos ya guardados, frases cortas que la IA devolvió y que no son
+  una herramienta («Automatización de procesos internos», «Integraciones», «Backend»): el filtro solo
+  descarta lo que seguro no es una habilidad.
+- El CV se compara por sus habilidades, experiencias y estudios, no por su lista de idiomas: una
+  keyword «Inglés» sale faltante aunque el CV lo declare en idiomas. No se cambió; es una propuesta
+  aparte.
+- Si el filtro deja la lista vacía, el reporte queda sin keywords y su puntaje es 100 menos las
+  penalizaciones de formato, que es lo que ya pasaba cuando la IA devolvía una lista vacía.
+- No hay migración ni cambios en `render.yaml`, variables de entorno o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_ats_real_skills.py` (nivel, modalidad, jornada, ciudad, título, tareas
+escritas como frase, texto libre del puesto, repetidas; «Git» en «Digital», «SQL» en «PostgreSQL»,
+«Java» en «JavaScript», «Go» en «Django», «C» en «C++»; palabra completa en una skill, una oración y
+una lista; lo que se le pide a la IA y que lo guardado se filtra sin consultarla) y
+`test_ats_report_cache.py` (un reporte de la versión 2 con «Junior» y «Buenos Aires» guardados se
+rehace sin ellos y sin volver a la IA). Se verificó que los nuevos fallaban contra el código anterior.
