@@ -2102,3 +2102,45 @@ con los mismos argumentos que el workflow: 0 hallazgos con el cambio, 2 sin él.
 
 **Lo que no cambia.** El backend, los workflows, `render.yaml`, las variables de entorno y los webhooks.
 **Decisión del autor:** mergear (despliega la web).
+
+## Actualización — Decisión 31 (2026-10-23): el stack tecnológico se compara por nombre, no por categoría
+
+**Estado:** Hallazgo de la medición del 2026-10-18, que quedó como propuesta sin aprobar. El autor
+preguntó el 2026-10-23 si seguía sin arreglar y se tomó como pedido de arreglarlo. El límite de
+palabra del ATS (el otro hallazgo) ya lo había cerrado la Decisión 35.
+
+**Problema (medido).** La compatibilidad con la empresa mezcla el stack tecnológico del puesto (la
+mitad de ese componente, que pesa 15 % del MatchScore). `s_company` solo comparaba contra las skills
+con `category = "technical"`, pero el lector de CV no fija las categorías (pide «minúsculas cuando se
+pueda») y deja «programming», «frontend», «api», «devops», «tools»… Un CV leído hoy puede no traer
+ninguna «technical»: el perfil con las 10 tecnologías del puesto «Full Stack Jr» daba 0 en el stack, y
+otro con Git, Linux y Docker bajo «tools» tampoco las contaba.
+
+**Elegido.** El stack se compara con **todas** las skills y por su forma común (`skill_key`): lo que
+decide es el nombre, no la etiqueta. Se mantienen sin cambios el resto del componente (modalidad,
+industria) y el respaldo semántico, que sigue usando solo las skills «technical»: ampliarlo cambia
+qué se parece a qué y no es lo que se corrige. La categoría de una skill no se tocó ni se
+reasigna en los datos guardados.
+
+**Medición con producción** (7 comparaciones donde las skills guardadas hoy coinciden con las del
+momento del cálculo; la regla anterior reproduce el puntaje y el componente guardados de las 7):
+
+| Puesto | Stack antes → ahora | Puntaje guardado → nuevo |
+|---|---|---|
+| Full Stack Jr (cuenta con CV de Canva) | 0,00 → 1,00 | 65 → 73 |
+| Analista de Datos Jr (misma cuenta) | 0,00 → 0,75 | 45 → 51 |
+| Backend Python Jr (otra cuenta) | 0,10 → 1,00 | 46 → 53 |
+| Generalist Software Engineer | 0,11 → 0,56 | 19 → 20 |
+| Software Development Engineer | 0,00 → 0,20 | 10 → 10 |
+| Chef Ejecutivo (sin stack) | 0,80 → 0,80 | 3 → 3 |
+| Software Engineer | 1,00 → 1,00 | 18 → 18 |
+
+Sube el puntaje de cuatro de siete, hasta unos 8 puntos, y ninguno baja: solo se suman coincidencias.
+Junto con los alias de la Decisión 31 (el puesto Full Stack pasaría de 73 a unos 78). Los puntajes
+guardados **no se recalculan**: cambian cuando la persona vuelve a analizar el puesto.
+
+**Límites que quedan abiertos.** Una skill con el nombre del stack cuenta aunque el lector la haya
+clasificado como blanda o metodología (el nombre manda). Los nombres compuestos («Office (Word,
+Excel, PowerPoint)», «Agile / Scrum») siguen sin partirse en componentes, así que «Excel» no
+coincide con el primero. El respaldo semántico compara contra el vector de todo el puesto y no
+contra cada tecnología, por lo que casi nunca suma (0 coincidencias en las comparaciones medidas).
