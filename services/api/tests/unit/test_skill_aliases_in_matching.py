@@ -225,15 +225,60 @@ def test_the_tech_stack_does_not_equate_related_technologies() -> None:
     assert _tech_score(profile, ["Java", "React", "PostgreSQL"]) == 0.0
 
 
-def test_the_tech_stack_only_counts_technical_skills() -> None:
-    soft = _skills("REST APIs", category="soft")
+def _tech_score_by_category(
+    profile: list[tuple[str, str | None]], tech_stack: list[str]
+) -> float:
+    skills = [{"name": name, "category": category} for name, category in profile]
     result = compute_company_score(
         {"work_modality": "remote"},
-        soft,
-        {"tech_stack": ["API REST"], "required_modality": "remote"},
+        skills,
+        {"tech_stack": tech_stack, "required_modality": "remote"},
     )
+    return float(result["tech_score"])
 
-    assert result["tech_score"] == 0.0
+
+# Las categorías que el lector de CV puso en el perfil de producción medido: ninguna
+# es «technical», y el perfil tiene las 10 tecnologías del puesto.
+READER_CATEGORIES = [
+    ("Python", "programming"),
+    ("JavaScript", "programming"),
+    ("React", "frontend"),
+    ("SQL", "database"),
+    ("REST APIs", "api"),
+    ("Git", "version control"),
+    ("Salesforce", "crm"),
+    ("n8n", "automation"),
+    ("Zapier", "automation"),
+    ("Docker", "devops"),
+    ("Liderazgo", "soft skills"),
+]
+PRODUCTION_STACK = [
+    "Python", "JavaScript", "React", "SQL", "API REST", "Git",
+    "Salesforce", "n8n", "Zapier", "Docker",
+]  # fmt: skip
+
+
+def test_the_tech_stack_does_not_depend_on_the_category_the_reader_gave() -> None:
+    # Antes daba 0 porque solo se miraban las skills con categoría «technical».
+    assert _tech_score_by_category(READER_CATEGORIES, PRODUCTION_STACK) == 1.0
+
+
+@pytest.mark.parametrize("category", ["technical", "programming", "soft", "", None])
+def test_the_name_decides_not_the_category_label(category: str | None) -> None:
+    assert _tech_score_by_category([("Docker", category)], ["Docker"]) == 1.0
+
+
+def test_a_stack_item_the_person_does_not_have_still_counts_against() -> None:
+    profile = [("Python", "programming"), ("Docker", "devops")]
+    stack = ["Python", "Docker", "Kubernetes", "AWS"]
+
+    assert _tech_score_by_category(profile, stack) == 0.5
+
+
+def test_the_tech_stack_does_not_equate_related_technologies_in_any_category() -> None:
+    profile = [("JavaScript", "programming"), ("React Native", "mobile")]
+
+    assert _tech_score_by_category(profile, ["Java", "React"]) == 0.0
 
 
 def test_a_job_without_tech_stack_keeps_its_neutral_tech_score() -> None:

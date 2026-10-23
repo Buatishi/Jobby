@@ -26,16 +26,22 @@ def compute_company_score(
     profile_skills: list[dict[str, Any]],
     job: dict[str, Any],
 ) -> dict[str, float]:
-    profile_tech = [
-        skill
-        for skill in profile_skills
-        if normalize_text(skill.get("category")) == "technical"
-    ]
-    # Por forma común: «API REST» es «REST APIs» (ver `skill_key`).
+    # Por forma común: «API REST» es «REST APIs» (ver `skill_key`). Una skill coincide
+    # por su nombre, no por la categoría: el lector de CV no fija categorías y deja
+    # «programming», «frontend», «devops»… Antes solo se miraban las de categoría
+    # «technical» y un perfil con las 10 tecnologías del puesto daba 0.
     profile_names = {
         skill_key(skill.get("name")): skill
-        for skill in profile_tech
+        for skill in profile_skills
         if skill_key(skill.get("name"))
+    }
+    # El respaldo semántico se queda con las «technical», como antes: ampliarlo cambia
+    # qué se parece a qué y no es lo que se corrige acá.
+    technical_names = {
+        skill_key(skill.get("name")): skill
+        for skill in profile_skills
+        if normalize_text(skill.get("category")) == "technical"
+        and skill_key(skill.get("name"))
     }
     job_tech_names = [normalize_text(item) for item in job.get("tech_stack") or []]
     job_tech = [
@@ -55,7 +61,7 @@ def compute_company_score(
         semantic_hits = count_semantic_matches(
             [
                 skill
-                for name, skill in profile_names.items()
+                for name, skill in technical_names.items()
                 if name not in used_keys and skill.get("embedding") is not None
             ],
             [
