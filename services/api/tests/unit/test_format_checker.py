@@ -7,6 +7,7 @@ import pytest
 from app.services.ats_analyzer.format_checker import (
     check_cv_format,
     format_was_evaluated,
+    penalty_after_download,
 )
 
 
@@ -93,3 +94,31 @@ def test_a_cv_without_format_flags_was_not_evaluated(
     primary_cv: dict[str, Any], expected: bool
 ) -> None:
     assert format_was_evaluated(primary_cv) is expected
+
+
+def test_the_cv_built_in_jobby_has_no_tables_columns_or_images() -> None:
+    """El CV descargable es de una columna sin tablas ni imágenes (Decisión 26): esos
+    tres problemas son del archivo original y no pasan al documento que arma Jobby."""
+    flags = {
+        "has_tables": True,
+        "multi_column": True,
+        "has_images": True,
+        "headers": [],
+    }
+
+    assert sum(issue.penalty for issue in check_cv_format(_cv(flags))) == 30
+    assert penalty_after_download(check_cv_format(_cv(flags))) == 0
+
+
+def test_unusual_titles_and_an_unread_cv_still_cost_points_after_downloading() -> None:
+    # Jobby no sabe cómo va a titular la persona sus secciones, ni qué decía un CV que
+    # no pudo leer: no se promete que eso se arregla.
+    unusual = check_cv_format(_cv({"multi_column": True, "headers": ["Perfil"]}))
+    unread = check_cv_format({"parsed_data": None})
+
+    assert penalty_after_download(unusual) == 5
+    assert penalty_after_download(unread) == 20
+
+
+def test_there_is_nothing_to_discount_when_the_cv_has_no_issues() -> None:
+    assert penalty_after_download([]) == 0

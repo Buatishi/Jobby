@@ -2144,3 +2144,112 @@ clasificado como blanda o metodología (el nombre manda). Los nombres compuestos
 Excel, PowerPoint)», «Agile / Scrum») siguen sin partirse en componentes, así que «Excel» no
 coincide con el primero. El respaldo semántico compara contra el vector de todo el puesto y no
 contra cada tecnología, por lo que casi nunca suma (0 coincidencias en las comparaciones medidas).
+
+---
+
+## Decisión 36 — El formato descuenta una proporción del puntaje ATS, no puntos fijos
+
+**Estado:** Pedida por el autor el 2026-10-24 («El ATS siempre da cero aunque se cambie»). Cambio listo
+para revisión en un PR abierto; **no está mergeado**: mergearlo despliega la API (reinicia Render) y
+cambia el puntaje de los reportes ya calculados, que se rehacen la primera vez que se abren. El texto es
+un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-24, reporte guardado en producción y código; solo lectura, sin tocar el CV ni
+gastar el tope diario). El reporte del puesto «Software Engineer» (`b4038601…`, versión 3, calculado ese
+mismo día) tiene 11 keywords y solo Python cubierta: cobertura 1/11 = 9,09 %. Con los dos problemas de
+formato (varias columnas −10, imágenes −10) la cuenta era 9,09 − 20 = −10,9, y `max(0, …)` lo mostraba
+como 0.
+
+- **Los −20 son ciertos.** El CV principal (subido el 22-oct, sin cambios desde entonces) tiene
+  `multi_column` e `has_images` en sus banderas: es una plantilla de dos columnas con foto. No es un
+  falso positivo del lector de PDF.
+- **El piso en 0 tapaba el progreso.** Con la resta fija, cubrir una keyword más seguía dando 0 (2/11 =
+  18 − 20) y hacían falta tres para ver un cambio; el piso actúa con toda cobertura menor a la
+  penalización. No es «siempre 0»: los otros dos reportes de la cuenta daban 4 (cobertura 24 %) y 47
+  (67 %), donde el piso no actuaba.
+- **El «0 → 0» del optimizador tiene dos causas.** (1) `score_after_optimization` solo sube una keyword
+  *semántica* que el texto nuevo nombra; las ausentes siguen ausentes (Decisión 24). En producción hay
+  **0 coincidencias semánticas en 55 keywords** (3 reportes, todos de esta cuenta), así que la cobertura
+  del «después» es la del «antes». (2) Seguía descontando el formato del archivo original aunque el
+  documento que arma Jobby (Decisión 26) es de una columna, sin tablas ni imágenes.
+- **Hipótesis del pedido, verificadas.** (a) Penalización + poca cobertura saturan en 0: **confirmada**.
+  (b) Keywords genéricas: **parcial**; 8 de las 11 son frases del aviso («Software maintenance»,
+  «Business analysis»…) que `required_skills` ya traía así y que el filtro de la Decisión 35 deja pasar a
+  propósito (descarta solo lo que seguro no es una habilidad); no se tocó. (c) Reporte servido de caché o
+  «después» sin el texto nuevo: **descartada**; el reporte guardado solo se sirve si la huella del CV
+  coincide (y el CV no había cambiado), y el «después» sí usa el texto nuevo, pero solo para promover
+  keywords semánticas.
+- **El umbral semántico (0,75) no es el problema.** Entre los 351 pares de las 27 skills del perfil,
+  ninguno lo alcanza (el más parecido, Git/GitHub, da 0,71; HTML/CSS, 0,70): acepta sinónimos y
+  traducciones, no tecnologías relacionadas. No se cambió.
+
+**Elegido.**
+- **Descuento proporcional** (`scoring.py`): puntaje = cobertura × (100 − penalización) / 100. Con
+  cobertura completa el formato resta exactamente los puntos publicados (100 → 90 con una tabla); sin
+  keywords sigue dando 100 − penalización; con poca cobertura resta proporcionalmente menos. Nunca da
+  menos que la regla anterior, y ahora cada keyword que se suma sube el número para todas las
+  penalizaciones publicadas (y arreglar un problema de formato también, si el CV cubre algo).
+- **El «después» del optimizador es el del CV que arma Jobby** (`format_checker.penalty_after_download`):
+  se perdonan las tablas, las columnas y las imágenes del archivo original; siguen restando los títulos no
+  habituales y un CV que no se pudo leer. La pantalla lo dice. Un test del frontend vigila que
+  `printable-cv-document.tsx` siga sin tablas, columnas ni imágenes: si deja de ser cierto, ese «después»
+  también.
+- **`ATS_REPORT_VERSION` pasa de 3 a 4** (Decisión 33): lo guardado con la resta fija se recalcula en la
+  próxima apertura.
+- **Textos**: la insignia pasa de «-10» a «-10%», una línea explica que cada problema descuenta ese
+  porcentaje de lo que sumaron las palabras clave, y las guías públicas dicen «10 %» en vez de «puntos»
+  (el número no cambia, `ATS_FORMAT_PENALTIES`). Un test ata esos textos a la fórmula del backend.
+
+**Medido con el reporte real** (estados reales de las 11 keywords; la misma función del código viejo y del
+nuevo):
+
+| Escenario | Antes | Ahora |
+|---|---|---|
+| Hoy: 1 de 11 keywords, −20 de formato | 0 | 7 |
+| El CV suma 1 keyword | 0 | 15 |
+| El CV suma 2 keywords | 7 | 22 |
+| El CV suma 3 keywords | 16 | 29 |
+| Se arregla el formato | 9 | 9 |
+| Formato arreglado + 1 keyword | 18 | 18 |
+| Formato arreglado + 3 keywords | 36 | 36 |
+
+Los otros dos reportes de la cuenta pasarían de 4 a 19 y de 47 a 53. Sin problemas de formato no cambia
+ningún puntaje.
+
+**Qué cambia para la persona.**
+- Los reportes guardados se rehacen la primera vez que se abren: cuentan para el tope diario (10 en el
+  plan gratuito), no vuelven a pedir las keywords a la IA y piden los vectores a OpenAI como siempre. El
+  puntaje de un CV con formato penalizado y poca cobertura sube de «0» a un número chico pero real.
+- En el optimizador, un CV de columnas o con foto muestra la mejora de pasar al documento de Jobby
+  (en este reporte, 7 → 9); no sube por palabras que el CV no respalda.
+
+**Lo que este cambio no resuelve** (propuestas aparte, sin aprobar): el reporte de ese puesto sigue bajo
+porque el CV de verdad no nombra 10 de las 11 keywords tal como el aviso las escribe.
+- **«English»** figura como faltante aunque el CV declara «Inglés» en sus idiomas: el ATS solo compara
+  skills, experiencias y estudios (límite ya anotado en la Decisión 35). Sumarlo llevaría este reporte de
+  7 a 15.
+- **Keywords genéricas** en inglés frente a un CV en español: «Software development» no se parece, para
+  el umbral, a «Desarrollé un pipeline en Python…».
+- **«Perfil»**, el título que usa el CV descargable, no está en `STANDARD_HEADERS` y resta 5 al
+  «después»; sumarlo a la lista es la propuesta ya anotada en la Decisión 34.
+
+**Decisiones que quedan en manos del autor.** Mergear (despliega y cambia puntajes); si el formato debe
+descontar un porcentaje (lo elegido) o seguir como puntos; y las tres propuestas de arriba.
+
+**Alternativas evaluadas.** (a) Mostrar el puntaje bruto negativo: confunde y no es un puntaje. (b) Un
+piso mayor que 0: es un número inventado que tampoco se mueve. (c) Dejar la resta y mostrar el desglose
+(«cobertura 9 %, formato −20»): informa pero el número sigue en 0. (d) Un promedio ponderado de cobertura
+y formato: cambia el significado de las penalizaciones publicadas más de lo necesario.
+
+**Lo que no cambia.** `render.yaml`, los workflows, las variables de entorno, las migraciones y los flujos
+de cobro. No se agregan dependencias.
+
+**Pruebas.** `tests/unit/test_ats_scoring.py` (el reporte real da 7 y no 0; cada keyword y cada problema
+arreglado suben el número; la cobertura completa pierde exactamente los puntos publicados; sin keywords
+queda como antes; nunca negativo), `test_format_checker.py` (`penalty_after_download`),
+`test_ats_reality.py` (un CV de columnas con foto: 40 → 50 en vez de 0 → 0), `test_ats_report_cache.py`
+(un reporte de la versión 3 se rehace con las mismas keywords y sin volver a la IA) y
+`test_cv_optimizer_verification.py`. Frontend: la insignia y la nota (`format-issues-card.test.tsx`), el
+texto del «después», el documento sin tablas, columnas ni imágenes y la fórmula de los textos públicos.
+Se verificó que los nuevos fallaban contra el código anterior (salvo las del documento sin tablas,
+columnas ni imágenes, que son una guardia: pasan antes y después a propósito).

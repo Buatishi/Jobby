@@ -54,6 +54,49 @@ describe("PrintableCVDocument", () => {
   });
 });
 
+describe("PrintableCVDocument format", () => {
+  // `ats_analyzer/format_checker.py` (`penalty_after_download`) da por hecho que este
+  // documento no tiene tablas, columnas ni imágenes: si alguna prueba de acá falla, esa
+  // lista y el «después» del optimizador dejaron de ser ciertos.
+  const full: PrintableCV = {
+    ...cv,
+    summary: "Resumen de ejemplo.",
+    educations: [
+      {
+        institution: "Instituto de ejemplo",
+        field_of_study: "Datos",
+        degree_level: "tecnicatura"
+      }
+    ],
+    certifications: [{ name: "Certificado de ejemplo", issuer: "Entidad" }]
+  };
+
+  it("is a single flow of text without images, tables or columns", () => {
+    const html = renderToStaticMarkup(<PrintableCVDocument cv={full} />);
+
+    expect(html).not.toMatch(/<(img|svg|picture|canvas|table|iframe)\b/);
+    expect(html).not.toMatch(/\b(columns-\d|grid|float-|flex-row|basis-)/);
+    expect(html).not.toContain("background-image");
+  });
+
+  it("prints every section with a title the ATS check recognizes", () => {
+    const html = renderToStaticMarkup(<PrintableCVDocument cv={full} />);
+    const titles = [...html.matchAll(/<h2[^>]*>([^<]+)<\/h2>/g)].map((match) =>
+      match[1].trim()
+    );
+
+    // «Perfil» no está en `STANDARD_HEADERS` y por eso sigue restando 5 al «después».
+    expect(titles).toEqual([
+      "Perfil",
+      "Experiencia",
+      "Educación",
+      "Habilidades",
+      "Idiomas",
+      "Certificaciones"
+    ]);
+  });
+});
+
 describe("DownloadCVPanel", () => {
   it("starts with a single download button", () => {
     const html = renderToStaticMarkup(<DownloadCVPanel />);

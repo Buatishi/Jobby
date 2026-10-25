@@ -28,6 +28,8 @@ describe("OptimizedCVResult", () => {
     expect(html).toContain("38");
     expect(html).toContain("50");
     expect(html).toContain("Solo cuenta lo que tu CV respalda.");
+    // El «después» es el del CV que arma Jobby, no el del archivo original.
+    expect(html).toContain("una columna, sin tablas ni imágenes");
   });
 
   it("warns about keywords the CV does not back", () => {

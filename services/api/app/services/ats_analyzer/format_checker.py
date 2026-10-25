@@ -1,6 +1,7 @@
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -8,6 +9,20 @@ class FormatIssue:
     code: str
     message: str
     penalty: int
+
+
+class _PenalizedIssue(Protocol):
+    @property
+    def code(self) -> str: ...
+
+    @property
+    def penalty(self) -> int: ...
+
+
+# Lo que no puede tener el CV que arma Jobby (Decisión 26): una sola columna, sin tablas
+# ni imágenes. Es lo que `printable-cv-document.tsx` garantiza y que un test del
+# frontend vigila: si el documento cambia, esta lista tiene que cambiar con él.
+_NOT_IN_THE_DOWNLOADABLE_CV = frozenset({"TABLES", "MULTI_COLUMN", "IMAGES"})
 
 
 STANDARD_HEADERS = {
@@ -41,6 +56,20 @@ def format_was_evaluated(primary_cv: dict[str, Any]) -> bool:
     parsed_data = primary_cv.get("parsed_data")
     return isinstance(parsed_data, dict) and isinstance(
         parsed_data.get("format_flags"), dict
+    )
+
+
+def penalty_after_download(issues: Iterable[_PenalizedIssue]) -> int:
+    """Puntos de formato que le quedan al CV si se arma con el documento de Jobby.
+
+    Solo se perdonan las tablas, las columnas y las imágenes del archivo original. Los
+    títulos no habituales y un CV que no se pudo leer siguen restando: Jobby no sabe
+    cómo va a titular la persona sus secciones ni qué decía un archivo ilegible.
+    """
+    return sum(
+        issue.penalty
+        for issue in issues
+        if issue.code not in _NOT_IN_THE_DOWNLOADABLE_CV
     )
 
 
