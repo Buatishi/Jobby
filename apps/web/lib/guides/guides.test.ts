@@ -169,6 +169,14 @@ describe("guide figures match the backend code", () => {
     }
   });
 
+  it("takes the format penalty off as a percentage of the keyword score", () => {
+    // Los textos públicos dicen «%»: el descuento es proporcional (Decisión 36), no
+    // puntos fijos que dejan en 0 a quien cubre poco.
+    const source = readService("ats_analyzer/scoring.py");
+
+    expect(source).toMatch(/coverage \* max\(0, 100 - penalty\) \/ 100/);
+  });
+
   it("uses the points of each keyword match", () => {
     const source = readService("ats_analyzer/scoring.py");
     const match = source.match(
@@ -195,9 +203,9 @@ describe("guide figures match the backend code", () => {
 
   it("writes the figures the newer guides cite", () => {
     const checklist = guideText(getGuide("cv-compatible-con-ats")!);
-    expect(checklist).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
+    expect(checklist).toContain(`${ATS_FORMAT_PENALTIES.TABLES} % si el CV tiene tablas`);
     expect(checklist).toContain(
-      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título`
+      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} % si algún título`
     );
 
     const analysis = guideText(getGuide("analizar-cv-con-ia")!);
@@ -225,9 +233,9 @@ describe("guide figures match the backend code", () => {
     }
 
     const ats = guideText(getGuide("que-es-un-ats")!);
-    expect(ats).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
+    expect(ats).toContain(`${ATS_FORMAT_PENALTIES.TABLES} % si el CV tiene tablas`);
     expect(ats).toContain(
-      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título`
+      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} % si algún título`
     );
     expect(ats).toContain("suma 0,5");
   });

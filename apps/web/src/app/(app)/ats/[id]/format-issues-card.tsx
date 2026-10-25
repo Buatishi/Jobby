@@ -60,9 +60,12 @@ export function FormatIssuesCard({ issues, evaluated }: FormatIssuesCardProps) {
                   <X className="h-5 w-5 text-destructive" />
                   <p className="font-medium">{issue.message}</p>
                 </div>
-                <Badge variant="outline">-{issue.penalty}</Badge>
+                <Badge variant="outline">-{issue.penalty}%</Badge>
               </div>
             ))}
+            <p className="text-xs text-muted-foreground">
+              {t("app.atsFormatPenaltyHint")}
+            </p>
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-2xl border border-border p-4">

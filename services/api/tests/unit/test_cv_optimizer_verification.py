@@ -106,7 +106,8 @@ def test_the_score_after_counts_only_verified_keywords() -> None:
 
     # Después: Power BI pasa a literal (2 sobre 4 = 50); Kubernetes sigue ausente.
     assert score_after_optimization(sections, MATCHES, penalty=0) == 50
-    assert score_after_optimization(sections, MATCHES, penalty=10) == 40
+    # El formato descuenta una parte de lo cubierto (Decisión 36): 10 % de 50 = 5.
+    assert score_after_optimization(sections, MATCHES, penalty=10) == 45
 
 
 class _OneCallGateway:
