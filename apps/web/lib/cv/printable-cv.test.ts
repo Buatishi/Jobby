@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyOptimizedSections,
+  formatPeriod,
   splitSkills,
   type PrintableCV
 } from "@/lib/cv/printable-cv";
@@ -112,5 +113,33 @@ describe("splitSkills", () => {
       "Power BI",
       "Excel"
     ]);
+  });
+});
+
+
+describe("formatPeriod", () => {
+  it("writes the month in Spanish and the year", () => {
+    expect(formatPeriod("2021-03-01", "2021-08-01", false)).toBe("Mar 2021 – Ago 2021");
+    expect(formatPeriod("2024-12", "2025-06", false)).toBe("Dic 2024 – Jun 2025");
+  });
+
+  it("closes a current period with Actualidad", () => {
+    expect(formatPeriod("2025-06-01", null, true)).toBe("Jun 2025 – Actualidad");
+    expect(formatPeriod(null, null, true)).toBe("Actualidad");
+  });
+
+  it("keeps a bare year as a year", () => {
+    expect(formatPeriod("2020", null, true)).toBe("2020 – Actualidad");
+    expect(formatPeriod("2018", "2020", false)).toBe("2018 – 2020");
+  });
+
+  it("prints one date when only one is known", () => {
+    expect(formatPeriod("2026-03-01", null, false)).toBe("Mar 2026");
+    expect(formatPeriod(null, "2026-03-01", false)).toBe("Mar 2026");
+  });
+
+  it("returns nothing without dates and keeps text it cannot read", () => {
+    expect(formatPeriod(null, null, false)).toBe("");
+    expect(formatPeriod("Marzo 2021", "2026-13-01", false)).toBe("Marzo 2021 – 2026-13-01");
   });
 });

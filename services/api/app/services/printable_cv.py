@@ -108,6 +108,9 @@ def build_printable_cv(
                 institution=_text(item.get("institution")),
                 field_of_study=_text(item.get("field_of_study")) or None,
                 degree_level=_text(item.get("degree_level")) or None,
+                started_at=_text(item.get("started_at")) or None,
+                ended_at=_text(item.get("ended_at")) or None,
+                is_ongoing=bool(item.get("is_ongoing")),
             )
             for item in _rows_or_parsed(educations, parsed_data, "educations")
         ],
