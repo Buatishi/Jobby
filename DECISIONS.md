@@ -2297,10 +2297,15 @@ puntaje ATS) casi no existe: lo que sí chocaba era el título «Perfil» y el e
   negativo no corra el mes; lo que no es una fecha reconocible se imprime como lo escribió la persona.
 - **Tipografía:** la del sitio (Montserrat, `font-sans`). No se agregó otra familia.
 
-**Verificado con el documento real** (el componente renderizado, con el CSS de Tailwind y Montserrat de
-Google Fonts, impreso con Chrome): **una página**, sin columnas, imágenes ni tablas según el lector de
-Jobby, texto en orden de lectura (el nombre completo, luego cargo y contacto, resumen, habilidades…),
-también con empresas, cargos y estudios escritos en mayúsculas. Los datos de prueba son ficticios.
+**Verificado con el documento real** (el componente dentro de la app con `next dev`, con el patrón del panel:
+vista previa más portal `.printable-cv` en `body`, impreso con Chrome): se aplica la **Montserrat variable de
+`next/font`** (100-900, cargada) tanto a la vista previa como al portal, porque la clase de la fuente está
+en `<body>` y el portal es hijo de `body`; el PDF solo embebe Montserrat, sin Arial ni la fuente de respaldo.
+El lector de Jobby da **una página**, sin columnas, imágenes ni tablas, texto en orden de lectura (el nombre
+completo, luego cargo y contacto, resumen, habilidades…). Con empresas, cargos y estudios escritos en
+mayúsculas se probó aparte, con el componente suelto y Montserrat de Google Fonts, y también salió limpio.
+Los datos de prueba son ficticios. Los prototipos previos a la decisión usaron Arial y solo sirvieron para
+las columnas.
 
 **Qué cambia para la persona.** Habilidades pasa antes de Experiencia; el resumen se imprime sin título;
 las fechas se ven como en los diseños y la educación las muestra; el nombre se ve más grande y centrado.
