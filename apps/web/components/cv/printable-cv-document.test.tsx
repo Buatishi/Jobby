@@ -127,7 +127,7 @@ describe("PrintableCVDocument", () => {
   it("puts the skills in a single centered paragraph", () => {
     const html = render(full);
 
-    expect(html).toMatch(/<p class="[^"]*\btext-center\b[^"]*">Python · SQL<\/p>/);
+    expect(html).toMatch(/<p class="[^"]*\btext-center\b[^"]*">Python\u00a0· SQL<\/p>/);
   });
 
   it("puts each job's period on the right of the company and the role below", () => {

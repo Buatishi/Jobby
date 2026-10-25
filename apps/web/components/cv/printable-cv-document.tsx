@@ -8,6 +8,9 @@ import { formatPeriod, type PrintableCV } from "@/lib/cv/printable-cv";
 const SECTION = "mt-4 border-t border-black pt-3";
 const TITLE = "mb-2 text-center text-[10.5pt] font-bold uppercase tracking-[0.04em]";
 const ENTRY_ROW = "flex items-baseline justify-between gap-4";
+// El espacio antes del punto no se parte: si el renglón se corta, el punto queda al
+// final de una línea y no al principio de la siguiente.
+const LIST_SEPARATOR = "\u00a0· ";
 
 function Title({ children }: { children: string }) {
   return <h2 className={TITLE}>{children}</h2>;
@@ -42,7 +45,7 @@ export function PrintableCVDocument({ cv }: { cv: PrintableCV }) {
       {cv.skills.length > 0 ? (
         <section className={SECTION}>
           <Title>Habilidades</Title>
-          <p className="text-center [text-wrap:balance]">{cv.skills.join(" · ")}</p>
+          <p className="text-center [text-wrap:balance]">{cv.skills.join(LIST_SEPARATOR)}</p>
         </section>
       ) : null}
 
@@ -120,7 +123,7 @@ export function PrintableCVDocument({ cv }: { cv: PrintableCV }) {
               .map((language) =>
                 language.level ? `${language.name} (${language.level})` : language.name
               )
-              .join(" · ")}
+              .join(LIST_SEPARATOR)}
           </p>
         </section>
       ) : null}
