@@ -2,6 +2,7 @@
 
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.database import get_supabase_client
@@ -14,7 +15,7 @@ from app.services.cv_parser.ai_structurer import (
 )
 from app.services.cv_parser.merge_logic import merge_structured_cv_data
 from app.services.printable_cv import build_printable_cv
-from tests.fakes import FakeSupabase
+from tests.fakes import FakeSupabase, FakeTableQuery
 
 PARSED_DATA: dict[str, Any] = {
     "contact": {
@@ -108,6 +109,48 @@ def test_the_confirmed_profile_wins_over_the_cv_text() -> None:
     assert [item.title for item in cv.experiences] == ["Después", "Antes", "Sin fecha"]
 
 
+def test_an_education_keeps_its_dates_and_whether_it_is_ongoing() -> None:
+    cv = _build(
+        educations=[
+            {
+                "institution": "Universidad de ejemplo",
+                "field_of_study": "Administración",
+                "started_at": "2020-03-01",
+                "ended_at": None,
+                "is_ongoing": True,
+            },
+            {
+                "institution": "Centro de ejemplo",
+                "field_of_study": "Recursos Humanos",
+                "started_at": "2021-03-01",
+                "ended_at": "2021-08-01",
+                "is_ongoing": False,
+            },
+        ]
+    )
+
+    ongoing, finished = cv.educations
+    assert (ongoing.started_at, ongoing.ended_at, ongoing.is_ongoing) == (
+        "2020-03-01",
+        None,
+        True,
+    )
+    assert (finished.started_at, finished.ended_at, finished.is_ongoing) == (
+        "2021-03-01",
+        "2021-08-01",
+        False,
+    )
+
+
+def test_an_education_read_from_the_cv_without_dates_has_none() -> None:
+    # El lector de CV no siempre trae fechas: no se inventan ni se rellenan.
+    [education] = _build().educations
+
+    assert education.field_of_study == "Programación"
+    assert (education.started_at, education.ended_at) == (None, None)
+    assert education.is_ongoing is False
+
+
 def test_the_header_falls_back_to_the_account_and_the_profile() -> None:
     cv = _build(
         profile={"headline": None, "linkedin_url": "https://linkedin.com/in/demo"},
@@ -156,3 +199,64 @@ def test_the_endpoint_returns_only_the_callers_profile(client: TestClient) -> No
     assert body["contact"]["full_name"] == "Lucía Ferreyra"
     assert body["headline"] == "Backend Engineer"
     assert body["skills"] == ["Python"]
+
+
+def test_the_endpoint_returns_the_dates_of_each_education(client: TestClient) -> None:
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["educations"].append(
+        {
+            "profile_id": "profile-1",
+            "institution": "Universidad de ejemplo",
+            "field_of_study": "Administración",
+            "started_at": "2020-03-01",
+            "ended_at": None,
+            "is_ongoing": True,
+        }
+    )
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    body = client.get("/api/v1/profiles/cv").json()
+
+    assert body["educations"] == [
+        {
+            "institution": "Universidad de ejemplo",
+            "field_of_study": "Administración",
+            "degree_level": None,
+            "started_at": "2020-03-01",
+            "ended_at": None,
+            "is_ongoing": True,
+        }
+    ]
+
+
+def test_the_endpoint_asks_the_database_for_the_education_dates(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked: dict[str, str] = {}
+    original_select = FakeTableQuery.select
+
+    def recording_select(self: FakeTableQuery, columns: str) -> FakeTableQuery:
+        asked[self.table_name] = columns
+        return original_select(self, columns)
+
+    monkeypatch.setattr(FakeTableQuery, "select", recording_select)
+    fake_supabase = FakeSupabase()
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    assert client.get("/api/v1/profiles/cv").status_code == 200
+
+    # Sin estas columnas el fake devuelve la fila entera y el test de arriba pasaría
+    # igual; la base real solo devuelve lo que se le pide.
+    assert {"started_at", "ended_at", "is_ongoing"} <= set(
+        asked["educations"].split(",")
+    )

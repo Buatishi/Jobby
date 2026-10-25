@@ -139,6 +139,9 @@ class PrintableCVEducation(BaseModel):
     institution: str = ""
     field_of_study: str | None = None
     degree_level: str | None = None
+    started_at: str | None = None
+    ended_at: str | None = None
+    is_ongoing: bool = False
 
 
 class PrintableCVLanguage(BaseModel):
