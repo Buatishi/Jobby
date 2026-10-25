@@ -2253,3 +2253,78 @@ queda como antes; nunca negativo), `test_format_checker.py` (`penalty_after_down
 texto del «después», el documento sin tablas, columnas ni imágenes y la fórmula de los textos públicos.
 Se verificó que los nuevos fallaban contra el código anterior (salvo las del documento sin tablas,
 columnas ni imágenes, que son una guardia: pasan antes y después a propósito).
+
+---
+
+## Actualización — Decisión 26 (2026-10-25): el CV descargable toma la distribución de los CV de referencia
+
+**Estado:** Pedido por el autor el 2026-10-24 («que quede de esta manera el CV optimizado, con este
+cuerpo, distribución e información clara», con dos diseños de Canva) y enfoque aprobado el 2026-10-25:
+una sola columna, Montserrat, títulos estándar, habilidades en una línea centrada, nombre con espaciado
+moderado y fechas de educación. Cambio listo para revisión en un PR abierto **apilado sobre el de la
+Decisión 36**: se mergea después de ese. **No está mergeado.** El texto es un borrador redactado con
+asistencia de IA que el autor revisa y hace suyo.
+
+**Qué mostraban los diseños** (leídos con el conector de Canva; de uno solo se tomó la estructura, no
+ningún dato). Los dos son de **una columna, solo texto y sin imágenes**: nombre centrado, una línea de
+contacto, reglas finas entre secciones, títulos centrados en mayúsculas y negrita, experiencia con la
+empresa a la izquierda y el período a la derecha, el cargo debajo y viñetas, y educación con título,
+período a la derecha e institución debajo. La tensión que preocupaba (columnas e imágenes frente al
+puntaje ATS) casi no existe: lo que sí chocaba era el título «Perfil» y el espaciado del nombre.
+
+**Medido antes de programar** (prototipos con datos ficticios impresos a PDF con Chrome y leídos por
+`pdf_layout.read_layout` y `check_cv_format` reales):
+- Las fechas a la derecha y una grilla de habilidades de tres columnas **no** se cuentan como columnas.
+- El nombre con el espaciado del diseño (0,35 em) se lee como **«L U C Í A  F E R R E Y R A»**; con
+  0,06 em se lee entero. Un ATS que no encuentra el nombre falla antes que cualquier palabra clave.
+- «Perfil», «Experiencia profesional» o «Habilidades y competencias» no están en `STANDARD_HEADERS` y
+  restarían 5 (Decisión 34).
+
+**Elegido.**
+- **Distribución** (`printable-cv-document.tsx`): nombre en mayúsculas con espaciado de 0,06 em, cargo y
+  contacto centrados, resumen bajo el encabezado, y las secciones en el orden **Habilidades, Experiencia,
+  Educación, Idiomas, Certificaciones**, con una regla fina y el título centrado cada una. Habilidades e
+  idiomas en un solo párrafo centrado separado por « · ». Empresa y período en una fila (período a la
+  derecha), cargo debajo en peso normal, viñetas; las entradas no se parten entre páginas.
+- **Solo títulos estándar.** El resumen **no tiene título**: «Perfil» restaría 5 al volver a subir el PDF.
+  Sumarlo a `STANDARD_HEADERS` (y entonces volver a ponerlo) queda como decisión del autor.
+- **Fechas de educación.** La tabla `educations` ya guardaba `started_at`, `ended_at` e `is_ongoing`, pero
+  `GET /profiles/cv` no las pedía ni `PrintableCVEducation` las traía. Ahora sí (campos opcionales con
+  valor por defecto: la web nueva funciona con la API vieja y al revés); sin fechas no se imprime
+  ninguna, no se inventa un período.
+- **Formato de fechas** (`formatPeriod`): «Mar 2021 – Ago 2021», «Jun 2025 – Actualidad» (antes
+  «2026-03 – actualidad»). Se lee el texto y no se pasa por `Date`, para que una zona horaria con UTC
+  negativo no corra el mes; lo que no es una fecha reconocible se imprime como lo escribió la persona.
+- **Tipografía:** la del sitio (Montserrat, `font-sans`). No se agregó otra familia.
+
+**Verificado con el documento real** (el componente renderizado, con el CSS de Tailwind y Montserrat de
+Google Fonts, impreso con Chrome): **una página**, sin columnas, imágenes ni tablas según el lector de
+Jobby, texto en orden de lectura (el nombre completo, luego cargo y contacto, resumen, habilidades…),
+también con empresas, cargos y estudios escritos en mayúsculas. Los datos de prueba son ficticios.
+
+**Qué cambia para la persona.** Habilidades pasa antes de Experiencia; el resumen se imprime sin título;
+las fechas se ven como en los diseños y la educación las muestra; el nombre se ve más grande y centrado.
+Lo que el optimizador reescribe sigue entrando igual (`applyOptimizedSections` no cambió).
+
+**Límites conocidos.**
+- El PDF que genera Chrome nombra todas las variantes de Montserrat «Montserrat-Thin» (es una fuente
+  variable), así que el chequeo de títulos de Jobby no reconoce los de este PDF como títulos: al volver a
+  subirlo no resta, pero tampoco verifica los títulos. La prueba de que son estándar está en el test del
+  documento, que los compara con `STANDARD_HEADERS` leyendo el archivo de la API.
+- Las habilidades no se agrupan (Lenguajes, Plataformas…): `skills.category` no es confiable (Decisión 31).
+- Las certificaciones se imprimen sin fecha (la tabla tiene `issued_at`; no se pidió).
+- En el navegador con la ventana de impresión, el PDF depende del motor de cada navegador; se midió con
+  Chrome.
+
+**Decisiones que quedan en manos del autor.** Mergear (después de la Decisión 36); si quiere el título
+«Perfil» de vuelta (y entonces sumarlo a `STANDARD_HEADERS`); y si las certificaciones llevan fecha.
+
+**Lo que no cambia.** `render.yaml`, los workflows, las variables de entorno, las migraciones y los flujos
+de cobro. No se agregan dependencias.
+
+**Pruebas.** `test_printable_cv.py` (las fechas de educación pasan del perfil, no se inventan si el CV no
+las trae, y el endpoint las pide a la base), `lib/cv/printable-cv.test.ts` (`formatPeriod`) y
+`components/cv/printable-cv-document.test.tsx` (encabezado centrado, espaciado del nombre, resumen sin
+título, habilidades en un párrafo, períodos a la derecha, orden de secciones, títulos contra
+`STANDARD_HEADERS`, y la guardia de una sola columna sin imágenes ni tablas). Se verificó que los nuevos
+fallaban antes del cambio (4 en la API y 16 en la web).

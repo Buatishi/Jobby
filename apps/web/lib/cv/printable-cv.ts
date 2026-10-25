@@ -24,6 +24,9 @@ export type PrintableCV = {
     institution: string;
     field_of_study: string | null;
     degree_level: string | null;
+    started_at: string | null;
+    ended_at: string | null;
+    is_ongoing: boolean;
   }>;
   languages: Array<{ name: string; level: string | null }>;
   certifications: Array<{ name: string; issuer: string | null }>;
@@ -35,6 +38,48 @@ export type OptimizedSection = {
   rewritten_text: string;
   unverified_keywords?: string[];
 };
+
+const MONTHS = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic"
+];
+
+// Se lee el texto y no se pasa por Date: «2021-03-01» en una zona con UTC negativo
+// sería febrero. Lo que no es una fecha conocida se imprime tal cual lo escribió la
+// persona; vacío, no se imprime.
+function formatDate(value: string | null): string {
+  const text = value?.trim() ?? "";
+  const parts = text.match(/^(\d{4})(?:-(\d{2}))?(?:-\d{2})?$/);
+  if (!parts) {
+    return text;
+  }
+  const month = parts[2] ? Number(parts[2]) : 0;
+  if (month >= 1 && month <= 12) {
+    return `${MONTHS[month - 1]} ${parts[1]}`;
+  }
+  return parts[2] ? text : parts[1];
+}
+
+/** «Mar 2021 – Ago 2021», «Jun 2025 – Actualidad»; vacío si no hay fechas. */
+export function formatPeriod(
+  started: string | null,
+  ended: string | null,
+  isCurrent: boolean
+): string {
+  const start = formatDate(started);
+  const end = isCurrent ? "Actualidad" : formatDate(ended);
+  return start && end ? `${start} – ${end}` : start || end;
+}
 
 function squash(value: string): string {
   return value.replace(/\s+/g, " ").trim();
