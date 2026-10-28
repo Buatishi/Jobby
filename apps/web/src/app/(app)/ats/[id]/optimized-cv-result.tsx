@@ -42,7 +42,8 @@ export function OptimizedCVResult({
             </span>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Solo cuenta lo que tu CV respalda.
+            Solo cuenta lo que tu CV respalda. El «después» es el del CV que armás
+            en Jobby: una columna, sin tablas ni imágenes.
           </p>
         </div>
       ) : null}

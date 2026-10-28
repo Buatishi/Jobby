@@ -109,7 +109,7 @@ const queEsUnAts: Guide = {
         },
         {
           type: "paragraph",
-          text: `El segundo es el formato, que le resta puntos al resultado: ${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título de sección no es de los habituales.`
+          text: `El segundo es el formato, que le descuenta una parte a lo que sumaron las palabras clave: ${ATS_FORMAT_PENALTIES.TABLES} % si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} % si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} % si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} % si algún título de sección no es de los habituales.`
         },
         {
           type: "paragraph",
@@ -527,7 +527,7 @@ const cvCompatibleConAts: Guide = {
       blocks: [
         {
           type: "paragraph",
-          text: `En el análisis ATS de Jobby, el formato le resta puntos al resultado: ${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título de sección no es de los habituales. El reporte también te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no.`
+          text: `En el análisis ATS de Jobby, el formato le descuenta una parte a lo que sumaron las palabras clave: ${ATS_FORMAT_PENALTIES.TABLES} % si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} % si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} % si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} % si algún título de sección no es de los habituales. El reporte también te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no.`
         },
         {
           type: "paragraph",

@@ -54,7 +54,8 @@ export const FULL_RELEVANCE_PERCENT = 40;
 // `formula.py` (`_gap_origin`): por debajo de este valor un componente se marca como brecha.
 export const GAP_THRESHOLD_PERCENT = 70;
 
-// `ats_analyzer/format_checker.py`: puntos que resta cada problema de formato.
+// `ats_analyzer/format_checker.py`: porcentaje de lo cubierto que descuenta cada problema de
+// formato (`scoring.py`, Decisión 36).
 export const ATS_FORMAT_PENALTIES = {
   TABLES: 10,
   MULTI_COLUMN: 10,

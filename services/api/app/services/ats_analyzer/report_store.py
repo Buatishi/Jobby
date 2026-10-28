@@ -30,8 +30,10 @@ logger = logging.getLogger(__name__)
 # pesos): lo guardado con la regla vieja deja de servirse y se recalcula en la próxima
 # apertura. La 2 es la primera con el formato del PDF leído de verdad (Decisión 34): la
 # 1 daba siempre «sin problemas de formato». La 3 busca por palabra completa y solo
-# mide habilidades, sin nivel, modalidad, ciudad ni título (Decisión 35).
-ATS_REPORT_VERSION = 3
+# mide habilidades, sin nivel, modalidad, ciudad ni título (Decisión 35). La 4 descuenta
+# el formato en proporción a lo cubierto y ya no en puntos fijos que dejaban en 0 a los
+# CV de poca cobertura (Decisión 36).
+ATS_REPORT_VERSION = 4
 
 
 def cv_fingerprint(primary_cv: Mapping[str, Any]) -> str:

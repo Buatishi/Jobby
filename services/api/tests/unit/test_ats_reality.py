@@ -327,6 +327,66 @@ def test_ats_optimize_returns_rewritten_sections(
     assert body["ats_score_after"] == 0
 
 
+def test_the_score_after_does_not_charge_the_format_of_the_original_file(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un CV de columnas con foto (−20) daba «0 → 0»: el documento que arma Jobby es de
+    una columna y sin imágenes, así que ese formato no se le descuenta al «después»
+    (Decisión 36). La cobertura de keywords no cambia: sigue contando solo lo que el CV
+    respalda."""
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["job_descriptions"].append(
+        {"id": "job-1", "user_id": "user-1", "required_skills": [], "tech_stack": []}
+    )
+    fake_supabase.tables["uploaded_documents"].append(
+        {
+            "id": "doc-1",
+            "user_id": "user-1",
+            "type": "cv",
+            "is_primary": True,
+            "parsed_data": {
+                "skills": [{"name": "Python"}],
+                "format_flags": {
+                    "has_tables": False,
+                    "multi_column": True,
+                    "has_images": True,
+                    "headers": [],
+                },
+            },
+        }
+    )
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    async def fake_optimize(*_args: object, **_kwargs: object) -> list[object]:
+        return []
+
+    async def fake_analyze_keywords(
+        *_args: object,
+        **_kwargs: object,
+    ) -> ATSKeywordResult:
+        return ATSKeywordResult(
+            keywords=["Python", "Kubernetes"],
+            matches=[
+                KeywordMatch("Python", "literal", "Python"),
+                KeywordMatch("Kubernetes", "missing"),
+            ],
+        )
+
+    app.dependency_overrides[get_current_user] = _fake_premium_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
+    monkeypatch.setattr("app.api.v1.ats.analyze_keywords", fake_analyze_keywords)
+
+    body = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"}).json()
+
+    # Cobertura 50 %: el archivo original queda en 40 (−20 %); el CV de Jobby en 50.
+    assert body["ats_score_before"] == 40
+    assert body["ats_score_after"] == 50
+
+
 def test_a_semantic_match_counts_half_of_a_literal_one() -> None:
     matches = [
         KeywordMatch("python", "literal", "python"),

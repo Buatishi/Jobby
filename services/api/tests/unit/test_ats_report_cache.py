@@ -489,6 +489,33 @@ def test_a_report_saved_with_non_skill_keywords_is_recalculated_without_them(
     assert gateway.generate_calls == 1
 
 
+def test_a_report_saved_with_the_flat_penalties_is_recalculated(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    """La versión 3 restaba el formato en puntos fijos y dejaba en 0 a un CV de poca
+    cobertura (Decisión 36): al rehacerlo se aplica el descuento proporcional, con las
+    mismas keywords y sin volver a la IA."""
+    supabase = _world()
+    _serve(supabase)
+    supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"] = {
+        **NO_FORMAT_PROBLEMS,
+        "multi_column": True,
+        "has_images": True,
+    }
+    _open(client)
+
+    saved = supabase.tables["ats_reports"][0]
+    saved["report_version"] = 3
+    saved["ats_score"] = 0
+    response = _open(client)
+
+    assert response.status_code == 200
+    assert response.json()["ats_score"] == 40
+    assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
+    assert ATS_REPORT_VERSION > 3
+    assert gateway.generate_calls == 1
+
+
 def test_the_format_penalties_lower_the_score_of_a_cv_read_with_problems(
     client: TestClient, gateway: KeywordGateway
 ) -> None:
@@ -512,7 +539,9 @@ def test_the_format_penalties_lower_the_score_of_a_cv_read_with_problems(
         "NON_STANDARD_HEADERS": 5,
     }
     assert flagged["format_evaluated"] is True
-    assert flagged["ats_score"] == clean["ats_score"] - 25
+    # El formato descuenta un 25 % de lo que el CV cubre (Decisión 36): 50 -> 38.
+    assert flagged["ats_score"] == round(clean["ats_score"] * 0.75)
+    assert 0 < flagged["ats_score"] < clean["ats_score"]
 
 
 def test_a_cv_read_before_the_format_check_is_reported_as_not_evaluated(
@@ -563,7 +592,8 @@ def test_reading_the_same_cv_again_with_the_format_check_recalculates_the_report
     assert before["format_evaluated"] is False
     assert after["format_evaluated"] is True
     assert [issue["code"] for issue in after["format_issues"]] == ["TABLES"]
-    assert after["ats_score"] == before["ats_score"] - 10
+    # Una tabla descuenta el 10 % de lo cubierto (Decisión 36): 50 -> 45.
+    assert after["ats_score"] == round(before["ats_score"] * 0.9)
     assert _queries_spent(fake_redis) == 2
 
 

@@ -25,12 +25,13 @@ const es = dictionaries.es.app as Record<string, string>;
 const en = dictionaries.en.app as Record<string, string>;
 
 describe("FormatIssuesCard", () => {
-  it("lists each format issue with the points it costs", () => {
+  it("lists each format issue with the percentage it takes off", () => {
     const html = render({ issues, evaluated: true });
 
     expect(html).toContain("El CV usa múltiples columnas.");
     expect(html).toContain("El CV contiene imágenes.");
-    expect(html).toContain("-10");
+    expect(html).toContain("-10%");
+    expect(html).toContain(es.atsFormatPenaltyHint);
     expect(html).not.toContain(es.atsFormatNotEvaluatedTitle);
   });
 
@@ -54,6 +55,7 @@ describe("FormatIssuesCard", () => {
     for (const key of [
       "atsFormatTitle",
       "atsFormatClean",
+      "atsFormatPenaltyHint",
       "atsFormatNotEvaluatedTitle",
       "atsFormatNotEvaluatedHint"
     ]) {

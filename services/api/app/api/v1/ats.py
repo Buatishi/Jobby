@@ -20,6 +20,7 @@ from app.services.ats_analyzer.cv_optimizer import (
 from app.services.ats_analyzer.format_checker import (
     check_cv_format,
     format_was_evaluated,
+    penalty_after_download,
 )
 from app.services.ats_analyzer.keyword_matcher import analyze_keywords
 from app.services.ats_analyzer.report_store import (
@@ -226,7 +227,9 @@ async def optimize_ats_cv(
         ats_report.keyword_matches,
         "premium" if user_tier == "premium" else "free",
     )
-    penalty = sum(issue.penalty for issue in ats_report.format_issues)
+    # El «después» es el del CV que arma Jobby (una columna, sin tablas ni imágenes): no
+    # se le descuenta el formato del archivo original que esas secciones reemplazan.
+    penalty = penalty_after_download(ats_report.format_issues)
     return ATSOptimizeResponse(
         job_id=payload.job_id,
         sections=sections,
