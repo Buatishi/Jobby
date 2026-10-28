@@ -22,7 +22,14 @@ export function safeRedirectPath(
     if (url.origin !== PLACEHOLDER_ORIGIN) {
       return fallback;
     }
-    return `${url.pathname}${url.search}${url.hash}`;
+    const path = `${url.pathname}${url.search}${url.hash}`;
+    // Al normalizar se quitan los segmentos "." y "..": "/.//host" queda como "//host", que el navegador
+    // lee como una URL sin esquema y sale del sitio. Se vuelve a resolver el resultado para comprobar que
+    // sigue en el mismo origen, que es justo lo que asumen quienes lo usan.
+    if (new URL(path, PLACEHOLDER_ORIGIN).origin !== PLACEHOLDER_ORIGIN) {
+      return fallback;
+    }
+    return path;
   } catch {
     return fallback;
   }
