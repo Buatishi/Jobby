@@ -27,6 +27,9 @@ describe("auth callback route", () => {
   it.each([
     ["https://evil.example/phishing"],
     ["//evil.example"],
+    ["/.//evil.example"],
+    ["/a/..//evil.example"],
+    ["/%2e//evil.example"],
     ["/\u005cevil.example"]
   ])("never redirects to another site (next=%s)", async (next) => {
     const supabase = {
