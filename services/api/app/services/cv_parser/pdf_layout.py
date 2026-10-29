@@ -31,7 +31,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from statistics import median
-from typing import Any
+from typing import Any, Self
 
 from pdfplumber.page import Page
 
@@ -90,6 +90,30 @@ class FormatFlags:
             "has_images": self.has_images,
             "headers": list(self.headers),
         }
+
+    @classmethod
+    def from_dict(cls, data: object) -> Self:
+        """Lo inverso de `to_dict`; lanza `ValueError` si no tiene esa forma.
+
+        Las banderas llegan del proceso que lee el PDF: se validan en lugar de confiar
+        en lo que haya impreso.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("Las banderas de formato no tienen la forma esperada.")
+        flags = [data.get(key) for key in ("has_tables", "multi_column", "has_images")]
+        headers = data.get("headers")
+        if (
+            not all(isinstance(flag, bool) for flag in flags)
+            or not isinstance(headers, list)
+            or not all(isinstance(header, str) for header in headers)
+        ):
+            raise ValueError("Las banderas de formato no tienen la forma esperada.")
+        return cls(
+            has_tables=data["has_tables"],
+            multi_column=data["multi_column"],
+            has_images=data["has_images"],
+            headers=list(headers),
+        )
 
 
 @dataclass(frozen=True)
