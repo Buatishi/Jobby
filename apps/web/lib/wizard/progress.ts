@@ -70,6 +70,23 @@ export function saveWizardProgress(update: Partial<WizardProgress>) {
   return nextProgress;
 }
 
+/**
+ * Borra el avance guardado en el navegador. La clave es una sola para todas las cuentas y
+ * trae datos de la persona (habilidades leídas de su CV): al salir se descarta para que
+ * quien entre después en el mismo navegador no lo vea.
+ */
+export function clearWizardProgress() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(WIZARD_PROGRESS_KEY);
+  } catch {
+    // Con el almacenamiento bloqueado tampoco se pudo guardar nada que borrar.
+  }
+}
+
 export function startWizard() {
   window.localStorage.setItem(
     WIZARD_PROGRESS_KEY,
