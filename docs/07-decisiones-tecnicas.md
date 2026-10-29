@@ -77,10 +77,11 @@
 
 ## Autoría
 
-El proyecto fue desarrollado íntegramente por Bautista Giraud hasta la fecha de esta entrega:
-análisis, diseño, backend, frontend, base de datos, despliegue y documentación. Al 2026-09-21
-el repositorio tenía 102 commits desde el 2026-06-27, todos de ese único autor: los 42 de
-septiembre corresponden a este trimestre y los anteriores, a la base preexistente del proyecto.
+Bautista Giraud estuvo a cargo del análisis, el diseño, el backend, el frontend, la base de datos,
+el despliegue y la documentación. Natalia Blanco participó en parte de la documentación, en las
+ideas y en la solución de problemas del proyecto. Al 2026-09-21 el repositorio tenía 102 commits
+desde el 2026-06-27, todos de Bautista Giraud: los 42 de septiembre corresponden a este trimestre
+y los anteriores, a la base preexistente del proyecto.
 
 ## Uso de herramientas de inteligencia artificial
 

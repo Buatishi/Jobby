@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { DarkPanel } from "@/components/dark-panel";
 import { Button } from "@/components/ui/button";
+import { GUIDE_LINKS } from "@/lib/guides/links";
 import { useI18n } from "@/lib/i18n/provider";
 
 export function Closing() {
@@ -40,6 +41,21 @@ export function Closing() {
           </Link>
           <span>© 2026 Jobby</span>
         </div>
+        <nav
+          aria-label={t("landing.guides")}
+          className="w-full border-t border-brand-line pt-6"
+        >
+          <p className="font-semibold text-brand-ink">{t("landing.guides")}</p>
+          <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+            {GUIDE_LINKS.map((guide) => (
+              <li key={guide.slug}>
+                <Link className="hover:text-brand-ink" href={`/guias/${guide.slug}`}>
+                  {guide.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </footer>
     </>
   );

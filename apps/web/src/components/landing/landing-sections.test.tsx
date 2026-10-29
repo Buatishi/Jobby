@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { GUIDE_LINKS } from "@/lib/guides/links";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { Closing } from "@/src/components/landing/closing";
 import { Features } from "@/src/components/landing/features";
@@ -55,6 +56,16 @@ describe("landing sections", () => {
     expect(html).toContain(">Guías<");
     expect(html).toContain('href="/privacy"');
     expect(html).toContain('href="/terms"');
+  });
+
+  it("links every guide by name from the footer", () => {
+    const html = render(<Closing />);
+
+    for (const guide of GUIDE_LINKS) {
+      expect(html).toContain(`href="/guias/${guide.slug}"`);
+      expect(html).toContain(`>${guide.label}<`);
+    }
+    expect(html.match(/href="\/guias\//g)).toHaveLength(GUIDE_LINKS.length);
   });
 
   it("says in the footer what Jobby web is, with the words people search for", () => {
