@@ -1,9 +1,11 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
+// Google recomienda un favicon cuadrado de más de 48 px para mostrarlo en los resultados; el
+// navegador lo reduce solo en la pestaña. `favicon.ico` (16 a 96 px) cubre a quien pide ese archivo.
 export const size = {
-  width: 32,
-  height: 32
+  width: 96,
+  height: 96
 };
 export const contentType = "image/png";
 
@@ -14,10 +16,10 @@ export default function Icon() {
         style={{
           alignItems: "center",
           background: "#2BD48A",
-          borderRadius: 8,
+          borderRadius: 24,
           color: "#1D1D1B",
           display: "flex",
-          fontSize: 20,
+          fontSize: 60,
           fontWeight: 700,
           height: "100%",
           justifyContent: "center",

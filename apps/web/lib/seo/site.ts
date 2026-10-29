@@ -2,6 +2,9 @@
 // `public/robots.txt` es un archivo estático: si el dominio cambia hay que editarlo a mano.
 export const SITE_URL = "https://jobbyweb.vercel.app";
 export const SITE_NAME = "Jobby";
+// Otras formas en que se escribe y se busca el nombre: el dominio es «jobbyweb» y la gente
+// separa o junta las palabras. Van en `alternateName` de los datos estructurados de la home.
+export const SITE_ALTERNATE_NAMES = ["Jobby web", "JobbyWeb"];
 // Única dirección de contacto del proyecto: la usan términos, privacidad y `llms.txt` (este
 // último es estático, así que su `Contact:` se edita a mano y un test lo compara con esta).
 export const SITE_CONTACT_EMAIL = "developjobby@gmail.com";

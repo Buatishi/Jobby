@@ -12,6 +12,7 @@ import {
   MATCH_SCORE_WEIGHTS
 } from "@/lib/guides/facts";
 import { GUIDES, getGuide } from "@/lib/guides/guides";
+import { GUIDE_LINKS } from "@/lib/guides/links";
 import type { Guide } from "@/lib/guides/types";
 
 function readService(relativePath: string) {
@@ -49,6 +50,12 @@ describe("guides content", () => {
     for (const slug of slugs) {
       expect(slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
     }
+  });
+
+  it("has one footer link per guide, in the same order", () => {
+    expect(GUIDE_LINKS.map((link) => link.slug)).toEqual(
+      GUIDES.map((guide) => guide.slug)
+    );
   });
 
   it("finds a guide by slug and returns nothing for an unknown one", () => {
