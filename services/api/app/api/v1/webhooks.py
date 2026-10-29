@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request, status
 from redis.asyncio import Redis
@@ -28,6 +29,60 @@ async def _mark_processed(event_key: str) -> None:
     client = Redis.from_url(settings.redis_url, decode_responses=True)
     try:
         await client.set(event_key, "1", ex=PROCESSED_EVENT_TTL_SECONDS)
+    finally:
+        await client.aclose()
+
+
+def _as_datetime(version: str | bytes | None) -> datetime | None:
+    if isinstance(version, bytes):
+        version = version.decode(errors="replace")
+    if not version:
+        return None
+    try:
+        return datetime.fromisoformat(version)
+    except ValueError:
+        return None
+
+
+async def _is_stale(latest_key: str, version: str | None) -> bool:
+    """Si ya se aplicó un aviso más nuevo de esta misma suscripción.
+
+    Sin esto, un aviso que falló y LemonSqueezy reintenta más tarde se aplicaba encima
+    de uno posterior: cancelar falla, se reanuda, llega el reintento de cancelar y
+    quedaba cancelada una suscripción reanudada. Los avisos traen el estado completo,
+    así que el más nuevo reemplaza al viejo. Una versión que no es una fecha no se
+    compara.
+    """
+    incoming = _as_datetime(version)
+    if incoming is None:
+        return False
+    client = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        stored = await client.get(latest_key)
+    finally:
+        await client.aclose()
+    latest = _as_datetime(stored)
+    if latest is None:
+        return False
+    try:
+        return incoming < latest
+    except TypeError:  # una con zona horaria y la otra sin: no se pueden comparar
+        return False
+
+
+async def _remember_version(latest_key: str, version: str | None) -> None:
+    incoming = _as_datetime(version)
+    if incoming is None or version is None:
+        return
+    client = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        latest = _as_datetime(await client.get(latest_key))
+        try:
+            is_newer = latest is None or incoming > latest
+        except TypeError:
+            is_newer = True
+        if is_newer:
+            await client.set(latest_key, version, ex=PROCESSED_EVENT_TTL_SECONDS)
     finally:
         await client.aclose()
 
@@ -85,11 +140,13 @@ async def lemonsqueezy_webhook(request: Request) -> dict[str, str]:
     # versión del objeto (`updated_at`) los distingue, y un reintento del mismo evento
     # trae la misma versión.
     attributes = data.get("attributes")
-    version = attributes.get("updated_at") if isinstance(attributes, dict) else None
-    if isinstance(version, str) and version:
+    raw_version = attributes.get("updated_at") if isinstance(attributes, dict) else None
+    version = raw_version if isinstance(raw_version, str) and raw_version else None
+    if version:
         event_key = f"{event_key}:{version}"
+    latest_key = f"lemonsqueezy:webhook:latest:{event_name}:{data_id or 'unknown'}"
     try:
-        if await _was_processed(event_key):
+        if await _was_processed(event_key) or await _is_stale(latest_key, version):
             return {"status": "ok"}
     except Exception as exc:
         # Sin Redis se procesa igual: repetir un evento solo vuelve a escribir el plan.
@@ -113,6 +170,7 @@ async def lemonsqueezy_webhook(request: Request) -> dict[str, str]:
     # Se marca recién ahora, cuando el evento ya quedó aplicado.
     try:
         await _mark_processed(event_key)
+        await _remember_version(latest_key, version)
     except Exception as exc:
         capture_exception(exc)
 
