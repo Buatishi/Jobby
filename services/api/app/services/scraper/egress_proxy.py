@@ -194,7 +194,7 @@ class EgressProxy:
             raw_head = await asyncio.wait_for(
                 reader.readuntil(b"\r\n\r\n"), timeout=HEAD_TIMEOUT_SECONDS
             )
-            request = _parse_request(raw_head)
+            parsed = _parse_request(raw_head)
         except (
             _BadRequestError,
             asyncio.IncompleteReadError,
@@ -206,22 +206,22 @@ class EgressProxy:
             return None
 
         try:
-            if request.port not in self._allowed_ports:
+            if parsed.port not in self._allowed_ports:
                 raise UnsafeUrlError("Solo se permiten los puertos web estándar.")
-            addresses = await self._resolve(request.host, request.port)
+            addresses = await self._resolve(parsed.host, parsed.port)
         except UnsafeUrlError:
             await self._reply(writer, 403)
             return None
 
-        upstream = await self._connect(addresses, request.port)
+        upstream = await self._connect(addresses, parsed.port)
         if upstream is None:
             await self._reply(writer, 502)
             return None
 
-        if request.is_connect:
+        if parsed.is_connect:
             writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         else:
-            upstream[1].write(request.head)
+            upstream[1].write(parsed.head)
         await writer.drain()
         await upstream[1].drain()
         return upstream
