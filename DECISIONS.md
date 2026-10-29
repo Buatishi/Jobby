@@ -2144,3 +2144,34 @@ clasificado como blanda o metodología (el nombre manda). Los nombres compuestos
 Excel, PowerPoint)», «Agile / Scrum») siguen sin partirse en componentes, así que «Excel» no
 coincide con el primero. El respaldo semántico compara contra el vector de todo el puesto y no
 contra cada tecnología, por lo que casi nunca suma (0 coincidencias en las comparaciones medidas).
+
+---
+
+## Actualización — Decisión 30 (2026-10-28): enlaces a las guías, alias del nombre y favicon
+
+**Estado:** Pedido por el autor (seguir ampliando las búsquedas en las que aparece el sitio, con
+el dominio actual); el texto exacto se mostró antes de implementarlo y la aprobación final es la
+revisión del PR.
+
+**Medición (Search Console y Bing Webmaster, 2026-10-28).** De las 13 URLs del sitemap, Google
+indexó 1 (la home) y deja las otras 12 en «Descubierta: actualmente sin indexar»: las conoce pero
+no las rastreó, es decir, hay poca demanda de rastreo y no un error del sitio. Googlebot pidió
+`/favicon.ico` dos veces (15 y 27 de octubre) y recibió 404; el ícono declarado medía 32 px y la
+guía de Google recomienda un favicon cuadrado de más de 48 px. «Solicitar indexación» respondió
+«Cuota superada» en tres intentos; no hay forma documentada de ampliar ese cupo.
+
+**Elegido.**
+- Pie de la home: una lista con las ocho guías, cada una con su nombre como texto del enlace.
+  Las etiquetas viven en `lib/guides/links.ts` y no en `guides.ts` porque el pie es un componente
+  de cliente y importar las guías metería su texto completo en el JavaScript de la home; un test
+  comprueba que haya un enlace por guía y en el mismo orden.
+- `alternateName` de `WebSite` y `WebApplication`: «Jobby web» y «JobbyWeb» (`SITE_ALTERNATE_NAMES`
+  en `lib/seo/site.ts`). El dominio es `jobbyweb`, así que el nombre se busca junto y separado.
+- Favicon: `src/app/favicon.ico` con imágenes de 96, 48, 32 y 16 px (la más grande primero, porque
+  Next copia el tamaño de la primera entrada en `<link sizes>`) y `icon.tsx` generado a 96 px. Un
+  test lee el encabezado del ICO y el tamaño declarado.
+
+**Límites.** Ninguno de los tres cambios hace que Google rastree antes: lo que más pesa sigue
+siendo que otros sitios enlacen al nuestro. El favicon solo afecta al ícono junto al resultado,
+nada indica que influya en la indexación ni en la posición. «JobbyWeb» es una pista para Google,
+no una garantía de que lo tome como nombre.
