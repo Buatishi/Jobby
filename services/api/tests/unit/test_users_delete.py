@@ -99,3 +99,25 @@ def test_delete_current_user_uses_the_real_cv_bucket_and_registered_paths(
     # Regresión: antes se vaciaba el bucket huérfano "cv-docs" y los CV quedaban.
     assert fake_supabase.storage.requested_buckets == {"cv-documents"}
     assert fake_supabase.storage.files == {"auth-user-2/cv.pdf": b"%PDF-1.4 fake"}
+
+
+def test_delete_current_user_removes_every_file_past_the_first_page(
+    client: TestClient,
+) -> None:
+    """`list()` devuelve 100 entradas por llamada: sin paginar, el resto quedaba."""
+    fake_supabase = FakeSupabase()
+    for index in range(230):
+        path = f"auth-user-1/cv-{index:03d}.pdf"
+        fake_supabase.storage.files[path] = b"%PDF-1.4 fake"
+    fake_supabase.storage.files["auth-user-2/cv.pdf"] = b"%PDF-1.4 fake"
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.delete("/api/v1/users/me")
+
+    assert response.status_code == 204
+    assert fake_supabase.storage.files == {"auth-user-2/cv.pdf": b"%PDF-1.4 fake"}

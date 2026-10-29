@@ -326,7 +326,9 @@ class FakeStorageBucket:
     async def download(self, storage_path: str) -> bytes:
         return self.storage.files[storage_path]
 
-    async def list(self, path: str) -> list[dict[str, Any]]:
+    async def list(
+        self, path: str, options: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
         prefix = f"{path.strip('/')}/"
         names: set[str] = set()
         for storage_path in self.storage.files:
@@ -335,13 +337,18 @@ class FakeStorageBucket:
             remainder = storage_path.removeprefix(prefix)
             first_segment = remainder.split("/", 1)[0]
             names.add(first_segment)
-        return [
+        entries = [
             {
                 "name": name,
                 "metadata": {} if "." in name else None,
             }
             for name in sorted(names)
         ]
+        # Como el Storage real (storage3): 100 entradas por llamada salvo que se pida
+        # otra página con `limit` y `offset`.
+        limit = int((options or {}).get("limit", 100))
+        offset = int((options or {}).get("offset", 0))
+        return entries[offset : offset + limit]
 
     async def remove(self, storage_paths: list[str]) -> list[dict[str, str]]:
         removed = []

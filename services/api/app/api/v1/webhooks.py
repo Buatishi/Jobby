@@ -80,6 +80,14 @@ async def lemonsqueezy_webhook(request: Request) -> dict[str, str]:
         custom_data = {}
 
     event_key = f"lemonsqueezy:webhook:{event_name}:{data_id or 'unknown'}"
+    # Cancelar y reanudar una suscripción mandan dos `subscription_updated` con el mismo
+    # id: con solo evento + id el segundo se tomaba por repetido y se descartaba. La
+    # versión del objeto (`updated_at`) los distingue, y un reintento del mismo evento
+    # trae la misma versión.
+    attributes = data.get("attributes")
+    version = attributes.get("updated_at") if isinstance(attributes, dict) else None
+    if isinstance(version, str) and version:
+        event_key = f"{event_key}:{version}"
     try:
         if await _was_processed(event_key):
             return {"status": "ok"}

@@ -184,3 +184,85 @@ def test_a_retry_after_a_failure_is_processed(
     assert (failed.status_code, retried.status_code) == (500, 200)
     assert len(attempts) == 2
     assert "lemonsqueezy:webhook:subscription_created:sub_123" in fake_redis.values
+
+
+def _signed_update(
+    monkeypatch: pytest.MonkeyPatch, status: str, updated_at: str | None
+) -> tuple[bytes, dict[str, str]]:
+    secret = "test-secret"
+    monkeypatch.setattr(settings, "lemonsqueezy_webhook_secret", secret)
+    attributes: dict[str, Any] = {"status": status}
+    if updated_at is not None:
+        attributes["updated_at"] = updated_at
+    payload = {
+        "meta": {
+            "event_name": "subscription_updated",
+            "custom_data": {"user_id": "u1"},
+        },
+        "data": {"id": "sub_123", "attributes": attributes},
+    }
+    raw_payload = json.dumps(payload).encode()
+    return raw_payload, {"X-Signature": _signature(raw_payload, secret)}
+
+
+def test_two_updates_of_one_subscription_are_both_applied(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, fake_redis: FakeRedis
+) -> None:
+    """Cancelar y reanudar mandan dos `subscription_updated` con el mismo id.
+
+    La marca era solo evento + id: el segundo se descartaba como repetido y quien había
+    reanudado se quedaba en el plan gratuito. Ahora la marca incluye la versión del
+    evento.
+    """
+    handled: list[str] = []
+
+    async def fake_handle(
+        _event: str, data: dict[str, Any], _custom: dict[str, Any]
+    ) -> None:
+        handled.append(data["attributes"]["status"])
+
+    monkeypatch.setattr("app.api.v1.webhooks.handle_webhook_event", fake_handle)
+    cancelled = _signed_update(monkeypatch, "cancelled", "2026-10-28T10:00:00.000000Z")
+    resumed = _signed_update(monkeypatch, "active", "2026-10-28T12:30:00.000000Z")
+
+    for raw_payload, headers in (cancelled, resumed):
+        response = client.post(
+            "/api/v1/webhooks/lemonsqueezy", content=raw_payload, headers=headers
+        )
+        assert response.status_code == 200
+
+    assert handled == ["cancelled", "active"]
+
+
+def test_the_same_update_delivered_twice_is_applied_once(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, fake_redis: FakeRedis
+) -> None:
+    handled: list[str] = []
+
+    async def fake_handle(
+        _event: str, data: dict[str, Any], _custom: dict[str, Any]
+    ) -> None:
+        handled.append(data["attributes"]["status"])
+
+    monkeypatch.setattr("app.api.v1.webhooks.handle_webhook_event", fake_handle)
+    raw_payload, headers = _signed_update(
+        monkeypatch, "cancelled", "2026-10-28T10:00:00.000000Z"
+    )
+
+    for _ in range(2):
+        client.post(
+            "/api/v1/webhooks/lemonsqueezy", content=raw_payload, headers=headers
+        )
+
+    assert handled == ["cancelled"]
+
+
+def test_a_non_ascii_signature_is_just_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`compare_digest` con texto no ASCII lanzaba TypeError y la API respondía 500."""
+    from app.services.lemonsqueezy_service import verify_webhook_signature
+
+    monkeypatch.setattr(settings, "lemonsqueezy_webhook_secret", "test-secret")
+
+    assert verify_webhook_signature(b"{}", "firma-inválida-é") is False
