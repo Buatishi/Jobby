@@ -129,7 +129,8 @@ def verify_webhook_signature(raw_body: bytes, signature: str) -> bool:
         msg=raw_body,
         digestmod=hashlib.sha256,
     ).hexdigest()
-    return hmac.compare_digest(digest, signature)
+    # En bytes: `compare_digest` con texto no ASCII lanza TypeError y la API daba 500.
+    return hmac.compare_digest(digest.encode(), signature.encode())
 
 
 def _user_id(custom_data: dict[str, Any]) -> str | None:

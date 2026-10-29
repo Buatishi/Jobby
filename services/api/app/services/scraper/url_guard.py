@@ -13,6 +13,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 MAX_URL_LENGTH = 2048
+# Plazo para resolver el nombre de host de una URL que eligió la persona. Sin él, un DNS
+# que nunca responde dejaba la petición esperando lo que tardara el sistema.
+DNS_TIMEOUT_SECONDS = 5.0
 _ALLOWED_SCHEMES = {"http", "https"}
 _ALLOWED_PORTS = {None, 80, 443}
 _BLOCKED_HOST_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home.arpa")
@@ -44,10 +47,36 @@ def _is_ip_literal(host: str) -> bool:
 async def _resolve(host: str, port: int) -> list[str]:
     loop = asyncio.get_running_loop()
     try:
-        infos = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        infos = await asyncio.wait_for(
+            loop.getaddrinfo(host, port, type=socket.SOCK_STREAM),
+            timeout=DNS_TIMEOUT_SECONDS,
+        )
+    except TimeoutError as exc:
+        raise UnsafeUrlError(
+            "El host de la URL tardó demasiado en resolverse."
+        ) from exc
     except socket.gaierror as exc:
         raise UnsafeUrlError("No se pudo resolver el host de la URL.") from exc
     return [str(info[4][0]) for info in infos]
+
+
+async def resolve_public_addresses(host: str, port: int) -> list[str]:
+    """Las IP de un host, solo si TODAS son públicas; si no, `UnsafeUrlError`.
+
+    Es lo que usa el proxy de salida del navegador (`egress_proxy`): resuelve una sola
+    vez y conecta a las direcciones que devuelve esta función, sin una segunda consulta
+    que un DNS malicioso pueda contestar distinto.
+    """
+    host = host.lower()
+    if not host:
+        raise UnsafeUrlError("La URL no tiene host.")
+    if host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
+        raise UnsafeUrlError("El host de la URL no es público.")
+
+    addresses = [host] if _is_ip_literal(host) else await _resolve(host, port)
+    if not addresses or not all(_is_public_address(address) for address in addresses):
+        raise UnsafeUrlError("El host de la URL no es público.")
+    return addresses
 
 
 async def ensure_public_http_url(url: str) -> str:
@@ -70,15 +99,8 @@ async def ensure_public_http_url(url: str) -> str:
         raise UnsafeUrlError("El puerto de la URL no es válido.") from exc
     if port not in _ALLOWED_PORTS:
         raise UnsafeUrlError("Solo se permiten los puertos web estándar.")
-    if host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
-        raise UnsafeUrlError("El host de la URL no es público.")
 
-    if _is_ip_literal(host):
-        addresses = [host]
-    else:
-        addresses = await _resolve(host, port or (443 if scheme == "https" else 80))
-    if not addresses or not all(_is_public_address(address) for address in addresses):
-        raise UnsafeUrlError("El host de la URL no es público.")
+    await resolve_public_addresses(host, port or (443 if scheme == "https" else 80))
     return candidate
 
 
@@ -91,7 +113,10 @@ def ensure_linkedin_host(url: str) -> None:
 def make_route_guard() -> Callable[[Any], Awaitable[None]]:
     """Handler de ``page.route`` que aborta pedidos a destinos no públicos.
 
-    Se aplica a cada request del navegador para cubrir también las redirecciones.
+    Se aplica a cada request del navegador para cubrir también las redirecciones. Es un
+    corte temprano: la garantía de que la conexión llega a una IP pública la da el proxy
+    de salida (``egress_proxy``), que valida al conectar. Esta guarda resuelve por su
+    cuenta y un DNS puede contestar distinto después, así que sola no alcanza.
     """
 
     verdicts: dict[tuple[str, str, int | None], bool] = {}
@@ -117,3 +142,24 @@ def make_route_guard() -> Callable[[Any], Awaitable[None]]:
             await route.abort()
 
     return guard
+
+
+async def block_web_socket(route: Any) -> None:
+    """Cierra todo WebSocket que abra la página: ``page.route`` no los intercepta."""
+    await route.close(code=1008, reason="blocked")
+
+
+async def new_guarded_page(browser: Any, user_agent: str) -> Any:
+    """Una página con todos los canales de red del navegador bajo control.
+
+    ``make_route_guard`` solo ve los pedidos HTTP que pasan por ``page.route``. Un
+    service worker que registre la página hace sus propios pedidos y un WebSocket abre
+    otra conexión: ninguno de los dos pasa por ese filtro, y por ahí se saltaría la
+    guarda (IP públicas, puertos web). Se bloquean los service workers y se cierran los
+    WebSockets.
+    """
+    context = await browser.new_context(user_agent=user_agent, service_workers="block")
+    await context.route_web_socket("**/*", block_web_socket)
+    page = await context.new_page()
+    await page.route("**/*", make_route_guard())
+    return page

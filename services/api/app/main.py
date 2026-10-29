@@ -14,6 +14,7 @@ from starlette.responses import Response
 
 from app.api.v1.router import api_router
 from app.config import settings
+from app.core.body_limit import BodySizeLimitMiddleware
 from app.core.errors import (
     http_error_handler,
     supabase_error_handler,
@@ -110,6 +111,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(LoggingMiddleware)
+# Último en agregarse = el primero en ver el pedido: corta los cuerpos enormes antes de
+# que el resto de la pila los lea.
+app.add_middleware(BodySizeLimitMiddleware)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(PostgrestAPIError, supabase_error_handler)

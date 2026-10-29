@@ -168,13 +168,25 @@ class FakePage:
         return self.body
 
 
+class FakeContext:
+    def __init__(self, page: FakePage) -> None:
+        self.page = page
+
+    async def route_web_socket(self, _pattern: str, _handler: Any) -> None:
+        return None
+
+    async def new_page(self) -> FakePage:
+        return self.page
+
+
 class FakeBrowser:
     def __init__(self, page: FakePage) -> None:
         self.page = page
 
-    async def new_page(self, user_agent: str) -> FakePage:
+    async def new_context(self, user_agent: str, service_workers: str) -> FakeContext:
         assert "Chrome" in user_agent
-        return self.page
+        assert service_workers == "block"
+        return FakeContext(self.page)
 
     async def close(self) -> None:
         return None
@@ -184,8 +196,9 @@ class FakeChromium:
     def __init__(self, page: FakePage) -> None:
         self.page = page
 
-    async def launch(self, headless: bool) -> FakeBrowser:
+    async def launch(self, headless: bool, proxy: dict[str, str]) -> FakeBrowser:
         assert headless is True
+        assert proxy["server"].startswith("http://127.0.0.1:")
         return FakeBrowser(self.page)
 
 

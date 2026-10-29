@@ -7,6 +7,7 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 import { SIGNED_OUT_URL, signOutAndLeave } from "@/lib/auth/sign-out";
+import { WIZARD_PROGRESS_KEY } from "@/lib/wizard/progress";
 
 describe("signOutAndLeave", () => {
   it("closes the session and then leaves for the login", async () => {
@@ -41,6 +42,40 @@ describe("signOutAndLeave", () => {
 
     expect(closed).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("clears the onboarding progress that the browser kept for the account", async () => {
+    const removed: string[] = [];
+    vi.stubGlobal("window", {
+      localStorage: { removeItem: (key: string) => removed.push(key) }
+    });
+
+    try {
+      await signOutAndLeave({
+        signOut: async () => ({ error: null }),
+        navigate: () => undefined
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(removed).toEqual([WIZARD_PROGRESS_KEY]);
+  });
+
+  it("keeps the onboarding progress when the session could not be closed", async () => {
+    const removeItem = vi.fn();
+    vi.stubGlobal("window", { localStorage: { removeItem } });
+
+    try {
+      await signOutAndLeave({
+        signOut: async () => ({ error: new Error("503") }),
+        navigate: () => undefined
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(removeItem).not.toHaveBeenCalled();
   });
 
   it("asks Supabase to close only this device's session", async () => {

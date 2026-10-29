@@ -178,6 +178,8 @@ async def run_parse_cv(
             str(document["storage_path"]),
         )
         temp_pdf_path = await _write_temp_pdf(file_content)
+        # Ya está en disco: no se sigue reteniendo en memoria durante todo el análisis.
+        del file_content
         pdf_content = await extract_pdf_content(temp_pdf_path)
         structured_data = await structure_cv_text(pdf_content.text)
         existing_skills = await _fetch_profile_skills(

@@ -1,10 +1,14 @@
+import asyncio
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from redis.asyncio import Redis
 
 from app.main import app
+from app.services.cv_parser import pdf_extractor
+from app.services.cv_parser.pdf_layout import PdfContent
 from tests.fakes import FakeRedis
 
 
@@ -23,6 +27,21 @@ def _public_dns(monkeypatch: pytest.MonkeyPatch) -> None:
         return ["93.184.216.34"]
 
     monkeypatch.setattr("app.services.scraper.url_guard._resolve", fake_resolve)
+
+
+@pytest.fixture(autouse=True)
+def _read_pdfs_in_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Los tests leen el PDF en el mismo proceso: así son rápidos y pueden reemplazar
+    piezas del lector.
+
+    En producción la lectura corre en un proceso hijo con topes (`pdf_worker`); eso lo
+    prueban `test_pdf_worker.py` con el hijo de verdad.
+    """
+
+    async def read_in_process(path: Path) -> PdfContent:
+        return await asyncio.to_thread(pdf_extractor._extract_pdf_content_sync, path)
+
+    monkeypatch.setattr(pdf_extractor, "_read_in_worker", read_in_process)
 
 
 @pytest.fixture(autouse=True)

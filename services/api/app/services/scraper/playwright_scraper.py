@@ -1,6 +1,7 @@
 from typing import Any, Literal
 
-from app.services.scraper.url_guard import ensure_public_http_url, make_route_guard
+from app.services.scraper.egress_proxy import guarded_browser
+from app.services.scraper.url_guard import ensure_public_http_url, new_guarded_page
 
 MAX_SCRAPED_CHARS = 60_000
 
@@ -59,14 +60,10 @@ async def scrape_url(url: str) -> str:
 
     try:
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=True)
-            try:
-                page = await browser.new_page(user_agent=user_agent)
-                await page.route("**/*", make_route_guard())
+            async with guarded_browser(playwright) as browser:
+                page = await new_guarded_page(browser, user_agent)
                 await page.goto(safe_url, wait_until="domcontentloaded", timeout=30_000)
                 text = await page.locator("body").inner_text(timeout=30_000)
-            finally:
-                await browser.close()
     except PlaywrightTimeoutError as exc:
         raise ScraperBlockedError("timeout") from exc
 

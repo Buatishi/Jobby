@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import {
   getWizardProgress,
   hasWizardProgress,
@@ -16,12 +17,12 @@ export function WizardRedirectGuard() {
   const pathname = usePathname();
   const [progress, setProgress] = useState<WizardProgress | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  // Sin saber de quién es la sesión no se muestra nada: el avance es de una cuenta.
+  const ownerId = useCurrentUser()?.id ?? null;
 
   useEffect(() => {
-    if (hasWizardProgress()) {
-      setProgress(getWizardProgress());
-    }
-  }, [pathname]);
+    setProgress(hasWizardProgress(ownerId) ? getWizardProgress(ownerId) : null);
+  }, [pathname, ownerId]);
 
   if (!progress || progress.completed || dismissed || pathname.startsWith("/wizard")) {
     return null;

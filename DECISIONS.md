@@ -2175,3 +2175,140 @@ guía de Google recomienda un favicon cuadrado de más de 48 px. «Solicitar ind
 siendo que otros sitios enlacen al nuestro. El favicon solo afecta al ícono junto al resultado,
 nada indica que influya en la indexación ni en la posición. «JobbyWeb» es una pista para Google,
 no una garantía de que lo tome como nombre.
+
+---
+
+## Decisión 37 — La lectura del PDF corre en un proceso aparte y el navegador del scraper sale por un proxy que valida al conectar
+
+**Estado:** Pedida por el autor el 2026-10-28, a partir de tres pistas que la auditoría de seguridad
+(skill `security-audit`, perfil `quick`) dejó sin cerrar. Cambio en la rama `fix/auditoria-hallazgos`,
+**sin mergear**: mergearlo despliega. El texto es un borrador redactado con asistencia de IA que el
+autor revisa y hace suyo.
+
+### A. Lectura del PDF (pista 5 de la auditoría)
+
+**Hallazgo.** Un PDF lo arma quien sube el archivo. El único control era el tamaño comprimido (10 MB) y
+las 20 páginas, ambos después de descargarlo y abrirlo. Nada limitaba lo que se expande (un flujo
+comprimido que se descomprime a GB), la cantidad de objetos ni el tiempo, y la lectura corría en un
+hilo de la API (`asyncio.to_thread`), que no se puede cancelar y comparte los 512 MB con las tareas
+locales. Un PDF armado a propósito podía reiniciar la API para todos o dejar ocupado uno de sus dos
+cupos de tarea.
+
+**Elegido.** `extract_pdf_content` valida lo barato (extensión, tamaño, firma `%PDF-`) y lanza
+`python -m app.services.cv_parser.pdf_worker`, un **proceso hijo** que lee el PDF y devuelve una línea de
+JSON con el texto y las banderas de formato, o el error con su código.
+
+- **Topes del hijo** (Linux): puede crecer 200 MiB sobre lo que ya ocupa con las librerías cargadas
+  (`RLIMIT_AS`), 20 s de CPU (`RLIMIT_CPU`) y se marca con `oom_score_adj=1000` para que, si el
+  contenedor se queda sin memoria, el sistema elija al hijo y no a la API. Plazo de reloj de 120 s,
+  holgado a propósito: la instancia gratuita tiene una fracción de CPU.
+- **Aislamiento:** el hijo no hereda las llaves (Supabase, proveedores de IA, webhook) ni lee el `.env`
+  (entorno mínimo y carpeta de trabajo sin él), y la API valida la respuesta en vez de confiar en ella.
+  El texto devuelto se corta en 200 000 caracteres y la salida del hijo en 4 MiB.
+- **Errores:** `PDF_TIMEOUT` (venció el plazo), `PDF_TOO_COMPLEX` (el sistema lo cortó o se cayó),
+  `PDF_READ_ERROR` (respuesta inválida, o el PDF no se pudo leer: también cuando llegó al tope de
+  memoria, porque el `MemoryError` se atrapa dentro del hijo). La persona ve el mismo mensaje de
+  siempre (`public_error_message`); los códigos son para los registros.
+
+**Alternativas descartadas.** (a) Worker de Render: USD 7/mes, fuera del presupuesto sin aprobación, y
+no cambia que una lectura sin tope puede ocupar la máquina. (b) Seguir en un hilo con un tope de
+caracteres o de páginas: el flujo comprimido se expande antes de que haya páginas que contar, y el hilo
+no se puede matar. (c) `multiprocessing` con `fork`: la API es multihilo y el hijo heredaría su memoria
+y sus llaves.
+
+**Medición.** En Windows, con un PDF sintético de 20 páginas y 145 000 caracteres: ~2 KB de memoria de
+Python por carácter y un pico de ~285 MB. En la imagen de la API (Linux, contenedor de 512 MB sin
+swap), RSS máximo del hijo: 77 MB para un CV de 2 páginas, 95 MB (6 páginas), 156 MB (10 páginas
+densas, 47 000 caracteres) y 222 MB (14 páginas muy densas, 80 000 caracteres), todos leídos en 1 a 3 s.
+El PDF extremo (114 000 caracteres en Linux) usa 292 MB sin tope y con el tope falla con
+`PDF_READ_ERROR`. Un CV real (1 a 4 páginas, 5 000 a 20 000 caracteres) queda lejos del tope.
+
+**Verificado en Linux** (imagen construida con el `Dockerfile` de la API, usuario `appuser`,
+`--memory=512m --memory-swap=512m`, Docker Desktop sobre WSL2): un PDF de 1,57 MB cuyo flujo de contenido
+se expande a 1,5 GiB **mata el contenedor con la lectura anterior** (`OOMKilled=true`, salida 137) y,
+con el hijo, falla en 1,8 s con `PDF_READ_ERROR` mientras la API sigue viva. Dentro del hijo: `RLIMIT_AS`
+aplicado, `RLIMIT_CPU` de 20 s, `oom_score_adj` 1000, entorno con solo `LANG`, `PATH`, `PYTHONPATH` y
+`PYTHONUTF8` (las llaves que se le pasaron al contenedor no aparecen) y carpeta de trabajo `/tmp`; un
+bucle con 2 s de CPU se cortó a los 2,0 s con `PDF_TOO_COMPLEX`. La suite unitaria completa pasa en la
+imagen (1117 tests; los 4 de Chromium se saltan porque la imagen no lo trae).
+
+**Límites que quedan abiertos.**
+
+- **No se probó en Render:** la verificación de arriba es en Docker Desktop (WSL2). El núcleo y los
+  cgroups de Render pueden diferir; después del despliegue conviene subir un CV propio. En Windows
+  (desarrollo) solo rige el plazo.
+- Durante la lectura hay un intérprete más en memoria (77 MB en un CV de 2 páginas); con los dos cupos
+  locales pueden coincidir dos.
+- El PDF se sigue descargando entero a memoria antes de la validación de tamaño; el bucket no tiene
+  `file_size_limit` (cambiarlo es una migración, no incluida acá).
+
+### B. Navegador del scraper y DNS rebinding (pista 16)
+
+**Hallazgo.** `ensure_public_http_url` y la guarda de `page.route` resolvían el nombre para decidir y
+Chromium lo volvía a resolver para conectar. Un DNS del atacante que contesta una IP pública la primera
+vez y una interna la segunda (127.0.0.1, la red privada, los metadatos de la nube) hacía que el
+navegador llegara adonde la guarda había dicho que no. Hoy está dormido: la imagen de la API no
+instala Chromium (pendiente aparte).
+
+**Elegido.** `EgressProxy` (`scraper/egress_proxy.py`): un proxy HTTP en 127.0.0.1 con el que se lanza
+Chromium, único camino de salida. Por cada conexión resuelve el nombre **una vez**, exige que **todas**
+las IP sean públicas y conecta a esas mismas direcciones, sin una segunda consulta. HTTPS pasa como
+túnel (`CONNECT`): el certificado lo sigue validando el navegador. Solo puertos 80 y 443. Como todo
+sale por ahí, cubre también redirecciones, service workers, WebSockets y recursos de otros orígenes.
+La guarda de `page.route` queda como corte temprano.
+
+**Alternativas descartadas.** (a) `--host-resolver-rules` con la IP validada: se fija al lanzar, sirve
+para un host y los recursos de otros orígenes quedarían sin resolver. (b) Atender cada pedido desde la
+API con `route.fulfill`: cambia cookies, compresión y tamaños de todo el scraping. (c) Un proxy
+externo: otro servicio que mantener y pagar.
+
+**Verificación con Chromium real** (el de Playwright instalado en el equipo): con la validación real,
+`127.0.0.1`, `localhost`, `[::1]` y HTTPS a loopback no llegaron al servicio interno (0 accesos), y
+Playwright manda el tráfico de loopback por el proxy aunque no se lo pida. Un nombre sin DNS
+(`sitio.test`) cargó por HTTP y por HTTPS: Chromium usa la resolución del proxy.
+
+**Límites.** WebRTC (UDP) no pasa por el proxy: puede enviar paquetes a una IP interna sin leer la
+respuesta. No se agregó el flag de Chromium para cerrarlo porque no se pudo comprobar su efecto.
+
+**Pruebas.** `test_egress_proxy.py` (sockets reales: túnel, HTTP plano, destinos internos y puertos no
+web, respuesta mixta, DNS que cambia de respuesta, destino caído, pedidos mal formados, cierre),
+`test_egress_proxy_chromium.py` (Chromium real, se salta si no está instalado), `test_pdf_worker.py`
+(hijo real, plazo, caída, respuesta inválida, límites simulados, entorno sin llaves) y los fakes de
+los scrapers, que ahora comprueban que el navegador se lance con el proxy.
+
+### C. El avance del asistente de alta pertenece a una cuenta (pista 14)
+
+**Hallazgo.** El asistente de alta (el «wizard»: cuatro pasos para armar el perfil, ver la
+explicación al final) guardaba su avance en `localStorage` bajo una sola clave, igual para todas las
+cuentas del navegador: el paso en que iba, el borrador del paso 1 y las habilidades leídas de su CV.
+Quien entraba después desde ese navegador (porque la sesión venció, o con otra cuenta) las veía en
+el paso 3 y recibía el aviso «Terminá tu onboarding» de la persona anterior. La Decisión 23 ya
+establece el principio contrario para la memoria de pantallas: nunca datos de la persona en el
+navegador de la siguiente.
+
+**Elegido.** Atar el avance a la cuenta, más borrarlo al cerrar sesión con el botón.
+
+- El avance se guarda con el id de la cuenta (`ownerId`). Al leerlo, si el id no coincide, o el
+  avance no tiene dueño (es de antes del cambio), se descarta y se devuelve el estado inicial.
+- Quien vuelve con la misma cuenta (sesión vencida, otro día) retoma donde estaba.
+- Un layout nuevo del wizard (`WizardOwnerProvider`) espera a saber quién es la cuenta y se la da a
+  los cuatro pasos y al aviso. Si no se pudo saber, los pasos funcionan igual, sin leer ni guardar
+  avance local, y no se borra el de nadie.
+- «Cerrar sesión» sigue borrándolo (es lo que cubre quien lo usa en un equipo compartido: el
+  texto no queda en el navegador).
+
+**Alternativa descartada.** Solo borrar al cerrar sesión: deja afuera la sesión vencida y el inicio de
+sesión, y quien sale a mitad del asistente perdía las habilidades leídas.
+
+**Efecto visible.** Un avance guardado antes de este cambio se descarta una vez; la persona que lo
+tuviera a medias vuelve al paso 1 (el perfil que ya guardó en el servidor se conserva).
+
+**Verificación.** `progress.test.ts` y `owner.test.ts` (11 casos) y un recorrido con la web real en
+Chromium, con Supabase y API falsos y dos personas: la versión anterior mostraba las habilidades de
+una persona a la otra al vencer la sesión (5 de 11 comprobaciones); la nueva pasa las 11.
+
+**Qué es el asistente de alta.** Es la guía de cuatro pasos que se abre desde «Completar perfil» (en el dashboard y en «Mi
+perfil»): (1) datos
+básicos del perfil (titular, resumen, puesto buscado, nivel, modalidad), (2) subir el CV en PDF,
+(3) confirmar o rechazar las habilidades que se leyeron del CV y (4) revisar y finalizar. Se puede
+saltear y retomar; el avance se guarda para no empezar de cero.

@@ -1,5 +1,6 @@
 import { forgetSessionData } from "@/lib/auth/session-data";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { clearWizardProgress } from "@/lib/wizard/progress";
 
 export const SIGNED_OUT_URL = "/login?signed_out=1";
 
@@ -36,6 +37,7 @@ export async function signOutAndLeave(
   }
 
   forgetSessionData();
+  clearWizardProgress();
   navigate(SIGNED_OUT_URL);
   return true;
 }

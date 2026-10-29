@@ -107,9 +107,10 @@ def test_invalid_token_returns_401(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
     monkeypatch.setattr("app.dependencies.httpx.AsyncClient", RejectingSupabaseAuth)
 
+    # Con forma de JWT pero que no se puede verificar acá: Supabase Auth decide.
     response = client.get(
         "/api/v1/profiles/me",
-        headers={"Authorization": "Bearer invalid-token"},
+        headers={"Authorization": "Bearer aaaa.bbbb.cccc"},
     )
 
     assert response.status_code == 401
@@ -119,6 +120,49 @@ def test_invalid_token_returns_401(client: TestClient, monkeypatch) -> None:
         "details": {},
     }
     assert auth_checks == [settings.supabase_auth_user_url]
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["invalid-token", "x", "a.b", "a.b.c.d", "a.b.c d", "..", "a" * 9000 + ".b.c"],
+)
+def test_a_token_that_is_not_shaped_like_a_jwt_never_reaches_supabase(
+    client: TestClient, monkeypatch, token: str
+) -> None:
+    """Todo lo que no verificaba en local salía a Supabase Auth, con un cliente nuevo.
+
+    Un token de Supabase siempre es un JWT (tres tramos en base64url): lo demás se
+    rechaza acá, sin una llamada externa por cada petición sin sesión.
+    """
+    auth_checks: list[str] = []
+
+    class UnexpectedSupabaseAuth:
+        status_code = 401
+
+        def __init__(self, **_: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "UnexpectedSupabaseAuth":
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            pass
+
+        async def get(self, url: str, **__: object) -> "UnexpectedSupabaseAuth":
+            auth_checks.append(url)
+            return self
+
+    monkeypatch.setattr(settings, "supabase_anon_key", "anon-key")
+    monkeypatch.setattr("app.dependencies.httpx.AsyncClient", UnexpectedSupabaseAuth)
+
+    response = client.get(
+        "/api/v1/profiles/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"] == "Token inválido"
+    assert auth_checks == []
 
 
 async def test_hs256_supabase_token_uses_jwt_secret(

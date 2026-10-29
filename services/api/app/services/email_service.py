@@ -1,3 +1,4 @@
+import html
 from typing import Any, Protocol, cast
 
 from app.config import settings
@@ -53,7 +54,9 @@ def send_payment_failed(user: dict[str, Any], attempt_number: int) -> None:
         user,
         "No pudimos procesar tu pago",
         (
-            f"<p>{_name(user)}, no pudimos procesar tu pago de Premium.</p>"
+            # `full_name` sale de los metadatos del alta, que escribe quien se registra.
+            f"<p>{html.escape(_name(user))}, no pudimos procesar tu pago de "
+            "Premium.</p>"
             f"<p>Intento #{attempt_number}. Actualiza tu metodo de pago para "
             "evitar la baja del plan.</p>"
         ),

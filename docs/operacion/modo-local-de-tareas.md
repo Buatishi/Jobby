@@ -48,6 +48,9 @@ El `.env.example` de la raíz ya usa `TASK_EXECUTION_MODE=local` para desarrollo
 - Una tarea terminada se conserva una hora para que el cliente lea el resultado y después
   se descarta (`FINISHED_TASK_RETENTION_SECONDS`): así la memoria no crece con cada tarea.
 - Es una sola instancia (Render Free no permite más) y comparte los 512 MB con la API.
+- Desde el 2026-10-28 el PDF del CV se lee en un **proceso hijo** con tope de memoria (200 MiB
+  sobre lo que ya ocupa), de CPU (20 s) y de reloj (120 s): un PDF armado para pesar corta al
+  hijo y no reinicia la API. Los topes del sistema rigen solo en Linux (Decisión 37).
 - El análisis por URL usa Playwright, y la imagen de la API no instala Chromium
   (`services/api/Dockerfile`): es un pendiente aparte, ver `docs/05-pendientes-producto.md`.
 

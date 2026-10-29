@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Info, X } from "lucide-react";
 
 import { WizardProgress } from "@/components/wizard-progress";
+import { useWizardOwner } from "@/components/wizard-owner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,14 +23,15 @@ import {
 
 export default function WizardStepThreePage() {
   const router = useRouter();
+  const ownerId = useWizardOwner();
   const [skills, setSkills] = useState<WizardSkillDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const progress = getWizardProgress();
+    const progress = getWizardProgress(ownerId);
     setSkills(progress.parsedSkills ?? []);
-  }, []);
+  }, [ownerId]);
 
   function updateSkill(id: string, patch: Partial<WizardSkillDraft>) {
     setSkills((currentSkills) =>
@@ -77,7 +79,7 @@ export default function WizardStepThreePage() {
           await confirmSkill(skill);
         }
       }
-      saveWizardProgress({ currentStep: 4, parsedSkills: skills });
+      saveWizardProgress(ownerId, { currentStep: 4, parsedSkills: skills });
       router.push("/wizard/step-4");
     } catch (requestError) {
       setError(
@@ -192,7 +194,7 @@ export default function WizardStepThreePage() {
             <Button
               disabled={isSubmitting}
               onClick={() => {
-                saveWizardProgress({ currentStep: 4, parsedSkills: skills });
+                saveWizardProgress(ownerId, { currentStep: 4, parsedSkills: skills });
                 router.push("/wizard/step-4");
               }}
               type="button"

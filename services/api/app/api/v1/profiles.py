@@ -31,7 +31,7 @@ from app.models.profiles import (
     UploadedDocumentCreate,
 )
 from app.models.reality_gap import RealityGapReport, RealityGapSkill
-from app.services.account_deletion import capture_exception
+from app.services.account_deletion import capture_exception, remove_storage_objects
 from app.services.cv_parser.merge_logic import normalize_skill_key
 from app.services.printable_cv import build_printable_cv
 from app.services.profile_completeness import refresh_completeness
@@ -176,6 +176,45 @@ async def _update_completeness(supabase: Any, profile_id: str) -> int | None:
         return None
 
 
+async def _remove_stored_files(supabase: Any, storage_paths: list[str]) -> None:
+    """Borra del bucket los archivos de documentos cuya fila ya se borró.
+
+    Antes solo se borraba la fila: el archivo quedaba en el bucket sin nada que lo
+    apuntara, y la baja de la cuenta (que borra las filas en cascada) ya no podía
+    encontrarlo. Va después de borrar la fila y, si falla, no frena la operación: se
+    reporta y el archivo sobrante lo barre la baja de la cuenta por la carpeta del uid.
+    """
+    if not storage_paths:
+        return
+    try:
+        await remove_storage_objects(supabase, storage_paths)
+    except Exception as exc:
+        logger.warning(
+            "No se pudo borrar un archivo del bucket: %s", type(exc).__name__
+        )
+        capture_exception(exc)
+
+
+async def _delete_own_documents(supabase: Any, user_id: str, **filters: Any) -> None:
+    """Borra los documentos de la persona que cumplen `filters`, con sus archivos."""
+
+    def scoped(query: Any) -> Any:
+        query = query.eq("user_id", user_id)
+        for column, value in filters.items():
+            query = query.eq(column, value)
+        return query
+
+    response = await scoped(
+        supabase.table("uploaded_documents").select("storage_path")
+    ).execute()
+    rows = getattr(response, "data", None) or []
+    await scoped(supabase.table("uploaded_documents").delete()).execute()
+    await _remove_stored_files(
+        supabase,
+        [str(row["storage_path"]) for row in rows if row.get("storage_path")],
+    )
+
+
 async def _prepare_cv_slot_for_insert(
     supabase: Any,
     user_id: str,
@@ -183,26 +222,15 @@ async def _prepare_cv_slot_for_insert(
 ) -> None:
     if payload.type == "linkedin":
         # Un solo PDF de LinkedIn por persona: el nuevo reemplaza al anterior.
-        await (
-            supabase.table("uploaded_documents")
-            .delete()
-            .eq("user_id", user_id)
-            .eq("type", "linkedin")
-            .execute()
-        )
+        await _delete_own_documents(supabase, user_id, type="linkedin")
         return
 
     if payload.type != "cv":
         return
 
     if payload.cv_slot is not None:
-        await (
-            supabase.table("uploaded_documents")
-            .delete()
-            .eq("user_id", user_id)
-            .eq("type", "cv")
-            .eq("cv_slot", payload.cv_slot)
-            .execute()
+        await _delete_own_documents(
+            supabase, user_id, type="cv", cv_slot=payload.cv_slot
         )
 
     if payload.is_primary:
@@ -480,6 +508,8 @@ async def delete_profile_document(
         .eq("user_id", current_user.id)
         .execute()
     )
+    storage_path = document.get("storage_path")
+    await _remove_stored_files(supabase, [str(storage_path)] if storage_path else [])
     await _update_completeness(supabase, str(document["profile_id"]))
 
 

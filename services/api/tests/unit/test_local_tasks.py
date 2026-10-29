@@ -1,8 +1,10 @@
 """Modo local de tareas (TASK_EXECUTION_MODE=local) para analisis, match y kits."""
 
 import asyncio
+import gc
 import threading
 import time
+import weakref
 from types import SimpleNamespace
 from typing import Any
 
@@ -229,3 +231,33 @@ def test_running_tasks_are_kept_however_long_they_take(
     finally:
         release.set()
     assert _wait_for(task_id, {"SUCCESS"}).result == {"ok": True}
+
+
+def test_a_failed_task_does_not_keep_the_memory_of_the_run_that_failed(
+    local_mode: None,
+) -> None:
+    """El registro guardaba la excepción con su traza durante una hora.
+
+    La traza apunta a los marcos de la tarea, y ahí vivía, por ejemplo, el PDF entero
+    que se había descargado: un CV que fallaba tarde lo dejaba en memoria.
+    """
+
+    class Download:
+        """Hace de los bytes del PDF descargado (los bytes no admiten weakref)."""
+
+    references: list[weakref.ref[Download]] = []
+
+    async def fails_after_downloading() -> None:
+        download = Download()
+        references.append(weakref.ref(download))
+        raise ValueError("el PDF no tiene texto")
+
+    task_id = local_fallback.enqueue_local_task(
+        fails_after_downloading, prefix="local-parse", owner_id="user-1"
+    )
+    result = _wait_for(task_id, {"FAILURE"})
+    gc.collect()
+
+    assert isinstance(result.result, ValueError)
+    assert str(result.result) == "el PDF no tiene texto"
+    assert references[0]() is None
