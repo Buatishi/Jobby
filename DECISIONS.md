@@ -2176,8 +2176,9 @@ JSON con el texto y las banderas de formato, o el error con su código.
   (entorno mínimo y carpeta de trabajo sin él), y la API valida la respuesta en vez de confiar en ella.
   El texto devuelto se corta en 200 000 caracteres y la salida del hijo en 4 MiB.
 - **Errores:** `PDF_TIMEOUT` (venció el plazo), `PDF_TOO_COMPLEX` (el sistema lo cortó o se cayó),
-  `PDF_READ_ERROR` (respuesta inválida). La persona ve el mismo mensaje de siempre
-  (`public_error_message`); los códigos son para los registros.
+  `PDF_READ_ERROR` (respuesta inválida, o el PDF no se pudo leer: también cuando llegó al tope de
+  memoria, porque el `MemoryError` se atrapa dentro del hijo). La persona ve el mismo mensaje de
+  siempre (`public_error_message`); los códigos son para los registros.
 
 **Alternativas descartadas.** (a) Worker de Render: USD 7/mes, fuera del presupuesto sin aprobación, y
 no cambia que una lectura sin tope puede ocupar la máquina. (b) Seguir en un hilo con un tope de
@@ -2185,17 +2186,29 @@ caracteres o de páginas: el flujo comprimido se expande antes de que haya pági
 no se puede matar. (c) `multiprocessing` con `fork`: la API es multihilo y el hijo heredaría su memoria
 y sus llaves.
 
-**Medición** (Windows, PDF sintético de 20 páginas con 145 000 caracteres): ~2 KB de memoria de Python
-por carácter extraído, pico de ~285 MB y 5 s con el arranque del hijo incluido. Un CV real (hasta unos
-100 000 caracteres) cabe en el tope; este PDF extremo no, y fallaría con `PDF_TOO_COMPLEX`.
+**Medición.** En Windows, con un PDF sintético de 20 páginas y 145 000 caracteres: ~2 KB de memoria de
+Python por carácter y un pico de ~285 MB. En la imagen de la API (Linux, contenedor de 512 MB sin
+swap), RSS máximo del hijo: 77 MB para un CV de 2 páginas, 95 MB (6 páginas), 156 MB (10 páginas
+densas, 47 000 caracteres) y 222 MB (14 páginas muy densas, 80 000 caracteres), todos leídos en 1 a 3 s.
+El PDF extremo (114 000 caracteres en Linux) usa 292 MB sin tope y con el tope falla con
+`PDF_READ_ERROR`. Un CV real (1 a 4 páginas, 5 000 a 20 000 caracteres) queda lejos del tope.
+
+**Verificado en Linux** (imagen construida con el `Dockerfile` de la API, usuario `appuser`,
+`--memory=512m --memory-swap=512m`, Docker Desktop sobre WSL2): un PDF de 1,57 MB cuyo flujo de contenido
+se expande a 1,5 GiB **mata el contenedor con la lectura anterior** (`OOMKilled=true`, salida 137) y,
+con el hijo, falla en 1,8 s con `PDF_READ_ERROR` mientras la API sigue viva. Dentro del hijo: `RLIMIT_AS`
+aplicado, `RLIMIT_CPU` de 20 s, `oom_score_adj` 1000, entorno con solo `LANG`, `PATH`, `PYTHONPATH` y
+`PYTHONUTF8` (las llaves que se le pasaron al contenedor no aparecen) y carpeta de trabajo `/tmp`; un
+bucle con 2 s de CPU se cortó a los 2,0 s con `PDF_TOO_COMPLEX`. La suite unitaria completa pasa en la
+imagen (1117 tests; los 4 de Chromium se saltan porque la imagen no lo trae).
 
 **Límites que quedan abiertos.**
 
-- **Los topes del sistema no se observaron en Linux.** Las pruebas cubren la llamada con un módulo
-  `resource` simulado y el hijo real con plazo, caída y respuesta inválida; falta correr un PDF que se
-  expande con la imagen de la API para ver el corte real. En Windows (desarrollo) solo rige el plazo.
-- Durante la lectura hay un intérprete más en memoria (no medido en Linux); con los dos cupos locales
-  pueden coincidir dos.
+- **No se probó en Render:** la verificación de arriba es en Docker Desktop (WSL2). El núcleo y los
+  cgroups de Render pueden diferir; después del despliegue conviene subir un CV propio. En Windows
+  (desarrollo) solo rige el plazo.
+- Durante la lectura hay un intérprete más en memoria (77 MB en un CV de 2 páginas); con los dos cupos
+  locales pueden coincidir dos.
 - El PDF se sigue descargando entero a memoria antes de la validación de tamaño; el bucket no tiene
   `file_size_limit` (cambiarlo es una migración, no incluida acá).
 
