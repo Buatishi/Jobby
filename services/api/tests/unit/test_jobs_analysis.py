@@ -196,8 +196,9 @@ class FakeChromium:
     def __init__(self, page: FakePage) -> None:
         self.page = page
 
-    async def launch(self, headless: bool) -> FakeBrowser:
+    async def launch(self, headless: bool, proxy: dict[str, str]) -> FakeBrowser:
         assert headless is True
+        assert proxy["server"].startswith("http://127.0.0.1:")
         return FakeBrowser(self.page)
 
 

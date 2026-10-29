@@ -2144,3 +2144,91 @@ clasificado como blanda o metodología (el nombre manda). Los nombres compuestos
 Excel, PowerPoint)», «Agile / Scrum») siguen sin partirse en componentes, así que «Excel» no
 coincide con el primero. El respaldo semántico compara contra el vector de todo el puesto y no
 contra cada tecnología, por lo que casi nunca suma (0 coincidencias en las comparaciones medidas).
+
+
+---
+
+## Decisión 36 — La lectura del PDF corre en un proceso aparte y el navegador del scraper sale por un proxy que valida al conectar
+
+**Estado:** Pedida por el autor el 2026-10-28, a partir de dos pistas que la auditoría de seguridad
+(skill `security-audit`, perfil `quick`) dejó sin cerrar. Cambio en la rama `fix/auditoria-hallazgos`,
+**sin mergear**: mergearlo despliega. El texto es un borrador redactado con asistencia de IA que el
+autor revisa y hace suyo.
+
+### A. Lectura del PDF (pista 5 de la auditoría)
+
+**Hallazgo.** Un PDF lo arma quien sube el archivo. El único control era el tamaño comprimido (10 MB) y
+las 20 páginas, ambos después de descargarlo y abrirlo. Nada limitaba lo que se expande (un flujo
+comprimido que se descomprime a GB), la cantidad de objetos ni el tiempo, y la lectura corría en un
+hilo de la API (`asyncio.to_thread`), que no se puede cancelar y comparte los 512 MB con las tareas
+locales. Un PDF armado a propósito podía reiniciar la API para todos o dejar ocupado uno de sus dos
+cupos de tarea.
+
+**Elegido.** `extract_pdf_content` valida lo barato (extensión, tamaño, firma `%PDF-`) y lanza
+`python -m app.services.cv_parser.pdf_worker`, un **proceso hijo** que lee el PDF y devuelve una línea de
+JSON con el texto y las banderas de formato, o el error con su código.
+
+- **Topes del hijo** (Linux): puede crecer 200 MiB sobre lo que ya ocupa con las librerías cargadas
+  (`RLIMIT_AS`), 20 s de CPU (`RLIMIT_CPU`) y se marca con `oom_score_adj=1000` para que, si el
+  contenedor se queda sin memoria, el sistema elija al hijo y no a la API. Plazo de reloj de 120 s,
+  holgado a propósito: la instancia gratuita tiene una fracción de CPU.
+- **Aislamiento:** el hijo no hereda las llaves (Supabase, proveedores de IA, webhook) ni lee el `.env`
+  (entorno mínimo y carpeta de trabajo sin él), y la API valida la respuesta en vez de confiar en ella.
+  El texto devuelto se corta en 200 000 caracteres y la salida del hijo en 4 MiB.
+- **Errores:** `PDF_TIMEOUT` (venció el plazo), `PDF_TOO_COMPLEX` (el sistema lo cortó o se cayó),
+  `PDF_READ_ERROR` (respuesta inválida). La persona ve el mismo mensaje de siempre
+  (`public_error_message`); los códigos son para los registros.
+
+**Alternativas descartadas.** (a) Worker de Render: USD 7/mes, fuera del presupuesto sin aprobación, y
+no cambia que una lectura sin tope puede ocupar la máquina. (b) Seguir en un hilo con un tope de
+caracteres o de páginas: el flujo comprimido se expande antes de que haya páginas que contar, y el hilo
+no se puede matar. (c) `multiprocessing` con `fork`: la API es multihilo y el hijo heredaría su memoria
+y sus llaves.
+
+**Medición** (Windows, PDF sintético de 20 páginas con 145 000 caracteres): ~2 KB de memoria de Python
+por carácter extraído, pico de ~285 MB y 5 s con el arranque del hijo incluido. Un CV real (hasta unos
+100 000 caracteres) cabe en el tope; este PDF extremo no, y fallaría con `PDF_TOO_COMPLEX`.
+
+**Límites que quedan abiertos.**
+
+- **Los topes del sistema no se observaron en Linux.** Las pruebas cubren la llamada con un módulo
+  `resource` simulado y el hijo real con plazo, caída y respuesta inválida; falta correr un PDF que se
+  expande con la imagen de la API para ver el corte real. En Windows (desarrollo) solo rige el plazo.
+- Durante la lectura hay un intérprete más en memoria (no medido en Linux); con los dos cupos locales
+  pueden coincidir dos.
+- El PDF se sigue descargando entero a memoria antes de la validación de tamaño; el bucket no tiene
+  `file_size_limit` (cambiarlo es una migración, no incluida acá).
+
+### B. Navegador del scraper y DNS rebinding (pista 16)
+
+**Hallazgo.** `ensure_public_http_url` y la guarda de `page.route` resolvían el nombre para decidir y
+Chromium lo volvía a resolver para conectar. Un DNS del atacante que contesta una IP pública la primera
+vez y una interna la segunda (127.0.0.1, la red privada, los metadatos de la nube) hacía que el
+navegador llegara adonde la guarda había dicho que no. Hoy está dormido: la imagen de la API no
+instala Chromium (pendiente aparte).
+
+**Elegido.** `EgressProxy` (`scraper/egress_proxy.py`): un proxy HTTP en 127.0.0.1 con el que se lanza
+Chromium, único camino de salida. Por cada conexión resuelve el nombre **una vez**, exige que **todas**
+las IP sean públicas y conecta a esas mismas direcciones, sin una segunda consulta. HTTPS pasa como
+túnel (`CONNECT`): el certificado lo sigue validando el navegador. Solo puertos 80 y 443. Como todo
+sale por ahí, cubre también redirecciones, service workers, WebSockets y recursos de otros orígenes.
+La guarda de `page.route` queda como corte temprano.
+
+**Alternativas descartadas.** (a) `--host-resolver-rules` con la IP validada: se fija al lanzar, sirve
+para un host y los recursos de otros orígenes quedarían sin resolver. (b) Atender cada pedido desde la
+API con `route.fulfill`: cambia cookies, compresión y tamaños de todo el scraping. (c) Un proxy
+externo: otro servicio que mantener y pagar.
+
+**Verificación con Chromium real** (el de Playwright instalado en el equipo): con la validación real,
+`127.0.0.1`, `localhost`, `[::1]` y HTTPS a loopback no llegaron al servicio interno (0 accesos), y
+Playwright manda el tráfico de loopback por el proxy aunque no se lo pida. Un nombre sin DNS
+(`sitio.test`) cargó por HTTP y por HTTPS: Chromium usa la resolución del proxy.
+
+**Límites.** WebRTC (UDP) no pasa por el proxy: puede enviar paquetes a una IP interna sin leer la
+respuesta. No se agregó el flag de Chromium para cerrarlo porque no se pudo comprobar su efecto.
+
+**Pruebas.** `test_egress_proxy.py` (sockets reales: túnel, HTTP plano, destinos internos y puertos no
+web, respuesta mixta, DNS que cambia de respuesta, destino caído, pedidos mal formados, cierre),
+`test_egress_proxy_chromium.py` (Chromium real, se salta si no está instalado), `test_pdf_worker.py`
+(hijo real, plazo, caída, respuesta inválida, límites simulados, entorno sin llaves) y los fakes de
+los scrapers, que ahora comprueban que el navegador se lance con el proxy.

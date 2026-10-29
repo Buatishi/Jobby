@@ -44,7 +44,7 @@ Numeradas como en el diagrama.
 | 6 | Tareas → Supabase | HTTPS 443 | Sí | Estado, resultados, vectores y descarga del PDF. |
 | 7 | API → Redis | `rediss` (TLS) 6379 | Sí | Contadores de límites por plan y claves de idempotencia del webhook. |
 | 8 | Tareas → IA | HTTPS 443 | Sí | Texto del CV o del puesto y pedidos de vectores; tiempo límite de 60 s con reintentos. |
-| 9 | Tareas → sitios de ofertas y LinkedIn | HTTP o HTTPS 80/443 | Sí | Lectura de páginas con un navegador sin interfaz, con guarda anti-SSRF. |
+| 9 | Tareas → sitios de ofertas y LinkedIn | HTTP o HTTPS 80/443 | Sí | Lectura de páginas con un navegador sin interfaz, con guarda anti-SSRF y un proxy de salida que valida la IP al conectar. |
 | 10 | LemonSqueezy → API | HTTPS 443 | Sí | Eventos de suscripción firmados con HMAC-SHA256. |
 | 11 | API → Resend | HTTPS 443 | Sí | Avisos por email. |
 | 12 | API y web → Sentry | HTTPS 443 | Sí | Eventos de error (solo si hay DSN configurado). |

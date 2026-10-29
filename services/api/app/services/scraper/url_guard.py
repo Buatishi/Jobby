@@ -60,6 +60,25 @@ async def _resolve(host: str, port: int) -> list[str]:
     return [str(info[4][0]) for info in infos]
 
 
+async def resolve_public_addresses(host: str, port: int) -> list[str]:
+    """Las IP de un host, solo si TODAS son públicas; si no, `UnsafeUrlError`.
+
+    Es lo que usa el proxy de salida del navegador (`egress_proxy`): resuelve una sola
+    vez y conecta a las direcciones que devuelve esta función, sin una segunda consulta
+    que un DNS malicioso pueda contestar distinto.
+    """
+    host = host.lower()
+    if not host:
+        raise UnsafeUrlError("La URL no tiene host.")
+    if host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
+        raise UnsafeUrlError("El host de la URL no es público.")
+
+    addresses = [host] if _is_ip_literal(host) else await _resolve(host, port)
+    if not addresses or not all(_is_public_address(address) for address in addresses):
+        raise UnsafeUrlError("El host de la URL no es público.")
+    return addresses
+
+
 async def ensure_public_http_url(url: str) -> str:
     candidate = url.strip()
     if not candidate or len(candidate) > MAX_URL_LENGTH:
@@ -80,15 +99,8 @@ async def ensure_public_http_url(url: str) -> str:
         raise UnsafeUrlError("El puerto de la URL no es válido.") from exc
     if port not in _ALLOWED_PORTS:
         raise UnsafeUrlError("Solo se permiten los puertos web estándar.")
-    if host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
-        raise UnsafeUrlError("El host de la URL no es público.")
 
-    if _is_ip_literal(host):
-        addresses = [host]
-    else:
-        addresses = await _resolve(host, port or (443 if scheme == "https" else 80))
-    if not addresses or not all(_is_public_address(address) for address in addresses):
-        raise UnsafeUrlError("El host de la URL no es público.")
+    await resolve_public_addresses(host, port or (443 if scheme == "https" else 80))
     return candidate
 
 
@@ -101,7 +113,10 @@ def ensure_linkedin_host(url: str) -> None:
 def make_route_guard() -> Callable[[Any], Awaitable[None]]:
     """Handler de ``page.route`` que aborta pedidos a destinos no públicos.
 
-    Se aplica a cada request del navegador para cubrir también las redirecciones.
+    Se aplica a cada request del navegador para cubrir también las redirecciones. Es un
+    corte temprano: la garantía de que la conexión llega a una IP pública la da el proxy
+    de salida (``egress_proxy``), que valida al conectar. Esta guarda resuelve por su
+    cuenta y un DNS puede contestar distinto después, así que sola no alcanza.
     """
 
     verdicts: dict[tuple[str, str, int | None], bool] = {}
