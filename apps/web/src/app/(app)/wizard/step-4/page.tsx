@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 
 import { WizardProgress } from "@/components/wizard-progress";
+import { useWizardOwner } from "@/components/wizard-owner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,7 @@ type ProfilePreview = {
 
 export default function WizardStepFourPage() {
   const router = useRouter();
+  const ownerId = useWizardOwner();
   const [values, setValues] = useState<StepFourValues>(STEP_FOUR_DEFAULTS);
   // Campos que la persona ya tocó: lo guardado, al llegar, no los pisa.
   const touchedRef = useRef<Set<StepFourField>>(new Set());
@@ -97,7 +99,7 @@ export default function WizardStepFourPage() {
   }, []);
 
   useEffect(() => {
-    const progress = getWizardProgress();
+    const progress = getWizardProgress(ownerId);
     setSkills((progress.parsedSkills ?? []).filter((skill) => !skill.rejected));
 
     void apiClient<ProfilePreview>("/api/v1/profiles/me")
@@ -105,7 +107,7 @@ export default function WizardStepFourPage() {
       .catch(() => setProfile(null));
 
     return loadDetails();
-  }, [loadDetails]);
+  }, [loadDetails, ownerId]);
 
   const visibleSkills = useMemo(() => skills.slice(0, 8), [skills]);
   const hasExperience = company.trim() !== "" || title.trim() !== "";
@@ -155,7 +157,7 @@ export default function WizardStepFourPage() {
         throw firstFailure;
       }
 
-      completeWizard();
+      completeWizard(ownerId);
       router.push("/dashboard");
       router.refresh();
     } catch (requestError) {
@@ -323,7 +325,7 @@ export default function WizardStepFourPage() {
               <Button
                 disabled={isSubmitting}
                 onClick={() => {
-                  completeWizard();
+                  completeWizard(ownerId);
                   router.push("/dashboard");
                 }}
                 type="button"

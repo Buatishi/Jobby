@@ -2150,7 +2150,7 @@ contra cada tecnología, por lo que casi nunca suma (0 coincidencias en las comp
 
 ## Decisión 37 — La lectura del PDF corre en un proceso aparte y el navegador del scraper sale por un proxy que valida al conectar
 
-**Estado:** Pedida por el autor el 2026-10-28, a partir de dos pistas que la auditoría de seguridad
+**Estado:** Pedida por el autor el 2026-10-28, a partir de tres pistas que la auditoría de seguridad
 (skill `security-audit`, perfil `quick`) dejó sin cerrar. Cambio en la rama `fix/auditoria-hallazgos`,
 **sin mergear**: mergearlo despliega. El texto es un borrador redactado con asistencia de IA que el
 autor revisa y hace suyo.
@@ -2245,3 +2245,40 @@ web, respuesta mixta, DNS que cambia de respuesta, destino caído, pedidos mal f
 `test_egress_proxy_chromium.py` (Chromium real, se salta si no está instalado), `test_pdf_worker.py`
 (hijo real, plazo, caída, respuesta inválida, límites simulados, entorno sin llaves) y los fakes de
 los scrapers, que ahora comprueban que el navegador se lance con el proxy.
+
+### C. El avance del asistente de alta pertenece a una cuenta (pista 14)
+
+**Hallazgo.** El asistente de alta (el «wizard»: cuatro pasos para armar el perfil, ver la
+explicación al final) guardaba su avance en `localStorage` bajo una sola clave, igual para todas las
+cuentas del navegador: el paso en que iba, el borrador del paso 1 y las habilidades leídas de su CV.
+Quien entraba después desde ese navegador (porque la sesión venció, o con otra cuenta) las veía en
+el paso 3 y recibía el aviso «Terminá tu onboarding» de la persona anterior. La Decisión 23 ya
+establece el principio contrario para la memoria de pantallas: nunca datos de la persona en el
+navegador de la siguiente.
+
+**Elegido.** Atar el avance a la cuenta, más borrarlo al cerrar sesión con el botón.
+
+- El avance se guarda con el id de la cuenta (`ownerId`). Al leerlo, si el id no coincide, o el
+  avance no tiene dueño (es de antes del cambio), se descarta y se devuelve el estado inicial.
+- Quien vuelve con la misma cuenta (sesión vencida, otro día) retoma donde estaba.
+- Un layout nuevo del wizard (`WizardOwnerProvider`) espera a saber quién es la cuenta y se la da a
+  los cuatro pasos y al aviso. Si no se pudo saber, los pasos funcionan igual, sin leer ni guardar
+  avance local, y no se borra el de nadie.
+- «Cerrar sesión» sigue borrándolo (es lo que cubre quien lo usa en un equipo compartido: el
+  texto no queda en el navegador).
+
+**Alternativa descartada.** Solo borrar al cerrar sesión: deja afuera la sesión vencida y el inicio de
+sesión, y quien sale a mitad del asistente perdía las habilidades leídas.
+
+**Efecto visible.** Un avance guardado antes de este cambio se descarta una vez; la persona que lo
+tuviera a medias vuelve al paso 1 (el perfil que ya guardó en el servidor se conserva).
+
+**Verificación.** `progress.test.ts` y `owner.test.ts` (11 casos) y un recorrido con la web real en
+Chromium, con Supabase y API falsos y dos personas: la versión anterior mostraba las habilidades de
+una persona a la otra al vencer la sesión (5 de 11 comprobaciones); la nueva pasa las 11.
+
+**Qué es el asistente de alta.** Es la guía de cuatro pasos que se abre desde «Completar perfil» (en el dashboard y en «Mi
+perfil»): (1) datos
+básicos del perfil (titular, resumen, puesto buscado, nivel, modalidad), (2) subir el CV en PDF,
+(3) confirmar o rechazar las habilidades que se leyeron del CV y (4) revisar y finalizar. Se puede
+saltear y retomar; el avance se guarda para no empezar de cero.

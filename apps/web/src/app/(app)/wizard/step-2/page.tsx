@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FileUp, RotateCcw, ShieldCheck } from "lucide-react";
 
 import { WizardProgress } from "@/components/wizard-progress";
+import { useWizardOwner } from "@/components/wizard-owner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +27,7 @@ const STAGE_STATUS: Record<CvStage, string> = {
 
 export default function WizardStepTwoPage() {
   const router = useRouter();
+  const ownerId = useWizardOwner();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState("Elegí un PDF para comenzar.");
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export default function WizardStepTwoPage() {
         onStage: (stage) => setStatus(STAGE_STATUS[stage]),
         onRegistered: ({ documentId, taskId: nextTaskId }) => {
           setTaskId(nextTaskId);
-          saveWizardProgress({ currentStep: 2, documentId, taskId: nextTaskId });
+          saveWizardProgress(ownerId, { currentStep: 2, documentId, taskId: nextTaskId });
         },
         onTaskUpdate: (task) =>
           setStatus(
@@ -67,7 +69,7 @@ export default function WizardStepTwoPage() {
       });
 
       if (uploaded.status === "done") {
-        saveWizardProgress({
+        saveWizardProgress(ownerId, {
           currentStep: 3,
           taskId: uploaded.taskId,
           parsedSkills: toSkillDrafts(uploaded.result)
@@ -155,7 +157,7 @@ export default function WizardStepTwoPage() {
             <Button
               disabled={isUploading}
               onClick={() => {
-                saveWizardProgress({ currentStep: 3 });
+                saveWizardProgress(ownerId, { currentStep: 3 });
                 router.push("/wizard/step-3");
               }}
               type="button"

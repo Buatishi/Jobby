@@ -24,6 +24,10 @@ export type WizardStepOneDraft = {
 };
 
 export type WizardProgress = {
+  // Cuenta a la que pertenece el avance: la clave del navegador es una sola para todas
+  // las cuentas y sin dueño lo que una persona avanzó (habilidades leídas de su CV) lo
+  // vería la siguiente que entre desde el mismo navegador.
+  ownerId?: string;
   currentStep: WizardStep;
   completed: boolean;
   stepOneDraft?: WizardStepOneDraft;
@@ -39,34 +43,60 @@ const defaultProgress: WizardProgress = {
   completed: false
 };
 
-export function getWizardProgress(): WizardProgress {
-  if (typeof window === "undefined") {
-    return defaultProgress;
-  }
+// Cuenta que está usando el wizard, o `null` si todavía no se sabe quién es (o no se pudo
+// cargar): sin dueño conocido no se lee, no se guarda y no se borra nada de nadie.
+type Owner = string | null;
 
+function readStored(): Partial<WizardProgress> | null {
   const rawProgress = window.localStorage.getItem(WIZARD_PROGRESS_KEY);
   if (!rawProgress) {
-    return defaultProgress;
+    return null;
   }
 
   try {
-    return { ...defaultProgress, ...JSON.parse(rawProgress) } as WizardProgress;
+    const parsed: unknown = JSON.parse(rawProgress);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as Partial<WizardProgress>)
+      : null;
   } catch {
-    return defaultProgress;
+    return null;
   }
 }
 
-export function hasWizardProgress() {
-  if (typeof window === "undefined") {
-    return false;
+/** El avance guardado si es de esta cuenta; si es de otra (o no tiene dueño) lo descarta. */
+function readOwned(ownerId: Owner): Partial<WizardProgress> | null {
+  if (typeof window === "undefined" || ownerId === null) {
+    return null;
   }
 
-  return window.localStorage.getItem(WIZARD_PROGRESS_KEY) !== null;
+  const stored = readStored();
+  if (stored === null) {
+    return null;
+  }
+  if (stored.ownerId !== ownerId) {
+    clearWizardProgress();
+    return null;
+  }
+  return stored;
 }
 
-export function saveWizardProgress(update: Partial<WizardProgress>) {
-  const nextProgress = { ...getWizardProgress(), ...update };
-  window.localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(nextProgress));
+export function getWizardProgress(ownerId: Owner): WizardProgress {
+  const stored = readOwned(ownerId);
+  return stored === null ? defaultProgress : ({ ...defaultProgress, ...stored } as WizardProgress);
+}
+
+export function hasWizardProgress(ownerId: Owner) {
+  return readOwned(ownerId) !== null;
+}
+
+export function saveWizardProgress(ownerId: Owner, update: Partial<WizardProgress>) {
+  const nextProgress = { ...getWizardProgress(ownerId), ...update };
+  if (ownerId !== null) {
+    window.localStorage.setItem(
+      WIZARD_PROGRESS_KEY,
+      JSON.stringify({ ...nextProgress, ownerId })
+    );
+  }
   return nextProgress;
 }
 
@@ -87,15 +117,12 @@ export function clearWizardProgress() {
   }
 }
 
-export function startWizard() {
-  window.localStorage.setItem(
-    WIZARD_PROGRESS_KEY,
-    JSON.stringify(defaultProgress)
-  );
+export function startWizard(ownerId: Owner) {
+  saveWizardProgress(ownerId, defaultProgress);
 }
 
-export function completeWizard() {
-  saveWizardProgress({ currentStep: 4, completed: true });
+export function completeWizard(ownerId: Owner) {
+  saveWizardProgress(ownerId, { currentStep: 4, completed: true });
 }
 
 export function wizardStepPath(step: WizardStep) {

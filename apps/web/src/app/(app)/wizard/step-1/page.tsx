@@ -5,6 +5,7 @@ import { ArrowRight, Info, Lightbulb, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { WizardProgress } from "@/components/wizard-progress";
+import { useWizardOwner } from "@/components/wizard-owner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +42,7 @@ const workModalities = WORK_MODALITIES;
 
 export default function WizardStepOnePage() {
   const router = useRouter();
+  const ownerId = useWizardOwner();
   const [values, setValues] = useState<StepOneValues>(STEP_ONE_DEFAULTS);
   // Campos que la persona ya tocó: el perfil, al llegar, no los pisa.
   const touchedRef = useRef<Set<StepOneField>>(new Set());
@@ -59,7 +61,7 @@ export default function WizardStepOnePage() {
 
   useEffect(() => {
     let active = true;
-    const draft = getWizardProgress().stepOneDraft;
+    const draft = getWizardProgress(ownerId).stepOneDraft;
 
     // Se abre con lo que ya está guardado en el perfil; si la carga falla, con el borrador.
     apiClient<StepOneProfile>("/api/v1/profiles/me")
@@ -82,7 +84,7 @@ export default function WizardStepOnePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [ownerId]);
 
   const completionPercent = useMemo(() => {
     const checks = [
@@ -97,7 +99,7 @@ export default function WizardStepOnePage() {
   }, [headline, summary, targetRole, targetSeniority, workModality]);
 
   const saveDraft = useCallback(() => {
-    saveWizardProgress({
+    saveWizardProgress(ownerId, {
       currentStep: 1,
       stepOneDraft: {
         profileId,
@@ -109,7 +111,7 @@ export default function WizardStepOnePage() {
       }
     });
     setSavedAt(new Date().toLocaleTimeString("es-AR", { timeStyle: "short" }));
-  }, [profileId, headline, summary, targetRole, targetSeniority, workModality]);
+  }, [ownerId, profileId, headline, summary, targetRole, targetSeniority, workModality]);
 
   useEffect(() => {
     // Antes de cargar el perfil el formulario tiene los valores por defecto: no se guardan.
@@ -140,7 +142,7 @@ export default function WizardStepOnePage() {
           work_modality: workModality
         })
       });
-      saveWizardProgress({
+      saveWizardProgress(ownerId, {
         currentStep: 2,
         stepOneDraft: {
           profileId,
@@ -361,7 +363,7 @@ export default function WizardStepOnePage() {
                 disabled={isSubmitting || isLoadingProfile}
                 onClick={() => {
                   saveDraft();
-                  completeWizard();
+                  completeWizard(ownerId);
                   router.push("/dashboard");
                 }}
                 type="button"
