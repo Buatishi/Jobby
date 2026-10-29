@@ -2148,7 +2148,7 @@ contra cada tecnología, por lo que casi nunca suma (0 coincidencias en las comp
 
 ---
 
-## Decisión 36 — La lectura del PDF corre en un proceso aparte y el navegador del scraper sale por un proxy que valida al conectar
+## Decisión 37 — La lectura del PDF corre en un proceso aparte y el navegador del scraper sale por un proxy que valida al conectar
 
 **Estado:** Pedida por el autor el 2026-10-28, a partir de dos pistas que la auditoría de seguridad
 (skill `security-audit`, perfil `quick`) dejó sin cerrar. Cambio en la rama `fix/auditoria-hallazgos`,
