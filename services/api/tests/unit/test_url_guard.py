@@ -1,3 +1,5 @@
+import asyncio
+import time
 from typing import Any
 
 import pytest
@@ -9,6 +11,9 @@ from app.services.scraper.url_guard import (
     ensure_public_http_url,
     make_route_guard,
 )
+
+# Se toma al importar, antes de que el conftest la reemplace por un falso.
+_REAL_RESOLVE = url_guard._resolve
 
 
 @pytest.mark.asyncio
@@ -207,3 +212,86 @@ def test_a_route_guard_type_is_awaitable() -> None:
     guard: Any = make_route_guard()
 
     assert callable(guard)
+
+
+@pytest.mark.asyncio
+async def test_gives_up_on_a_host_whose_dns_lookup_never_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sin plazo, un DNS lento dejaba la petición y su hilo del resolvedor colgados."""
+
+    async def never_answers(*_args: object, **_kwargs: object) -> list[object]:
+        await asyncio.sleep(5.0)
+        return []
+
+    # El conftest reemplaza `_resolve` en todas las pruebas: acá se prueba la real.
+    monkeypatch.setattr(url_guard, "_resolve", _REAL_RESOLVE)
+    monkeypatch.setattr(url_guard, "DNS_TIMEOUT_SECONDS", 0.05, raising=False)
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", never_answers)
+
+    started = time.monotonic()
+    with pytest.raises(UnsafeUrlError):
+        await ensure_public_http_url("https://slow-dns.example.com/job")
+
+    assert time.monotonic() - started < 0.5
+
+
+class _FakeWebSocketRoute:
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(
+        self, *, code: int | None = None, reason: str | None = None
+    ) -> None:
+        self.closed = True
+
+
+class _FakePage:
+    def __init__(self) -> None:
+        self.routes: list[str] = []
+
+    async def route(self, pattern: str, _handler: Any) -> None:
+        self.routes.append(pattern)
+
+
+class _FakeContext:
+    def __init__(self) -> None:
+        self.page = _FakePage()
+        self.web_socket_patterns: list[str] = []
+        self.web_socket_handler: Any = None
+
+    async def route_web_socket(self, pattern: str, handler: Any) -> None:
+        self.web_socket_patterns.append(pattern)
+        self.web_socket_handler = handler
+
+    async def new_page(self) -> _FakePage:
+        return self.page
+
+
+class _FakeBrowser:
+    def __init__(self) -> None:
+        self.context = _FakeContext()
+        self.options: dict[str, Any] = {}
+
+    async def new_context(self, **options: Any) -> _FakeContext:
+        self.options = options
+        return self.context
+
+
+@pytest.mark.asyncio
+async def test_the_scraper_page_blocks_service_workers_and_websockets() -> None:
+    """`page.route` no ve los service workers ni los WebSockets: se bloquean aparte."""
+    browser = _FakeBrowser()
+
+    page = await url_guard.new_guarded_page(browser, "Mozilla Chrome")
+
+    assert browser.options == {
+        "user_agent": "Mozilla Chrome",
+        "service_workers": "block",
+    }
+    assert page is browser.context.page
+    assert page.routes == ["**/*"]
+    assert browser.context.web_socket_patterns == ["**/*"]
+    socket_route = _FakeWebSocketRoute()
+    await browser.context.web_socket_handler(socket_route)
+    assert socket_route.closed

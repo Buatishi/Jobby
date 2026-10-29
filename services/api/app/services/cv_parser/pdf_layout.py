@@ -51,6 +51,10 @@ LINE_TOLERANCE = 3.0
 EDGE_BIN = 4.0
 MIN_IMAGE_AREA_SHARE = 0.005
 MIN_TABLE_CELLS_WITH_TEXT = 2
+# Lado máximo de una hoja analizada, en puntos. El tamaño de la hoja lo declara el PDF y
+# `_free_runs` reserva listas del largo del ancho: sin tope, una hoja de 3e7 puntos
+# pedía cientos de MB. Un A4 mide 595 x 842 y hasta un A0 (2384 x 3370) entra de sobra.
+MAX_PAGE_SIDE = 5_000.0
 
 HEADING_SIZE_FACTOR = 1.2
 MAX_HEADING_WORDS = 4
@@ -58,6 +62,10 @@ MAX_HEADING_CHARS = 40
 MIN_GROUP_LINES = 2
 _BOLD_FONT = re.compile(r"bold|black|heavy|semibold|demi", re.IGNORECASE)
 _HEADING_SHAPE = re.compile(r"[^\W\d_]+(?:[ &/'’-]+[^\W\d_]+)*")
+
+class PageTooLargeError(ValueError):
+    """La hoja declara un tamaño que no es de un CV: no se analiza su diseño."""
+
 
 Word = dict[str, Any]
 # Posición de lectura de un punto: (tramo de arriba abajo, columna dentro del tramo).
@@ -450,9 +458,13 @@ def read_layout(pages: Sequence[Page]) -> PdfLayout:
     has_tables = has_images = multi_column = False
 
     for number, page in enumerate(pages):
+        width = float(page.width)
+        if width > MAX_PAGE_SIDE or float(page.height) > MAX_PAGE_SIDE:
+            # `_read_pages` cae a la lectura plana: el CV se sigue leyendo.
+            raise PageTooLargeError("El tamaño de la hoja supera el de un documento.")
         words = page.extract_words(extra_attrs=["fontname", "size"])
         segments = _segments(words)
-        gutter = _find_gutter(segments, float(page.width))
+        gutter = _find_gutter(segments, width)
         multi_column = multi_column or gutter is not None
         page_texts.append(_page_text(page, gutter))
         has_images = has_images or _has_images(page)

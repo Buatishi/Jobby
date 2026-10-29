@@ -47,6 +47,10 @@ class Page:
     texts: list[Text] = field(default_factory=list)
     images: list[Image] = field(default_factory=list)
     lines: list[Line] = field(default_factory=list)
+    # El tamaño de la hoja lo declara el PDF (MediaBox): los tests lo cambian a
+    # propósito.
+    width: float = PAGE_WIDTH
+    height: float = PAGE_HEIGHT
 
 
 def grid_lines(
@@ -127,7 +131,7 @@ def build_pdf(pages: list[Page]) -> bytes:
     for page, page_id in zip(pages, page_ids, strict=True):
         stream = _content_stream(page)
         objects[page_id] = (
-            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {PAGE_WIDTH} {PAGE_HEIGHT}] "
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {page.width} {page.height}] "
             "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> "
             f"/XObject << /Im1 5 0 R >> >> /Contents {page_id + 1} 0 R >>"
         ).encode()

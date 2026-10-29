@@ -1,4 +1,5 @@
 import asyncio
+import re
 import uuid
 from typing import Annotated, Any, cast
 
@@ -12,6 +13,11 @@ from app.database import get_supabase_client
 from app.models.auth import CurrentUser
 
 bearer_scheme = HTTPBearer(auto_error=False)
+# Un token de Supabase siempre es un JWT: tres tramos en base64url (la firma puede ir
+# vacía) y unos pocos KB. Lo que no tiene esa forma no se manda a Supabase Auth: antes
+# cualquier texto en `Authorization` costaba una llamada externa con un cliente nuevo.
+_JWT_SHAPE = re.compile(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
+MAX_TOKEN_LENGTH = 8192
 # Marca de las claims que validó Supabase Auth por HTTP: ese camino ya rechaza los
 # tokens de sesiones cerradas, así que no hace falta volver a consultar la sesión.
 SESSION_VERIFIED_BY_AUTH = "x-jobby-session-verified"
@@ -142,6 +148,8 @@ async def validate_jwt(
         raise _unauthorized("Token requerido")
 
     token = credentials.credentials
+    if len(token) > MAX_TOKEN_LENGTH or _JWT_SHAPE.fullmatch(token) is None:
+        raise _unauthorized()
 
     try:
         algorithm = _token_algorithm(token)

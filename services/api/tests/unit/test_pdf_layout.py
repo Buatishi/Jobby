@@ -18,6 +18,7 @@ from app.services.cv_parser import (
     extract_pdf_content,
     extract_pdf_text,
     pdf_extractor,
+    pdf_layout,
 )
 from tests.pdf_builder import Image, Line, Page, Text, build_pdf, grid_lines
 
@@ -442,3 +443,55 @@ async def test_a_pdf_without_text_still_raises_the_same_error(tmp_path: Path) ->
         await extract_pdf_content(path)
 
     assert exc_info.value.code == "PDF_EMPTY_TEXT"
+
+
+def _many_lines_page(**size: float) -> Page:
+    """Una hoja con renglones de sobra para que se busque la columna."""
+    return Page(
+        texts=_body(60, 60, [f"Linea {index} del documento" for index in range(16)]),
+        **size,
+    )
+
+
+def _spy_on_the_gutter_search(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    widths: list[float] = []
+
+    def spy(_segments: object, width: float, _tolerance: int) -> list[tuple[int, int]]:
+        widths.append(width)
+        return []
+
+    monkeypatch.setattr(pdf_layout, "_free_runs", spy)
+    return widths
+
+
+async def test_a_huge_declared_page_size_never_reaches_the_gutter_search(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """El ancho de la hoja lo declara el PDF: no decide cuánta memoria se reserva.
+
+    Antes `_free_runs` armaba tres listas del largo del ancho declarado: con unos 3e7
+    puntos eran cientos de MB, más de lo que tiene la instancia de la API.
+    """
+    widths = _spy_on_the_gutter_search(monkeypatch)
+
+    content = await extract_pdf_content(
+        _write(tmp_path, _many_lines_page(width=30_000_000.0))
+    )
+
+    assert widths == []
+    # El CV se sigue leyendo, en texto plano y sin las banderas del chequeo de formato.
+    assert "Linea 0 del documento" in content.text
+    assert content.format_flags is None
+
+
+async def test_a_large_but_plausible_page_is_still_analyzed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    widths = _spy_on_the_gutter_search(monkeypatch)
+
+    content = await extract_pdf_content(
+        _write(tmp_path, _many_lines_page(width=2384.0, height=3370.0))  # un A0
+    )
+
+    assert widths == [2384.0]
+    assert content.format_flags is not None

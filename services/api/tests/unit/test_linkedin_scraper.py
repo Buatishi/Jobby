@@ -30,13 +30,25 @@ class FakePage:
         return self.body
 
 
+class FakeContext:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    async def route_web_socket(self, _pattern: str, _handler: Any) -> None:
+        return None
+
+    async def new_page(self) -> FakePage:
+        return FakePage(self.text)
+
+
 class FakeBrowser:
     def __init__(self, text: str) -> None:
         self.text = text
 
-    async def new_page(self, user_agent: str) -> FakePage:
+    async def new_context(self, user_agent: str, service_workers: str) -> FakeContext:
         assert "Chrome" in user_agent
-        return FakePage(self.text)
+        assert service_workers == "block"
+        return FakeContext(self.text)
 
     async def close(self) -> None:
         return None
@@ -190,3 +202,31 @@ async def test_scrape_returns_fallback_on_block(
 
     assert result["scraping_failed"] is True
     assert "linkedin_authwall" in result["reason"]
+
+
+@pytest.mark.asyncio
+async def test_scrape_does_not_expose_internal_error_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El motivo llega al dueño del kit: no puede traer rutas ni datos del servidor."""
+    fake_db = FakeSupabase()
+
+    async def browser_is_missing(*_args: Any, **_kwargs: Any) -> str:
+        raise OSError(
+            "BrowserType.launch: Executable doesn't exist at "
+            "/home/appuser/.cache/ms-playwright/chromium-1200/chrome-linux/chrome"
+        )
+
+    monkeypatch.setattr(linkedin_scraper, "_scrape_text", browser_is_missing)
+
+    for scrape in (scrape_company, scrape_person):
+        result = await scrape(
+            f"https://linkedin.com/{scrape.__name__}",
+            db=fake_db,
+            user_id="user-1",
+            sleep=_no_sleep,
+        )
+        assert result == {"scraping_failed": True, "reason": "scraper_unavailable"}
+
+    cached = [row["raw_data"] for row in fake_db.tables["linkedin_scrape_cache"]]
+    assert all("ms-playwright" not in str(data) for data in cached)

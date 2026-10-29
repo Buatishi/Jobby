@@ -6,7 +6,11 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from app.database import get_supabase_client
-from app.services.scraper.url_guard import ensure_public_http_url, make_route_guard
+from app.services.scraper.url_guard import (
+    UnsafeUrlError,
+    ensure_public_http_url,
+    new_guarded_page,
+)
 
 PlaywrightTimeoutError: type[Exception]
 async_playwright: Any
@@ -19,6 +23,27 @@ except ImportError:  # pragma: no cover - tests mock Playwright.
     async_playwright = None
 
 _last_domain_request: dict[str, float] = {}
+
+# Motivos de fallo que se pueden mostrar tal cual: los fija este módulo (ver
+# `_scrape_text` y `_blocked_reason`). Cualquier otro error trae texto del servidor
+# (rutas, versiones) y el motivo llega al dueño del kit en `prep_notes`.
+_PUBLIC_FAILURE_REASONS = frozenset(
+    {
+        "timeout",
+        "linkedin_authwall",
+        "private_or_unavailable",
+        "blocked",
+        "playwright_not_available",
+    }
+)
+UNKNOWN_FAILURE_REASON = "scraper_unavailable"
+
+
+def _failure_reason(exc: Exception) -> str:
+    if isinstance(exc, UnsafeUrlError):
+        return str(exc)  # frases fijas en español de la guarda de URLs
+    message = str(exc)
+    return message if message in _PUBLIC_FAILURE_REASONS else UNKNOWN_FAILURE_REASON
 
 
 def _normalize_url(url: str) -> str:
@@ -129,8 +154,7 @@ async def _scrape_text(url: str, sleep: Any = asyncio.sleep) -> str:
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=True)
             try:
-                page = await browser.new_page(user_agent=user_agent)
-                await page.route("**/*", make_route_guard())
+                page = await new_guarded_page(browser, user_agent)
                 await page.goto(safe_url, wait_until="domcontentloaded", timeout=30_000)
                 text = await page.locator("body").inner_text(timeout=30_000)
             finally:
@@ -309,7 +333,7 @@ async def scrape_company(
         text = await _scrape_text(normalized_url, sleep=sleep)
         data = _parse_company(text)
     except Exception as exc:
-        data = {"scraping_failed": True, "reason": str(exc)}
+        data = {"scraping_failed": True, "reason": _failure_reason(exc)}
 
     await _set_cached(db_client, user_id, normalized_url, data)
     return data
@@ -332,7 +356,7 @@ async def scrape_person(
         text = await _scrape_text(normalized_url, sleep=sleep)
         data = _parse_person(text, candidate_context)
     except Exception as exc:
-        data = {"scraping_failed": True, "reason": str(exc)}
+        data = {"scraping_failed": True, "reason": _failure_reason(exc)}
 
     await _set_cached(db_client, user_id, normalized_url, data)
     return data

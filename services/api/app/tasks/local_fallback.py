@@ -36,6 +36,22 @@ class LocalTaskResult:
         return self.state == "SUCCESS"
 
 
+def _without_traceback(exc: BaseException) -> BaseException:
+    """La excepción sin su traza ni la de las que la causaron.
+
+    La traza guarda los marcos de la tarea con sus variables: se retenía, por ejemplo,
+    el PDF entero que se había descargado hasta que se descartaba el resultado (una
+    hora). El cliente solo necesita el mensaje.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        current.__traceback__ = None
+        current = current.__cause__ or current.__context__
+    return exc
+
+
 _tasks: dict[str, LocalTaskResult] = {}
 _lock = threading.Lock()
 _semaphore = threading.BoundedSemaphore(settings.local_task_max_concurrency)
@@ -96,7 +112,9 @@ def enqueue_local_task(
             result: Any = asyncio.run(task_factory())
         except Exception as exc:  # pragma: no cover - exercised through API flows
             with _lock:
-                _tasks[task_id] = LocalTaskResult(task_id, "FAILURE", exc)
+                _tasks[task_id] = LocalTaskResult(
+                    task_id, "FAILURE", _without_traceback(exc)
+                )
             return
         finally:
             _semaphore.release()
