@@ -1,4 +1,9 @@
-import { SITE_NAME, SITE_SAME_AS, SITE_URL } from "@/lib/seo/site";
+import {
+  SITE_ALTERNATE_NAMES,
+  SITE_NAME,
+  SITE_SAME_AS,
+  SITE_URL
+} from "@/lib/seo/site";
 
 export type JsonLdNode = Record<string, unknown>;
 
@@ -11,7 +16,7 @@ export function buildHomeStructuredData(): JsonLdNode[] {
       "@context": "https://schema.org",
       "@type": "WebSite",
       name: SITE_NAME,
-      alternateName: [`${SITE_NAME} web`],
+      alternateName: SITE_ALTERNATE_NAMES,
       url: SITE_URL,
       inLanguage: "es"
     },
@@ -19,6 +24,7 @@ export function buildHomeStructuredData(): JsonLdNode[] {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAMES,
       url: SITE_URL,
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
