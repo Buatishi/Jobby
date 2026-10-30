@@ -2414,3 +2414,88 @@ probó y LinkedIn lo bloquearía igual desde un servidor. (d) Dejar abiertos dos
 cuenta propia y mirar el log de Render (`El navegador del scraper falló`, `La tarea … falló`) y la memoria del
 servicio en el panel. Para revertir, deshacer el merge: el `Dockerfile` vuelve a la imagen sin Chromium y
 toda URL responde con el aviso de pegar el texto. No hay migración ni variable de entorno nueva.
+
+---
+
+## Decisión 39 — El MatchScore compara nombres de skills, no tareas escritas como frase
+
+**Estado:** Pedida por el autor el 2026-10-30, después de medir los puntajes de una cuenta real. Cambio en
+la rama `fix/match-clean-required-skills`, **sin mergear**: mergearlo despliega y cambia el puntaje de
+**todos los matches nuevos** (los ya guardados no se recalculan). El texto es un borrador redactado con
+asistencia de IA que el autor revisa y hace suyo. Es la primera de las propuestas del diagnóstico
+(limpiar la lista); las otras (`tech_stack`, formato del ATS, habilidades blandas) no están incluidas.
+
+**Hallazgo** (2026-10-30, solo lectura sobre producción y código). El puesto de «Software Engineer | AI
+Engineer» de una empresa grande dio Match 6 con un CV de sistemas. La IA que lee el aviso devolvió 17
+`required_skills`, casi todas tareas escritas como frase («Optimizing sessions, events, latency, turns,
+interruptions and error fallbacks», «Relational databases (MySQL or similar)»). `compute_skills_score`
+las compara por nombre contra las skills del perfil («Python», «SQL»): una frase no coincide nunca, pero
+sí suma al divisor. El ATS ya filtraba esto desde la Decisión 35; el motor de comparación no.
+
+**Elegido.**
+
+- **El filtro del ATS pasa a un módulo neutro**, `app/services/skill_filter.py` (antes
+  `ats_analyzer/keyword_filter.py`; mismo código, movido con `git mv`). No se podía importar desde
+  `match_engine` sin un ciclo: `ats_analyzer/__init__` → `keyword_matcher` → `match_engine.common` →
+  `match_engine/__init__` → `formula` → `s_skills`. Los dos importadores se actualizaron; la
+  Decisión 35 sigue nombrando el archivo anterior porque no se reescribe.
+- **Las skills que pide el puesto se limpian antes de compararlas** (`_job_required_skill_items` en
+  `s_skills.py`, que alimenta el puntaje, la relevancia y `score_breakdown.required_skills`): se saca el
+  texto entre paréntesis («Relational databases (MySQL or similar)» pide «Relational databases»), se
+  descarta lo que no es una habilidad con el mismo criterio del ATS (más de 5 palabras, nivel,
+  modalidad, título, empresa, ciudad) y el mismo nombre cuenta una sola vez.
+- **Dos alias del mismo nombre siguen contando cada uno** («REST API» y «API REST»): es la regla de
+  alias de la Decisión 31 y su prueba; limpiar la lista no la toca.
+- **Si no queda ninguna skill, se conserva la lista como vino.** Vacía se leería como «el puesto no pide
+  nada» y daría el puntaje neutro de 0,8; con la lista original el puntaje es 0, como hasta ahora.
+- **Se le pide a la IA otra cosa** en `analysis._user_prompt`: una skill por ítem, con su nombre corto y
+  común, hasta 4 palabras, sin paréntesis y sin frases ni descripciones de tareas. Es la primera
+  defensa; el filtro es la segunda porque la IA no es determinista (mismo esquema que la Decisión 35).
+  Solo afecta a los puestos que se analicen después del despliegue.
+
+**Medido** (2026-10-30, 8 puestos guardados en producción, solo lectura, con las skills actuales de la
+cuenta; la relevancia por texto del perfil no se pudo reconstruir y se tomó el valor guardado, así que
+las cifras son un piso). «Antes» es `main`, «después» es esta rama, mismo script:
+
+| Puesto | Skills pedidas | Puntaje de skills | Match |
+|---|---|---|---|
+| Ingeniería de IA (empresa grande) | 17 → 12 | 0 → 0 | 6 → 6 |
+| Ingeniería (banco) | 10 → 9 | 0,10 → 0,11 | 18 → 19 |
+| Desarrollo de software (telecom) | 12 → 9 | 0,25 → 0,33 | 27 → 36 |
+| Generalista (Python, Rust, Nix) | 13 → 13 | 0,23 → 0,23 | 28 → 28 |
+| Backend Python Jr | 9 → 6 | 0,44 → 0,67 | 58 → 65 |
+| Análisis de datos Jr | 5 → 5 | 0,60 → 0,60 | 52 → 52 |
+| Chef ejecutivo | 9 → 9 | 0 → 0 | 3 → 3 |
+| Full Stack Jr | 6 → 6 | 1,00 → 1,00 | 71 → 71 |
+
+**El caso que originó el pedido no cambia con este PR (6 → 6).** Las frases largas que salen no podían
+coincidir de todos modos, y lo que queda sigue sin coincidir: `required_skills` de ese puesto ni siquiera
+incluye «Python», que sí está en su `tech_stack`. Moverlo requiere que el `tech_stack` cuente como skill
+pedida (propuesta aparte, con efecto medido de 6 → 14 pero también de 36 → 21 en otro puesto) y es una
+decisión de criterio que no está tomada.
+
+**Qué cambia para la persona.** Los puestos cuya lista traía tareas largas suben (sin frases imposibles
+en el divisor), y la lista de «skills que faltan» deja de mostrar frases que ninguna persona podría tener.
+Puede bajar en casos raros: un puesto que repite el mismo nombre dos veces y la persona lo tiene cuenta
+ahora una sola vez.
+
+**Límites conocidos.**
+- El tope de 5 palabras (`MAX_SKILL_WORDS`) deja pasar tareas cortas («Building AI agents», «Collecting
+  conversations and production traces», 5 palabras). El filtro solo descarta lo que seguro no es una
+  skill; bajar el tope también descartaría nombres legítimos (se evaluó en la Decisión 35).
+- No se modela la comparación semántica: `semantic_hits` fue 0 en los 12 matches guardados. La causa
+  (cada skill pedida recibe de respaldo el vector del puesto entero) no se toca acá.
+- No se recalculan ni se borran matches guardados. No hay migración ni cambios en `render.yaml`,
+  variables de entorno, workflows o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_required_skills_clean.py` (paréntesis, frases largas, tarea corta que se
+conserva, puntaje sin el peso de las frases, una falta real que sigue bajando el puntaje, nivel/modalidad/
+título, mismo nombre una sola vez, alias que siguen contando cada uno, lista solo de frases, puesto sin
+skills, skill con vector que conserva su vector, relevancia sobre los nombres limpios, importación en
+cualquier orden de `match_engine` y `ats_analyzer`, y lo que se le pide a la IA). Se verificó que 9 de
+las 15 fallan contra el código anterior; las otras 6 fijan reglas que no cambian. Suite del backend sin
+`tests/integration` (necesita base real): 1206 pruebas pasan; `mypy app/` y `ruff check` sin hallazgos.
+
+**Validación y reversión.** Tras el deploy, analizar un puesto de prueba y mirar
+`score_breakdown.required_skills` del match: tiene que traer nombres cortos y sin paréntesis. Para
+revertir, deshacer el merge: vuelve la lista sin limpiar y el ATS vuelve a importar el filtro de su carpeta.

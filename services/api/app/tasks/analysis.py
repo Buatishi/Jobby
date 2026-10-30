@@ -166,7 +166,10 @@ def _user_prompt(job_text: str) -> str:
         "Extract this job post into JSON with keys: job_title, company_name, "
         "required_seniority, required_modality, industry, tech_stack, "
         "required_skills, soft_skills, required_education, required_languages, "
-        "salary_min, salary_max, currency.\n\n"
+        "salary_min, salary_max, currency. In required_skills put one skill per item "
+        'with its short, common name ("SQL", "Docker", "Project management"): at '
+        "most 4 words, no parentheses, and never a sentence or a task "
+        "description.\n\n"
         f"{job_text}"
     )
 
