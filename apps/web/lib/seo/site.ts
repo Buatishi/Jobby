@@ -5,6 +5,10 @@ export const SITE_NAME = "Jobby";
 // Otras formas en que se escribe y se busca el nombre: el dominio es «jobbyweb» y la gente
 // separa o junta las palabras. Van en `alternateName` de los datos estructurados de la home.
 export const SITE_ALTERNATE_NAMES = ["Jobby web", "JobbyWeb"];
+// Páginas que existen para usarlas y no para encontrarlas en un buscador (acceso, registro,
+// recuperar clave). Se marca `noindex` y no se bloquea en `robots.txt`: si se bloqueara, el
+// rastreador no podría leer el `noindex`. `follow` deja que sus enlaces sigan contando.
+export const NOINDEX_ROBOTS = { index: false, follow: true } as const;
 // Única dirección de contacto del proyecto: la usan términos, privacidad y `llms.txt` (este
 // último es estático, así que su `Contact:` se edita a mano y un test lo compara con esta).
 export const SITE_CONTACT_EMAIL = "developjobby@gmail.com";
