@@ -1,5 +1,6 @@
 import pytest
 
+from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.match_engine import MatchResult, compute_match_score
 from app.services.match_engine.formula import _weighted_score
 from app.services.match_engine.s_relevance import (
@@ -200,6 +201,110 @@ async def test_run_match_persists_full_score_breakdown() -> None:
     assert match["ai_model_used"] == "deepseek-chat"
     assert match["recommendations"]
     assert db.tables["job_matches"][0]["score_breakdown"]["sub_scores"]["skills"] == 1.0
+
+
+# --- el match no se pierde si la IA que redacta el análisis no responde ------------
+
+
+class TierRoutedGateway:
+    """Responde o falla según el plan, como el AIGateway real según el proveedor."""
+
+    errors = {
+        "premium": "Missing ANTHROPIC_API_KEY.",
+        "free": "Missing DEEPSEEK_API_KEY.",
+    }
+
+    def __init__(self, failing_tiers: set[str]) -> None:
+        self.failing_tiers = failing_tiers
+        self.calls: list[str] = []
+
+    async def generate(
+        self,
+        _task_type: str,
+        user_tier: str,
+        _prompt: str,
+        system: str | None = None,
+        json_mode: bool = False,
+    ) -> str:
+        self.calls.append(user_tier)
+        if user_tier in self.failing_tiers:
+            raise ProviderUnavailableError(user_tier, self.errors[user_tier])
+        return "- Buen fit por skills backend.\n- Agregá React al CV."
+
+
+def _db_for(tier: str) -> FakeSupabase:
+    db = FakeSupabase()
+    _seed_golden_dataset(db)
+    db.tables["users"][0]["tier"] = tier
+    return db
+
+
+@pytest.mark.asyncio
+async def test_run_match_keeps_claude_for_premium_when_it_answers() -> None:
+    gateway = TierRoutedGateway(failing_tiers=set())
+
+    match = await run_match(
+        "job-0", "profile-0", "user-0", supabase=_db_for("premium"), gateway=gateway
+    )
+
+    assert gateway.calls == ["premium"]
+    assert match["ai_model_used"] == "claude-sonnet-4-5"
+    assert match["recommendations"]
+
+
+@pytest.mark.asyncio
+async def test_run_match_falls_back_to_the_free_text_when_claude_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    db = _db_for("premium")
+    gateway = TierRoutedGateway(failing_tiers={"premium"})
+
+    with caplog.at_level("WARNING", logger="jobmatch.tasks"):
+        match = await run_match(
+            "job-0", "profile-0", "user-0", supabase=db, gateway=gateway
+        )
+
+    assert gateway.calls == ["premium", "free"]
+    assert match["ai_model_used"] == "deepseek-chat"
+    assert match["recommendations"]
+    assert match["score_breakdown"]["reasoning"]
+    assert match["match_score"] >= 80
+    assert db.tables["job_matches"][0]["job_id"] == "job-0"
+    # El motivo queda en el log: sin él, esta falla era invisible.
+    assert "plan premium" in caplog.text
+    assert "ProviderUnavailableError: Missing ANTHROPIC_API_KEY." in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_run_match_saves_the_score_when_no_ai_answers() -> None:
+    db = _db_for("premium")
+    gateway = TierRoutedGateway(failing_tiers={"premium", "free"})
+
+    match = await run_match(
+        "job-0", "profile-0", "user-0", supabase=db, gateway=gateway
+    )
+
+    assert gateway.calls == ["premium", "free"]
+    assert match["match_score"] >= 80
+    assert match["score_breakdown"]["sub_scores"]["skills"] == 1.0
+    assert "reasoning" not in match["score_breakdown"]
+    assert match["recommendations"] == []
+    assert match["ai_model_used"] is None
+    assert len(db.tables["job_matches"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_match_for_a_free_user_tries_once_and_still_saves() -> None:
+    db = _db_for("free")
+    gateway = TierRoutedGateway(failing_tiers={"free"})
+
+    match = await run_match(
+        "job-0", "profile-0", "user-0", supabase=db, gateway=gateway
+    )
+
+    assert gateway.calls == ["free"]
+    assert match["ai_model_used"] is None
+    assert len(db.tables["job_matches"]) == 1
 
 
 # --- relevancia del área: un CV de sistemas no sirve para un puesto de chef --------
