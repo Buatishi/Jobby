@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 from collections.abc import Awaitable, Callable, Coroutine
 from datetime import UTC, datetime
@@ -24,6 +25,8 @@ from app.services.match_engine import MatchResult, compute_match_score
 from app.services.scraper import linkedin_scraper, scrape_url
 from app.tasks import celery_app
 from app.tasks.local_fallback import enqueue_local_task, is_local_mode
+
+logger = logging.getLogger("jobmatch.tasks")
 
 JobSource = Literal["url", "text"]
 MAX_JOB_TEXT_CHARS = 30_000
@@ -166,6 +169,12 @@ def _parse_structured_job(content: str) -> StructuredJobDescription:
     try:
         return StructuredJobDescription.model_validate(parsed)
     except ValidationError as exc:
+        # Solo campo y tipo de error: el valor es texto del aviso y no va a los logs.
+        fields = ", ".join(
+            f"{'.'.join(str(part) for part in error['loc']) or 'root'}:{error['type']}"
+            for error in exc.errors()
+        )
+        logger.warning("El JSON del puesto no pasó la validación: %s", fields)
         raise ValueError("DeepSeek job JSON failed validation.") from exc
 
 
