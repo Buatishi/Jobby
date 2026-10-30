@@ -142,6 +142,179 @@ async def test_run_job_analysis_saves_job_and_enqueues_match(
     assert enqueued_matches == [("job-1", "profile-1", "user-1")]
 
 
+def _job_json(**overrides: Any) -> str:
+    base: dict[str, Any] = {
+        "job_title": "Conversational AI Engineer",
+        "company_name": "Acme",
+        "required_seniority": "senior",
+        "required_modality": "hybrid",
+        "industry": "Tech",
+        "tech_stack": ["Python"],
+        "required_skills": ["LLMs"],
+        "soft_skills": ["Autonomía"],
+        "required_education": "Grado",
+        "required_languages": ["Inglés"],
+        "salary_min": None,
+        "salary_max": None,
+        "currency": None,
+    }
+    return json.dumps({**base, **overrides})
+
+
+def test_parse_structured_job_keeps_the_expected_shape() -> None:
+    job = analysis._parse_structured_job(_job_json())
+
+    assert job.tech_stack == ["Python"]
+    assert job.required_languages == ["Inglés"]
+    assert job.salary_min is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "field", "expected"),
+    [
+        ({"tech_stack": None}, "tech_stack", []),
+        ({"soft_skills": None}, "soft_skills", []),
+        ({"required_skills": "Python, LLMs; Docker"}, "required_skills",
+         ["Python", "LLMs", "Docker"]),
+        ({"required_skills": [{"name": "LLMs", "level": "alto"}, "Python", None]},
+         "required_skills", ["LLMs", "Python"]),
+        ({"tech_stack": ["Python", 3, "", " FastAPI "]}, "tech_stack",
+         ["Python", "3", "FastAPI"]),
+        ({"required_education": ["Grado", "Posgrado"]}, "required_education",
+         "Grado, Posgrado"),
+        ({"required_education": ""}, "required_education", None),
+        ({"job_title": 123}, "job_title", "123"),
+        ({"required_languages": None}, "required_languages", []),
+        ({"required_languages": "Inglés avanzado"}, "required_languages",
+         ["Inglés avanzado"]),
+    ],
+)
+def test_parse_structured_job_accepts_shapes_the_ai_returns(
+    overrides: dict[str, Any], field: str, expected: Any
+) -> None:
+    job = analysis._parse_structured_job(_job_json(**overrides))
+
+    assert getattr(job, field) == expected
+
+
+def test_parse_structured_job_keeps_the_language_level_the_match_reads() -> None:
+    job = analysis._parse_structured_job(
+        _job_json(
+            required_languages=[
+                {"language": "Inglés", "level": "avanzado"},
+                {"name": "Portugués"},
+                {"nivel": "B2"},
+                "Español nativo",
+            ]
+        )
+    )
+
+    # El objeto sin nombre se descarta; el resto conserva el nivel que haya.
+    assert job.required_languages == [
+        {"name": "Inglés", "level": "avanzado"},
+        {"name": "Portugués"},
+        "Español nativo",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (1500000, 1500000),
+        (1500000.0, 1500000),
+        (2500.6, 2501),
+        ("1500000", 1500000),
+        ("1.500.000", 1500000),
+        ("1,500,000", 1500000),
+        ("$ 1.500.000 ARS", 1500000),
+        ("1500,60", 1501),
+        ("1000-2000", None),
+        ("1.500.000 - 2.000.000", None),
+        ("3k", None),
+        ("a convenir", None),
+        ("", None),
+        (-5, None),
+        (True, None),
+        (10**10, None),
+        (10**400, None),
+        (float("nan"), None),
+        (float("inf"), None),
+        ([1500000], None),
+        (None, None),
+    ],
+)
+def test_parse_structured_job_reads_the_salary_or_leaves_it_empty(
+    raw: Any, expected: int | None
+) -> None:
+    job = analysis._parse_structured_job(_job_json(salary_min=raw, salary_max=raw))
+
+    assert job.salary_min == expected
+    assert job.salary_max == expected
+
+
+def test_parse_structured_job_logs_the_failing_field_without_the_content(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level("WARNING", logger="jobmatch.tasks"):
+        with pytest.raises(ValueError, match="failed validation"):
+            analysis._parse_structured_job('["texto-privado-del-aviso"]')
+
+    assert "root:model_type" in caplog.text
+    assert "texto-privado-del-aviso" not in caplog.text
+
+
+def test_parse_structured_job_rejects_json_that_is_not_json() -> None:
+    with pytest.raises(ValueError, match="invalid job JSON"):
+        analysis._parse_structured_job("no es json")
+
+
+class MessyGateway(FakeGateway):
+    """Respuesta como la de un aviso real que quedó sin analizar: forma distinta."""
+
+    async def generate(
+        self,
+        _task_type: str,
+        _user_tier: str,
+        _prompt: str,
+        system: str | None = None,
+        json_mode: bool = False,
+    ) -> str:
+        return _job_json(
+            tech_stack=None,
+            required_skills=[{"name": "Agentes conversacionales"}],
+            required_languages=[{"language": "Inglés", "level": "avanzado"}],
+            required_education=["Grado en sistemas"],
+            salary_min="1.500.000",
+            salary_max=2500000.0,
+        )
+
+
+@pytest.mark.asyncio
+async def test_run_job_analysis_saves_a_job_the_ai_described_loosely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = FakeSupabase()
+    monkeypatch.setattr(analysis, "enqueue_match", lambda *args: "match-task-1")
+
+    result = await analysis.run_job_analysis(
+        "job-2",
+        "user-1",
+        "text",
+        None,
+        "Conversational AI role, híbrido en CABA",
+        supabase=fake_supabase,
+        gateway=MessyGateway(),  # type: ignore[arg-type]
+    )
+
+    assert result["id"] == "job-2"
+    saved = fake_supabase.tables["job_descriptions"][0]
+    assert saved["tech_stack"] == []
+    assert saved["required_skills"] == ["Agentes conversacionales"]
+    assert saved["required_languages"] == [{"name": "Inglés", "level": "avanzado"}]
+    assert saved["required_education"] == "Grado en sistemas"
+    assert (saved["salary_min"], saved["salary_max"]) == (1500000, 2500000)
+
+
 class FakeBody:
     def __init__(self, text: str, should_timeout: bool = False) -> None:
         self.text = text
