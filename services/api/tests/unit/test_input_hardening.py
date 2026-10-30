@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -189,3 +190,13 @@ def test_public_error_message_maps_known_failures(
     expected: str,
 ) -> None:
     assert public_error_message(exc) == expected
+
+
+@pytest.mark.parametrize(
+    "reason", ["timeout", "cloudflare", "paywall", "authwall", "empty", "browser"]
+)
+def test_every_scraper_block_asks_the_person_to_paste_the_text(reason: Any) -> None:
+    # Sea cual sea el motivo, la persona sigue con el texto; el motivo no se muestra.
+    assert public_error_message(ScraperBlockedError(reason)) == (
+        "No pudimos leer la página indicada. Pegá el texto del puesto para continuar."
+    )

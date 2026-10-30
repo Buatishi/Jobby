@@ -451,7 +451,7 @@ cambio lo extiende a análisis, match y kits sin tocar el código de Celery.
 **Límites:** el estado de las tareas vive en la memoria del proceso y se pierde si el
 servicio se reinicia o se duerme durante una tarea; una sola instancia; comparte memoria con
 la API; un pedido directo con la capacidad llena falla enseguida. El scraping por URL con
-Chromium no está instalado en la imagen (pendiente aparte).
+Chromium no estaba instalado en la imagen cuando se tomó esta decisión; lo instala la Decisión 38.
 
 **Efecto sobre la tecnología avanzada:** la cola Celery + Redis deja de tener un consumidor
 independiente en producción, así que hoy no puede declararse como capacidad avanzada
@@ -2247,8 +2247,8 @@ imagen (1117 tests; los 4 de Chromium se saltan porque la imagen no lo trae).
 **Hallazgo.** `ensure_public_http_url` y la guarda de `page.route` resolvían el nombre para decidir y
 Chromium lo volvía a resolver para conectar. Un DNS del atacante que contesta una IP pública la primera
 vez y una interna la segunda (127.0.0.1, la red privada, los metadatos de la nube) hacía que el
-navegador llegara adonde la guarda había dicho que no. Hoy está dormido: la imagen de la API no
-instala Chromium (pendiente aparte).
+navegador llegara adonde la guarda había dicho que no. Estuvo dormido mientras la imagen de la API
+no instalaba Chromium; desde la Decisión 38 lo instala y este proxy es el camino real del navegador.
 
 **Elegido.** `EgressProxy` (`scraper/egress_proxy.py`): un proxy HTTP en 127.0.0.1 con el que se lanza
 Chromium, único camino de salida. Por cada conexión resuelve el nombre **una vez**, exige que **todas**
@@ -2340,3 +2340,77 @@ sitemap. Search Console no las lista entre las 13 URLs conocidas.
 saliendo, y si Bing la saca antes de elegir la home, «jobbyweb» puede perder un tiempo el primer
 lugar. No garantiza que la home ocupe ese lugar. Quien llega con el enlace directo a una de estas
 pantallas no nota ningún cambio.
+
+
+## Decisión 38 — Chromium en la imagen de la API, un navegador a la vez y el aviso de pegar el texto cuando un sitio bloquea
+
+**Estado:** Pedida por el autor el 2026-10-30, después de medirla. Cambio en la rama
+`feat/chromium-url-analysis`, **sin mergear**: mergearlo despliega y toca el `Dockerfile`. El texto es un
+borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo.** El análisis de un puesto por URL nunca funcionó en producción. Los logs de Render del
+2026-10-30 muestran tres intentos que fallan a los pocos segundos con
+`BrowserType.launch: Executable doesn't exist ... playwright install`, y ninguno de los 11 puestos
+guardados tiene `source_url`: todos salieron de texto pegado. Hasta hoy era una inferencia (pendiente B1
+de `docs/05-pendientes-producto.md`); ahora está confirmado. Mientras tanto el error le llegaba a la
+persona como «No pudimos completar la tarea», sin decirle que podía pegar el texto.
+
+**Elegido.**
+
+- **Instalar Chromium** en `services/api/Dockerfile`: las librerías del sistema
+  (`playwright install-deps chromium`) como root y el navegador (`playwright install --only-shell chromium`,
+  la variante de `headless=True`) como `appuser`, en su `~/.cache/ms-playwright`. Va antes de copiar el
+  código para que un cambio de código no lo vuelva a descargar.
+- **Un solo navegador a la vez** (`_BROWSER_SLOT`, un semáforo de hilos: cada tarea local corre en su
+  hilo con su propio ciclo de eventos). Una segunda lectura espera hasta 60 s y, si no hay lugar, termina
+  como «timeout». La espera no bloquea el ciclo de eventos ni deja un permiso tomado si la tarea se cancela.
+- **Todo bloqueo termina en el mismo aviso**, «No pudimos leer la página indicada. Pegá el texto del puesto
+  para continuar.» (`public_error_message`): un estado HTTP 401, 403, 429 o 999 (el de LinkedIn); una
+  redirección a una pantalla de acceso (un tramo de la dirección final igual a `authwall`, `login`,
+  `signin`, `sign-in` o `checkpoint`; por tramo y no por texto, para que `/careers/login-engineer` siga
+  siendo un aviso); una página con menos de 200 caracteres; y que el navegador no arranque o se caiga (el
+  motivo, solo su primera línea, queda en el log del servidor). Motivos nuevos: `authwall`, `empty` y
+  `browser`.
+
+**Medición** (2026-10-30, Docker local con la imagen de este cambio, 512 MB sin swap, Playwright 1.60):
+
+| Qué | Resultado |
+|---|---|
+| Imagen | 485 → 718 MB comprimida (+233 MB); 1,52 → 2,4 GB en disco; build de 51 s |
+| API en reposo | unos 100 MB de memoria de trabajo |
+| Un navegador (candado puesto) | pico de 292 a 299 MB; memoria anónima de 233 a 239 MB |
+| Dos a la vez (sin candado) | pico de 413 a 441 MB; memoria anónima de 352 a 372 MB |
+| LinkedIn con CPU libre / 0,5 / 0,1 | 1,4 s / 2,7 s / 12 a 14 s |
+| Dos lecturas seguidas con 0,1 CPU | 30,5 s con candado contra 29,1 s sin él: la CPU es el cuello |
+| Bloqueos con Chromium real | HTTP 403 y 999 → `authwall`; página vacía → `empty` |
+
+El candado baja el pico unos 120 a 140 MB y, con la CPU de la instancia gratuita (0,1), no cuesta tiempo
+de reloj. Un enlace de LinkedIn (`/jobs/view/…`) entregó la oferta completa como invitado. La primera
+medición dio 439 MB con dos lecturas y el candado puesto: se atribuye al caché de archivos del propio
+Chromium con el contenedor recién construido (no se repitió con muestreo de memoria anónima y caché).
+
+**Alternativas descartadas.** (a) Limitar a texto pegado: sin riesgo, pero deja sin cumplir la función
+«pegar una URL» de la consigna; queda como salida si LinkedIn bloquea desde Render y se decide no
+insistir. (b) Render Starter (USD 7/mes, 0,5 CPU): no hace falta para entrar en memoria y está fuera del
+presupuesto sin aprobación. (c) Un lector sin navegador que tome los datos del HTML: es una idea, no se
+probó y LinkedIn lo bloquearía igual desde un servidor. (d) Dejar abiertos dos navegadores a la vez:
++120 a 140 MB de pico sin ganar tiempo.
+
+**Límites y lo que no se verificó.**
+
+- LinkedIn se probó desde la IP del autor, **no desde la de Render**; los sitios suelen bloquear las
+  direcciones de servidores. Si bloquea, el aviso de pegar el texto cubre el caso, pero la función no
+  andaría para LinkedIn.
+- Si LinkedIn sirviera una pantalla de acceso de más de 200 caracteres, sin redirigir y con un estado
+  200, su texto pasaría por un aviso. No se pudo reproducir.
+- No se midió una lectura junto con la de un PDF (el proceso hijo puede crecer 200 MiB más) ni con tráfico
+  real: con un navegador el margen sobre los 512 MB es de unos 210 MB.
+- Con 0,1 CPU una página pesada puede pasar los 30 s de espera de navegación y termina en el mismo aviso.
+- El detector de bloqueo por texto busca «cloudflare» en cualquier parte de la página: un aviso de esa
+  empresa se rechazaría (ya era así).
+- El candado vale por proceso: sirve porque hay una sola instancia (Render Free no permite más).
+
+**Validación y reversión.** Tras el deploy, una prueba controlada: pegar un enlace de LinkedIn con una
+cuenta propia y mirar el log de Render (`El navegador del scraper falló`, `La tarea … falló`) y la memoria del
+servicio en el panel. Para revertir, deshacer el merge: el `Dockerfile` vuelve a la imagen sin Chromium y
+toda URL responde con el aviso de pegar el texto. No hay migración ni variable de entorno nueva.

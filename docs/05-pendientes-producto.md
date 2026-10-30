@@ -30,7 +30,7 @@ cada ítem necesita aprobación antes de programarse (`AGENTS.md`, sección 3).
 
 | ID | Prioridad | Problema y evidencia | Beneficio y cómo se valida | Riesgo y esfuerzo | Áreas |
 |---|---|---|---|---|---|
-| B1 | Alta | El análisis por URL usa Playwright, pero el `Dockerfile` de la API no instala Chromium ni hay respaldo sin navegador: es probable que falle en producción (inferencia, no probado para no ejecutar análisis reales) | La función "pegar una URL" de la consigna. Validar con una prueba controlada tras el cambio | Alto (imagen más pesada y 512 MB de RAM); decidir entre instalarlo o limitar a texto pegado | `services/api/Dockerfile`, `services/api/app/services/scraper/` |
+| B1 | Alta | El análisis por URL usaba Playwright, pero el `Dockerfile` de la API no instalaba Chromium: **confirmado en producción el 2026-10-30** (`Executable doesn't exist` en los logs de Render y ningún puesto guardado con `source_url`). La Decisión 38 lo instala, con un navegador a la vez y el aviso de pegar el texto si el sitio bloquea; **sigue abierto hasta validarlo contra LinkedIn desde Render** | La función "pegar una URL" de la consigna. Validar tras el deploy: pegar un link de LinkedIn con una cuenta propia y mirar el log de Render | Alto: LinkedIn puede bloquear la IP de Render (se probó desde otra); 512 MB de RAM compartidos con la API (pico medido de 292 a 299 MB con un navegador); si bloquea, queda el aviso de pegar el texto | `services/api/Dockerfile`, `services/api/app/services/scraper/` |
 
 ## 4. Herramientas evaluadas
 
