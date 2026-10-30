@@ -2312,3 +2312,31 @@ perfil»): (1) datos
 básicos del perfil (titular, resumen, puesto buscado, nivel, modalidad), (2) subir el CV en PDF,
 (3) confirmar o rechazar las habilidades que se leyeron del CV y (4) revisar y finalizar. Se puede
 saltear y retomar; el avance se guarda para no empezar de cero.
+
+---
+
+## Actualización — Decisión 30 (2026-10-30): las pantallas de acceso no se indexan
+
+**Estado:** Pedido por el autor, con el texto exacto mostrado antes de implementarlo; la aprobación
+final es la revisión del PR.
+
+**Medición (2026-10-30).** Buscando «jobbyweb» en Bing, el primer resultado era `/login` (con el
+título de la home) y el décimo `/forgot-password`. Las cuatro pantallas de acceso (`/login`,
+`/register`, `/forgot-password`, `/reset-password`) eran indexables y heredaban el título y la
+descripción de la home, así que competían con ella sin explicar qué es Jobby. Ninguna está en el
+sitemap. Search Console no las lista entre las 13 URLs conocidas.
+
+**Elegido.**
+- Un `layout.tsx` por ruta (las páginas son de cliente y no pueden exportar metadatos, igual que
+  `/pricing`) con título propio y `robots: { index: false, follow: true }` (`NOINDEX_ROBOTS` en
+  `lib/seo/site.ts`): «Iniciar sesión», «Crear cuenta», «Recuperar contraseña» y «Nueva
+  contraseña», todos con «— Jobby».
+- No se bloquean en `robots.txt`: un rastreador que no puede leer la página no ve el `noindex` y la
+  URL puede quedar indexada igual, solo que sin contenido.
+- Un test comprueba el `noindex`, los títulos distintos entre sí y de la home, que ninguna esté
+  en el sitemap y que la home siga indexable.
+
+**Límites.** Los buscadores tardan en volver a rastrear: hasta entonces `/login` puede seguir
+saliendo, y si Bing la saca antes de elegir la home, «jobbyweb» puede perder un tiempo el primer
+lugar. No garantiza que la home ocupe ese lugar. Quien llega con el enlace directo a una de estas
+pantallas no nota ningún cambio.
