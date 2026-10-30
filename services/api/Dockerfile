@@ -21,6 +21,16 @@ RUN poetry config virtualenvs.create false \
 # sería root. Las dependencias ya quedaron instaladas arriba (como root, solo lectura aquí).
 RUN useradd --create-home --uid 10001 appuser
 
+# Chromium para el análisis de un puesto por URL (Playwright). Las librerías del sistema
+# se instalan como root; el navegador, como appuser, en su ~/.cache/ms-playwright, que es
+# donde Playwright lo busca al ejecutar. Solo el "headless shell" (lo que usa
+# headless=True): suma unos 230 MB a la imagen comprimida. Va antes de copiar el código
+# para que un cambio de código no lo vuelva a descargar. Ver Decisión 38.
+RUN playwright install-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+USER appuser
+RUN playwright install --only-shell chromium
+
 # Copiar el resto del código
 COPY --chown=appuser:appuser . .
 

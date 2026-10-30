@@ -1,8 +1,11 @@
+import asyncio
 import json
+import threading
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from playwright.async_api import Error as PlaywrightError
 
 from app.database import get_supabase_client
 from app.dependencies import get_current_user
@@ -326,13 +329,51 @@ class FakeBody:
         return self.text
 
 
-class FakePage:
-    def __init__(self, text: str, should_timeout: bool = False) -> None:
-        self.body = FakeBody(text, should_timeout)
+JOB_TEXT = "Backend role. " * 30  # un aviso de verdad pasa de los 200 caracteres
 
-    async def goto(self, _url: str, wait_until: str, timeout: int) -> None:
+
+class FakeResponse:
+    def __init__(self, status: int) -> None:
+        self.status = status
+
+
+class Overlap:
+    """Cuenta cuántas páginas están abiertas a la vez (también entre hilos)."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.current = 0
+        self.peak = 0
+
+
+class FakePage:
+    def __init__(
+        self,
+        text: str,
+        should_timeout: bool = False,
+        *,
+        status: int = 200,
+        url: str = "https://example.com/job",
+        overlap: Overlap | None = None,
+    ) -> None:
+        self.body = FakeBody(text, should_timeout)
+        self.status = status
+        self.url = url
+        self.overlap = overlap
+
+    async def goto(self, _url: str, wait_until: str, timeout: int) -> FakeResponse:
         if self.body.should_timeout:
             raise TimeoutError("timeout")
+        if self.overlap is not None:
+            with self.overlap.lock:
+                self.overlap.current += 1
+                self.overlap.peak = max(self.overlap.peak, self.overlap.current)
+            try:
+                await asyncio.sleep(0.05)
+            finally:
+                with self.overlap.lock:
+                    self.overlap.current -= 1
+        return FakeResponse(self.status)
 
     async def route(self, _pattern: str, _handler: Any) -> None:
         return None
@@ -366,26 +407,30 @@ class FakeBrowser:
 
 
 class FakeChromium:
-    def __init__(self, page: FakePage) -> None:
+    def __init__(self, page: FakePage, launch_error: Exception | None = None) -> None:
         self.page = page
+        self.launch_error = launch_error
 
     async def launch(self, headless: bool, proxy: dict[str, str]) -> FakeBrowser:
         assert headless is True
         assert proxy["server"].startswith("http://127.0.0.1:")
+        if self.launch_error is not None:
+            raise self.launch_error
         return FakeBrowser(self.page)
 
 
 class FakePlaywright:
-    def __init__(self, page: FakePage) -> None:
-        self.chromium = FakeChromium(page)
+    def __init__(self, page: FakePage, launch_error: Exception | None = None) -> None:
+        self.chromium = FakeChromium(page, launch_error)
 
 
 class FakePlaywrightContext:
-    def __init__(self, page: FakePage) -> None:
+    def __init__(self, page: FakePage, launch_error: Exception | None = None) -> None:
         self.page = page
+        self.launch_error = launch_error
 
     async def __aenter__(self) -> FakePlaywright:
-        return FakePlaywright(self.page)
+        return FakePlaywright(self.page, self.launch_error)
 
     async def __aexit__(self, *args: Any) -> None:
         return None
@@ -395,10 +440,10 @@ class FakePlaywrightContext:
 async def test_scrape_url_returns_body_text(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "app.services.scraper.playwright_scraper.async_playwright",
-        lambda: FakePlaywrightContext(FakePage("Backend role")),
+        lambda: FakePlaywrightContext(FakePage(JOB_TEXT)),
     )
 
-    assert await scrape_url("https://example.com/job") == "Backend role"
+    assert await scrape_url("https://example.com/job") == JOB_TEXT.strip()
 
 
 @pytest.mark.asyncio
@@ -413,3 +458,171 @@ async def test_scrape_url_raises_timeout(monkeypatch: pytest.MonkeyPatch) -> Non
         await scrape_url("https://example.com/job")
 
     assert exc.value.reason == "timeout"
+
+
+def _use_fake_browser(
+    monkeypatch: pytest.MonkeyPatch,
+    make_page: Any,
+    launch_error: Exception | None = None,
+) -> None:
+    async def public(url: str) -> str:
+        # La guarda de URL tiene sus tests en test_url_guard.py; acá no se consulta DNS.
+        return url
+
+    monkeypatch.setattr(playwright_scraper, "ensure_public_http_url", public)
+    monkeypatch.setattr(
+        "app.services.scraper.playwright_scraper.async_playwright",
+        lambda: FakePlaywrightContext(make_page(), launch_error),
+    )
+
+
+async def _blocked_reason(url: str = "https://example.com/job") -> str:
+    with pytest.raises(ScraperBlockedError) as exc:
+        await scrape_url(url)
+    return str(exc.value.reason)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 403, 429, 999])
+async def test_scrape_url_treats_a_status_that_rejects_bots_as_blocked(
+    monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT, status=status))
+
+    assert await _blocked_reason() == "authwall"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "final_url",
+    [
+        "https://www.linkedin.com/authwall?trk=bf",
+        "https://www.linkedin.com/uas/login?session_redirect=x",
+        "https://example.com/login",
+    ],
+)
+async def test_scrape_url_treats_a_redirect_to_a_login_page_as_blocked(
+    monkeypatch: pytest.MonkeyPatch, final_url: str
+) -> None:
+    # El texto es largo a propósito: lo que decide es la dirección a la que se llegó.
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT, url=final_url))
+
+    assert await _blocked_reason() == "authwall"
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_reads_a_job_whose_url_only_contains_login(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://example.com/careers/login-engineer/123"
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT, url=url))
+
+    assert await scrape_url(url) == JOB_TEXT.strip()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text", ["", "   \n  ", "Sign in", "x" * 199])
+async def test_scrape_url_treats_an_almost_empty_page_as_blocked(
+    monkeypatch: pytest.MonkeyPatch, text: str
+) -> None:
+    _use_fake_browser(monkeypatch, lambda: FakePage(text))
+
+    assert await _blocked_reason() == "empty"
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_still_detects_the_cloudflare_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _use_fake_browser(
+        monkeypatch, lambda: FakePage("Checking your browser before access. " * 10)
+    )
+
+    assert await _blocked_reason() == "cloudflare"
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_asks_for_the_text_when_the_browser_cannot_start(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    error = PlaywrightError(
+        "BrowserType.launch: Executable doesn't exist at /x/chrome\n"
+        "╔════════════╗\n║ playwright install ║\n╚════════════╝"
+    )
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT), launch_error=error)
+
+    with caplog.at_level("WARNING", logger="jobmatch.scraper"):
+        reason = await _blocked_reason()
+
+    assert reason == "browser"
+    # El motivo queda en el log, solo la primera línea (sin el recuadro de ayuda).
+    assert "Executable doesn't exist at /x/chrome" in caplog.text
+    assert "╔" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_opens_one_browser_at_a_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    overlap = Overlap()
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT, overlap=overlap))
+
+    results = await asyncio.gather(
+        *(scrape_url("https://example.com/job") for _ in range(3))
+    )
+
+    assert results == [JOB_TEXT.strip()] * 3
+    assert overlap.peak == 1
+
+
+def test_scrape_url_opens_one_browser_at_a_time_across_task_threads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Las tareas locales corren cada una en su hilo y con su propio ciclo de eventos.
+    overlap = Overlap()
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT, overlap=overlap))
+    results: list[str] = []
+
+    def run() -> None:
+        results.append(asyncio.run(scrape_url("https://example.com/job")))
+
+    threads = [threading.Thread(target=run) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=15)
+
+    assert results == [JOB_TEXT.strip()] * 3
+    assert overlap.peak == 1
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_gives_up_when_the_browser_stays_busy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    overlap = Overlap()
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT, overlap=overlap))
+    monkeypatch.setattr(playwright_scraper, "BROWSER_SLOT_WAIT_SECONDS", 0.3)
+    assert playwright_scraper._BROWSER_SLOT.acquire(blocking=False)
+
+    try:
+        assert await _blocked_reason() == "timeout"
+    finally:
+        playwright_scraper._BROWSER_SLOT.release()
+
+    assert overlap.peak == 0  # no llegó a abrir otro navegador
+
+
+@pytest.mark.asyncio
+async def test_scrape_url_frees_the_browser_slot_after_a_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(playwright_scraper, "PlaywrightTimeoutError", TimeoutError)
+    # Si el permiso quedara tomado, el segundo intento esperaría y fallaría por tiempo.
+    monkeypatch.setattr(playwright_scraper, "BROWSER_SLOT_WAIT_SECONDS", 0.3)
+    _use_fake_browser(monkeypatch, lambda: FakePage("", should_timeout=True))
+    assert await _blocked_reason() == "timeout"
+
+    _use_fake_browser(monkeypatch, lambda: FakePage(JOB_TEXT))
+
+    assert await scrape_url("https://example.com/job") == JOB_TEXT.strip()

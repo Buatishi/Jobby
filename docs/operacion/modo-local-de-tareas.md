@@ -51,8 +51,10 @@ El `.env.example` de la raíz ya usa `TASK_EXECUTION_MODE=local` para desarrollo
 - Desde el 2026-10-28 el PDF del CV se lee en un **proceso hijo** con tope de memoria (200 MiB
   sobre lo que ya ocupa), de CPU (20 s) y de reloj (120 s): un PDF armado para pesar corta al
   hijo y no reinicia la API. Los topes del sistema rigen solo en Linux (Decisión 37).
-- El análisis por URL usa Playwright, y la imagen de la API no instala Chromium
-  (`services/api/Dockerfile`): es un pendiente aparte, ver `docs/05-pendientes-producto.md`.
+- El análisis por URL usa Playwright y la imagen de la API instala Chromium
+  (`services/api/Dockerfile`, Decisión 38). Corre **un navegador a la vez** (suma unos 150 a
+  250 MB a la API) y, si el sitio bloquea o el navegador falla, la persona recibe el aviso de
+  pegar el texto. Falta validarlo contra LinkedIn desde Render: `docs/05-pendientes-producto.md`.
 
 ## 5. Cómo activarlo en producción
 
