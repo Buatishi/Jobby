@@ -871,6 +871,45 @@ gratuito no mostraba la mejora del CV; (b) 1 por mes en el gratuito — descarta
 comparar dos puestos; (c) pasar también premium a DeepSeek — descartada: `AGENTS.md` define a
 Claude como la ampliación premium y hoy no hay uso premium que justifique cambiarlo.
 
+## Actualización — Decisión 25 (2026-10-30)
+
+**Estado:** Pedida por el autor el 2026-10-30. Cambio en la rama `fix/optimizer-provider-fallback`,
+**sin mergear**. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo.** Una cuenta premium vio «API request failed with status 500» al pulsar «Optimizar secciones
+del CV». El log de Render muestra `POST /api/v1/ats/optimize` con 500 por
+`HTTPStatusError: Client error '400 Bad Request' for url 'https://api.anthropic.com/v1/messages'`. El
+análisis del match de la misma cuenta falló igual con Claude, pero ya cae a DeepSeek y se guarda; el
+optimizador no tenía ese respaldo y dejaba escapar la excepción del proveedor. **La causa del 400 no está
+confirmada.** La Aclaración de la Decisión 17 documenta que Anthropic responde 400 cuando la cuenta no
+tiene saldo, pero `ClaudeProvider` no registraba el cuerpo de la respuesta y un 400 también puede ser un
+pedido mal armado: se confirma con el log nuevo o en el panel de facturación de Anthropic.
+
+**Elegido.**
+
+- **El plan premium prueba con Claude y, si falla, con DeepSeek** (el modelo del plan gratis): sin saldo,
+  caído o con un JSON que no se puede leer. La verificación contra el CV (`verify_sections`) es la misma,
+  así que el respaldo no puede sumar keywords sin respaldo. No cambia a quién corresponde Claude (la
+  alternativa (c) de la Decisión 25 sigue descartada): es una degradación cuando Claude no responde.
+- **Si ningún plan sirve, la API responde 503 `AI_PROVIDER_UNAVAILABLE`** con el texto de
+  `public_error_message` y un `details` vacío, en lugar de un 500 con la excepción cruda. La web muestra el
+  campo `error`; el POST no se reintenta en el cliente porque no está marcado como idempotente.
+- **`ClaudeProvider` registra el tipo y el mensaje del error de Anthropic** (hasta 200 caracteres), nunca el
+  pedido, que lleva el CV, ni la clave.
+
+**Límites.**
+
+- El contador mensual del limitador (Redis) se descuenta antes de llamar a la IA: si ningún plan responde,
+  esa persona pierde un uso. Devolverlo exige una operación nueva en `rate_limits.py`; no se hizo.
+- Un 5xx o un tiempo agotado de Claude se reintenta con esperas de 30 y 60 s antes de caer a DeepSeek (la
+  pasarela no cambió): en ese caso la persona puede esperar varios minutos.
+- Una cuenta premium puede recibir el texto de DeepSeek sin enterarse: la respuesta del optimizador no dice
+  qué modelo lo redactó (el match sí lo guarda en `ai_model_used`).
+
+**Validación y reversión.** Tras el deploy, optimizar desde la cuenta premium y mirar el log de Render:
+`No se pudo optimizar el CV con el plan premium` y `Anthropic respondió HTTP 400: <tipo>: <mensaje>`. Para
+revertir, deshacer el merge: no hay migración ni variable de entorno nueva.
+
 ## Decisión 26 — CV descargable en PDF
 
 **Estado:** Aprobada por el autor (2026-10-04), que eligió sacar los datos de contacto del CV con

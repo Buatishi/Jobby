@@ -8,6 +8,7 @@ from app.dependencies import get_current_user
 from app.main import app
 from app.models.ats import OptimizedCVSection
 from app.models.auth import CurrentUser
+from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ats_analyzer.keyword_matcher import (
     ATSKeywordResult,
     KeywordMatch,
@@ -325,6 +326,40 @@ def test_ats_optimize_returns_rewritten_sections(
     # FastAPI estaba ausente en el CV: mencionarlo no sube el puntaje verificado.
     assert body["ats_score_before"] == 0
     assert body["ats_score_after"] == 0
+
+
+def test_ats_optimize_says_the_ai_is_unavailable_instead_of_failing_with_a_500(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = _optimizer_supabase()
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    async def unavailable(*_args: object, **_kwargs: object) -> list[object]:
+        raise ProviderUnavailableError("claude", "Missing ANTHROPIC_API_KEY.")
+
+    async def fake_analyze_keywords(
+        *_args: object,
+        **_kwargs: object,
+    ) -> ATSKeywordResult:
+        return ATSKeywordResult(keywords=[], matches=[])
+
+    app.dependency_overrides[get_current_user] = _fake_premium_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", unavailable)
+    monkeypatch.setattr("app.api.v1.ats.analyze_keywords", fake_analyze_keywords)
+
+    response = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"})
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["code"] == "AI_PROVIDER_UNAVAILABLE"
+    assert body["details"] == {}
+    assert "no está disponible" in body["error"]
+    # El detalle del proveedor (la variable de entorno) no llega a la persona.
+    assert "ANTHROPIC" not in response.text
 
 
 def test_a_semantic_match_counts_half_of_a_literal_one() -> None:

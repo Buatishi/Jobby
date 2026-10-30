@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from app.services.ai_gateway import AIGateway
-from app.services.ai_gateway.claude import ClaudeProvider
+from app.services.ai_gateway.claude import ANTHROPIC_MESSAGES_URL, ClaudeProvider
 from app.services.ai_gateway.deepseek import DeepSeekProvider
 from app.services.ai_gateway.errors import (
     PremiumRequiredError,
@@ -298,6 +298,99 @@ async def test_a_missing_key_fails_without_waiting(
         await call()  # type: ignore[operator]
 
     assert sleeps == []
+
+
+def _claude_answering(status_code: int, body: object) -> type:
+    class FakeClient:
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, *args: object, **kwargs: object) -> httpx.Response:
+            request = httpx.Request("POST", ANTHROPIC_MESSAGES_URL)
+            if isinstance(body, bytes):
+                return httpx.Response(status_code, content=body, request=request)
+            return httpx.Response(status_code, json=body, request=request)
+
+    return FakeClient
+
+
+async def test_a_claude_error_logs_why_anthropic_rejected_it(
+    monkeypatch: pytest.MonkeyPatch,
+    sleeps: list[float],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.ai_gateway.claude.httpx.AsyncClient",
+        _claude_answering(
+            400,
+            {
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": "Your credit balance is too low to access the API.",
+                },
+            },
+        ),
+    )
+
+    with (
+        caplog.at_level("WARNING", logger="jobmatch.ai"),
+        pytest.raises(httpx.HTTPStatusError),
+    ):
+        await ClaudeProvider("clave-de-prueba").generate("hola secreto del CV")
+
+    assert "invalid_request_error: Your credit balance is too low" in caplog.text
+    # Se registra la causa, no el pedido: lleva el contenido del CV y la clave.
+    assert "hola secreto del CV" not in caplog.text
+    assert "clave-de-prueba" not in caplog.text
+    # Un 400 sigue sin reintentarse.
+    assert sleeps == []
+
+
+@pytest.mark.parametrize("body", ["texto plano", ["no", "es", "un", "objeto"], {}])
+async def test_a_claude_error_without_details_is_still_raised(
+    monkeypatch: pytest.MonkeyPatch,
+    sleeps: list[float],
+    caplog: pytest.LogCaptureFixture,
+    body: object,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.ai_gateway.claude.httpx.AsyncClient",
+        _claude_answering(400, body),
+    )
+
+    with (
+        caplog.at_level("WARNING", logger="jobmatch.ai"),
+        pytest.raises(httpx.HTTPStatusError),
+    ):
+        await ClaudeProvider("clave-de-prueba").generate("hola")
+
+    assert "Anthropic respondió HTTP 400: sin detalle" in caplog.text
+
+
+async def test_a_claude_error_that_is_not_json_is_still_raised(
+    monkeypatch: pytest.MonkeyPatch,
+    sleeps: list[float],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.ai_gateway.claude.httpx.AsyncClient",
+        _claude_answering(400, b"<html>Bad Request</html>"),
+    )
+
+    with (
+        caplog.at_level("WARNING", logger="jobmatch.ai"),
+        pytest.raises(httpx.HTTPStatusError),
+    ):
+        await ClaudeProvider("clave-de-prueba").generate("hola")
+
+    assert "Anthropic respondió HTTP 400: sin cuerpo JSON" in caplog.text
 
 
 def _openai_answering(status_code: int, body: dict[str, object]) -> type:
