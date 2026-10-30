@@ -14,7 +14,7 @@ from app.database import get_supabase_client
 from app.models.interview_kits import InterviewKitContent
 from app.models.jobs import StructuredJobDescription
 from app.services.account_deletion import capture_exception
-from app.services.ai_gateway import AIGateway, PremiumRequiredError
+from app.services.ai_gateway import AIGateway, PremiumRequiredError, UserTier
 from app.services.ai_gateway.prompts.interview_kit_v1 import (
     SYSTEM_PROMPT as INTERVIEW_KIT_SYSTEM_PROMPT,
 )
@@ -30,6 +30,16 @@ logger = logging.getLogger("jobmatch.tasks")
 
 JobSource = Literal["url", "text"]
 MAX_JOB_TEXT_CHARS = 30_000
+
+MATCH_REASONING_SYSTEM = (
+    "Sos un coach laboral bilingüe. Respondé en español, con bullets "
+    "concretos y recomendaciones específicas. No uses markdown complejo."
+)
+# Modelo que redacta el análisis de cada plan; se guarda en job_matches.ai_model_used.
+MATCH_REASONING_MODEL: dict[UserTier, str] = {
+    "premium": "claude-sonnet-4-5",
+    "free": "deepseek-chat",
+}
 
 
 async def _execute(query: Any) -> Any:
@@ -243,6 +253,40 @@ def _recommendations_from_reasoning(reasoning: str) -> list[dict[str, str]]:
     ]
 
 
+def _error_summary(exc: BaseException) -> str:
+    return f"{type(exc).__name__}: {str(exc)[:200]}"
+
+
+async def _write_match_reasoning(
+    ai_gateway: AIGateway,
+    user_tier: UserTier,
+    job: dict[str, Any],
+    result: MatchResult,
+) -> tuple[str, str | None]:
+    """Texto del análisis y modelo que lo redactó; ("", None) si ninguna IA responde.
+
+    El puntaje ya lo calculó la fórmula. Que el proveedor del plan falle (sin clave,
+    sin saldo, caído) no debe dejar al puesto sin match: un usuario premium cae al
+    texto del plan gratis y, si tampoco responde, se guarda el match con el puntaje.
+    """
+    prompt = _reasoning_prompt(job, result)
+    tiers: list[UserTier] = ["premium", "free"] if user_tier == "premium" else ["free"]
+    for tier in tiers:
+        try:
+            reasoning = await ai_gateway.generate(
+                "match_reasoning", tier, prompt, system=MATCH_REASONING_SYSTEM
+            )
+        except Exception as exc:
+            logger.warning(
+                "No se pudo redactar el análisis del match con el plan %s: %s",
+                tier,
+                _error_summary(exc),
+            )
+            continue
+        return reasoning, MATCH_REASONING_MODEL[tier]
+    return "", None
+
+
 async def run_match(
     job_id: str,
     profile_id: str,
@@ -255,16 +299,12 @@ async def run_match(
     job = await _fetch_job(supabase_client, job_id, user_id)
     user_tier = await _fetch_user_tier(supabase_client, user_id)
     result = await compute_match_score(profile_id, job_id, supabase_client)
-    reasoning = await ai_gateway.generate(
-        "match_reasoning",
-        user_tier,
-        _reasoning_prompt(job, result),
-        system=(
-            "Sos un coach laboral bilingüe. Respondé en español, con bullets "
-            "concretos y recomendaciones específicas. No uses markdown complejo."
-        ),
+    reasoning, model_used = await _write_match_reasoning(
+        ai_gateway, user_tier, job, result
     )
-    recommendations = _recommendations_from_reasoning(reasoning)
+    score_breakdown = dict(result.score_breakdown)
+    if reasoning:
+        score_breakdown["reasoning"] = reasoning
 
     payload: dict[str, Any] = {
         "user_id": user_id,
@@ -274,14 +314,9 @@ async def run_match(
         "potential_score": result.potential_score,
         "representation_score": result.representation_score,
         "gap_origin": result.gap_origin,
-        "score_breakdown": {
-            **result.score_breakdown,
-            "reasoning": reasoning,
-        },
-        "recommendations": recommendations,
-        "ai_model_used": "claude-sonnet-4-5"
-        if user_tier == "premium"
-        else "deepseek-chat",
+        "score_breakdown": score_breakdown,
+        "recommendations": _recommendations_from_reasoning(reasoning),
+        "ai_model_used": model_used,
     }
     data = await _execute(supabase_client.table("job_matches").insert(payload))
     if isinstance(data, list) and data and isinstance(data[0], dict):
@@ -358,6 +393,13 @@ def _local_factory(
             return await run(*args)
         except Exception as exc:
             capture_exception(exc)
+            # Nadie consulta una tarea que otra encadena (el match que sigue al
+            # análisis): sin este registro su fallo no deja rastro en los logs.
+            logger.warning(
+                "La tarea %s falló: %s",
+                getattr(run, "__name__", "local"),
+                _error_summary(exc),
+            )
             raise
 
     return factory

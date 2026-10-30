@@ -261,3 +261,21 @@ def test_a_failed_task_does_not_keep_the_memory_of_the_run_that_failed(
     assert isinstance(result.result, ValueError)
     assert str(result.result) == "el PDF no tiene texto"
     assert references[0]() is None
+
+
+@pytest.mark.asyncio
+async def test_local_factory_logs_why_a_chained_task_failed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def run_match_stub(*_args: Any) -> dict[str, Any]:
+        raise RuntimeError("falló el cálculo")
+
+    factory = analysis._local_factory(run_match_stub, "job-1")
+
+    with caplog.at_level("WARNING", logger="jobmatch.tasks"):
+        with pytest.raises(RuntimeError, match="falló el cálculo"):
+            await factory()
+
+    # Nadie consulta esta tarea: el log es el único rastro de por qué falló.
+    assert "run_match_stub" in caplog.text
+    assert "RuntimeError: falló el cálculo" in caplog.text
