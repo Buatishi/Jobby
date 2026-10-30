@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from typing import Any
 
@@ -6,10 +7,18 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.models.ats import ATSKeywordMatch, OptimizedCVSection
 from app.services.ai_gateway import AIGateway, UserTier
+from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_ES
 from app.services.ats_analyzer.scoring import score_keyword_coverage
 from app.services.cv_parser import strip_embeddings
 from app.services.match_engine.common import normalize_text
+
+logger = logging.getLogger("jobmatch.ats")
+
+OPTIMIZER_SYSTEM = (
+    "Actuas como especialista ATS y editor de CV. Respondes en espanol "
+    "profesional, solo con JSON valido y sin markdown."
+)
 
 
 class _OptimizedPayload(BaseModel):
@@ -164,15 +173,45 @@ async def optimize_cv_sections(
         return []
 
     ai_gateway = gateway or AIGateway()
-    content = await ai_gateway.generate(
-        "cv_optimization",
-        user_tier,
-        _prompt(primary_cv, job, matches),
-        system=(
-            "Actuas como especialista ATS y editor de CV. Respondes en espanol "
-            "profesional, solo con JSON valido y sin markdown."
-        ),
-        json_mode=True,
+    sections = await _rewrite_sections(
+        ai_gateway, user_tier, _prompt(primary_cv, job, matches)
     )
     cv_text = json.dumps(_cv_sections(primary_cv), ensure_ascii=False)
-    return verify_sections(_parse_response(content), matches, cv_text)
+    return verify_sections(sections, matches, cv_text)
+
+
+async def _rewrite_sections(
+    ai_gateway: AIGateway,
+    user_tier: UserTier,
+    prompt: str,
+) -> list[OptimizedCVSection]:
+    """Secciones reescritas por la IA del plan; un premium cae al plan gratis si falla.
+
+    Que Claude no responda (sin saldo, caído) o devuelva un JSON roto no debe dejar a
+    quien paga sin su CV optimizado: se prueba con DeepSeek, que ya optimiza el plan
+    gratis, y la verificación contra el CV es la misma. Si ninguna sirve, se avisa con
+    un error de IA no disponible en vez de dejar escapar la excepción del proveedor.
+    """
+    tiers: list[UserTier] = ["premium", "free"] if user_tier == "premium" else ["free"]
+    last_error: Exception | None = None
+    for tier in tiers:
+        try:
+            content = await ai_gateway.generate(
+                "cv_optimization",
+                tier,
+                prompt,
+                system=OPTIMIZER_SYSTEM,
+                json_mode=True,
+            )
+            return _parse_response(content)
+        except Exception as exc:
+            logger.warning(
+                "No se pudo optimizar el CV con el plan %s: %s: %s",
+                tier,
+                type(exc).__name__,
+                str(exc)[:200],
+            )
+            last_error = exc
+    raise ProviderUnavailableError(
+        "cv_optimization", "Ningún plan de IA devolvió secciones utilizables."
+    ) from last_error

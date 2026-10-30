@@ -3,6 +3,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.core.public_errors import public_error_message
 from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.models.ats import (
@@ -13,6 +14,7 @@ from app.models.ats import (
     ATSReport,
 )
 from app.models.auth import CurrentUser
+from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ats_analyzer.cv_optimizer import (
     optimize_cv_sections,
     score_after_optimization,
@@ -220,12 +222,23 @@ async def optimize_ats_cv(
         ats_report = await _calculate_and_save_report(
             supabase, current_user.id, payload.job_id, job, primary_cv, saved_row
         )
-    sections = await optimize_cv_sections(
-        primary_cv,
-        job,
-        ats_report.keyword_matches,
-        "premium" if user_tier == "premium" else "free",
-    )
+    try:
+        sections = await optimize_cv_sections(
+            primary_cv,
+            job,
+            ats_report.keyword_matches,
+            "premium" if user_tier == "premium" else "free",
+        )
+    except ProviderUnavailableError as exc:
+        # Ningún plan de IA respondió: el detalle queda en los logs, no en la respuesta.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": public_error_message(exc),
+                "code": "AI_PROVIDER_UNAVAILABLE",
+                "details": {},
+            },
+        ) from exc
     penalty = sum(issue.penalty for issue in ats_report.format_issues)
     return ATSOptimizeResponse(
         job_id=payload.job_id,
