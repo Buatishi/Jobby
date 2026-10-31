@@ -368,11 +368,11 @@ async def get_printable_cv(
         _profile_rows(
             supabase,
             "educations",
-            "institution,field_of_study,degree_level",
+            "institution,field_of_study,degree_level,started_at,ended_at,is_ongoing",
             profile_id,
         ),
         _profile_rows(supabase, "languages", "name,proficiency", profile_id),
-        _profile_rows(supabase, "certifications", "name,issuer", profile_id),
+        _profile_rows(supabase, "certifications", "name,issuer,issued_at", profile_id),
     )
     return build_printable_cv(
         profile=profile,

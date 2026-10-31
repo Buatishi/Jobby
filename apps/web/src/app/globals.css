@@ -116,7 +116,8 @@
     display: block;
   }
 
+  /* Los márgenes del CV modelo: la hoja ya no suma el relleno de la vista previa. */
   @page {
-    margin: 12mm;
+    margin: 11mm 15mm;
   }
 }
