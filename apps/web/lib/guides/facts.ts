@@ -49,7 +49,7 @@ export const MATCH_SCORE_WEIGHTS = [
 
 // `s_relevance.py` (`FULL_RELEVANCE_AT`): con esta fracción de las habilidades pedidas en el
 // perfil, el puesto cuenta como del área de la persona y el puntaje no se atenúa.
-export const FULL_RELEVANCE_PERCENT = 40;
+export const FULL_RELEVANCE_PERCENT = 25;
 
 // `formula.py` (`_gap_origin`): por debajo de este valor un componente se marca como brecha.
 export const GAP_THRESHOLD_PERCENT = 70;

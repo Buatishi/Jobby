@@ -26,7 +26,10 @@ from app.services.text_quality import fold, is_meaningful_name
 # entre puestos y porque la extracción de skills del puesto puede fallar.
 RELEVANCE_FLOOR = 0.15
 # Fracción de las skills pedidas con la que el puesto se considera de la misma área.
-FULL_RELEVANCE_AT = 0.4
+# Era 0,4; con el stack y las skills limpias (Decisión 39) un puesto con muchas
+# tecnologías pedía tener 8 de 20 para no atenuarse. Ver la Actualización de la
+# Decisión 29 del 2026-10-30.
+FULL_RELEVANCE_AT = 0.25
 # Cuando el puesto no lista skills: menciones de las skills de la persona en el texto
 # del puesto con las que se lo considera de su área.
 TEXT_MENTIONS_FOR_FULL = 4
