@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import httpx
@@ -5,6 +6,8 @@ import httpx
 from app.config import settings
 from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ai_gateway.retry import retry_with_backoff
+
+logger = logging.getLogger("jobmatch.ai")
 
 ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 
@@ -64,10 +67,32 @@ class ClaudeProvider:
                 json=payload,
                 headers=headers,
             )
+            if response.is_error:
+                logger.warning(
+                    "Anthropic respondió HTTP %s: %s",
+                    response.status_code,
+                    _api_error_summary(response),
+                )
             response.raise_for_status()
             data = response.json()
 
         return _extract_claude_content(data)
+
+
+def _api_error_summary(response: httpx.Response) -> str:
+    """Tipo y mensaje del error de Anthropic, cortado; nunca el pedido (lleva el CV).
+
+    Un 400 puede ser «saldo insuficiente» o un pedido mal armado, y `raise_for_status`
+    solo deja el código: sin esto el log no distingue una causa de la otra.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return "sin cuerpo JSON"
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return "sin detalle"
+    return f"{error.get('type')}: {str(error.get('message'))[:200]}"
 
 
 def _extract_claude_content(data: dict[str, Any]) -> str:
