@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any
 
 import httpx
@@ -6,7 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.config import settings
 from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_EN
+from app.services.cv_parser.dates import first_value, normalize_date, read_period
 from app.services.cv_parser.errors import CVParsingError
+from app.services.text_quality import fold
 
 DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
 
@@ -15,6 +18,29 @@ DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
 MAX_SKILL_NAME_LENGTH = 200
 _LIST_SEPARATORS = "·•|;,\n"
 _NAME_KEYS = ("name", "skill", "skill_name", "technology")
+# Nombres con los que la IA suele escribir cada fecha (Decisión 41).
+_START_KEYS = ("started_at", "start_date", "from")
+_END_KEYS = ("ended_at", "end_date", "to", "until")
+_CURRENT_KEYS = ("is_current", "current", "present", "ongoing")
+_STUDY_END_KEYS = (*_END_KEYS, "graduation_date", "graduated_at", "graduation_year")
+_ONGOING_KEYS = ("is_ongoing", "ongoing", "in_progress", "current")
+_ISSUE_KEYS = ("issued_at", "issue_date", "issued", "date", "year", "obtained_at")
+# Dónde puede venir el texto de una viñeta cuando la IA la devuelve como objeto.
+_BULLET_KEYS = (
+    "text",
+    "description",
+    "achievement",
+    "bullet",
+    "name",
+    "title",
+    "value",
+)
+_BULLET_DEPTH = 3
+# El punto medio solo es viñeta al empezar un renglón: dentro de una línea separa
+# términos («Python · SQL») y no debe partir una viñeta en dos.
+_BULLET_BREAK = re.compile(r"[\r\n]+|[•●▪◦]")
+_BULLET_MARKER = re.compile(r"^[\s•●▪◦·*\-–—]+")
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÜÑ¿¡])")
 
 
 class ParsedSkill(BaseModel):
@@ -26,7 +52,10 @@ class ParsedSkill(BaseModel):
 class ParsedExperience(BaseModel):
     company: str = ""
     title: str = ""
+    # Las fechas son `AAAA-MM`/`AAAA` o, si el CV no es claro, como las escribió el CV.
     started_at: str | None = None
+    ended_at: str | None = None
+    is_current: bool = False
     description: str | None = None
     achievements: list[str] = Field(default_factory=list)
 
@@ -35,6 +64,9 @@ class ParsedEducation(BaseModel):
     institution: str = ""
     field_of_study: str | None = None
     degree_level: str | None = None
+    started_at: str | None = None
+    ended_at: str | None = None
+    is_ongoing: bool = False
 
 
 class ParsedLanguage(BaseModel):
@@ -45,6 +77,7 @@ class ParsedLanguage(BaseModel):
 class ParsedCertification(BaseModel):
     name: str = ""
     issuer: str | None = None
+    issued_at: str | None = None
 
 
 class ParsedContact(BaseModel):
@@ -79,11 +112,18 @@ def _system_prompt() -> str:
         "certifications. Do not include markdown, comments, or extra keys. "
         "Each skill, experience, education, language and certification is an "
         "object: skills {name, category, level}; experiences {company, title, "
-        "started_at, description, achievements}; educations {institution, "
-        "field_of_study, degree_level}; languages {name, level}; certifications "
-        "{name, issuer}. List every skill, technology and tool the CV mentions as "
+        "started_at, ended_at, is_current, description, achievements}; educations "
+        "{institution, field_of_study, degree_level, started_at, ended_at, "
+        "is_ongoing}; languages {name, level}; certifications {name, issuer, "
+        "issued_at}. List every skill, technology and tool the CV mentions as "
         "its own skills object, including those written in a single line. "
         "Use lowercase categories and levels when possible. "
+        'Copy each date exactly as the CV writes it ("Julio 2026", "03/2021", '
+        '"2019"); leave it empty when the CV gives none. If a job or a study '
+        'continues ("Presente", "Actual", "Actualidad", "Present", "En curso"), '
+        "put that word in ended_at and set is_current or is_ongoing to true. "
+        "Put each bullet of a job as its own string in achievements; description "
+        "is only the text that is not a bullet and must never repeat them. "
         f"{UNTRUSTED_DATA_NOTICE_EN}"
     )
 
@@ -103,7 +143,8 @@ def _user_prompt(cv_text: str, correction_hint: str | None = None) -> str:
         "full_name, email, phone, location and linkedin_url, copied exactly as "
         "they appear in the CV. Every other top-level key must be an array. "
         "Use empty strings for unknown text values, never null. "
-        "achievements must always be an array of strings.\n\n"
+        "achievements must always be an array of strings. "
+        "is_current and is_ongoing must be true or false.\n\n"
         f"{cv_text}"
     )
 
@@ -131,6 +172,74 @@ def _pick(item: dict[str, Any], *keys: str, default: str = "") -> str:
         if key in item and item[key] not in (None, ""):
             return _clean_str(item[key], default)
     return default
+
+
+def _bullet_key(text: str) -> str:
+    """Las palabras de un texto sin acentos, mayúsculas ni signos, para compararlo."""
+    return " ".join(re.findall(r"[^\W_]+", fold(text)))
+
+
+def _bullets(value: Any, depth: int = 0) -> list[str]:
+    """Una viñeta por elemento, venga como lista, como objetos o como un texto.
+
+    La IA devuelve a veces las viñetas de una experiencia en un solo texto con
+    renglones («• A\\n• B») o como objetos; solo cuenta el texto. Un número o un
+    booleano no es una viñeta.
+    """
+    if depth > _BULLET_DEPTH:
+        return []
+    if isinstance(value, str):
+        pieces = (
+            _BULLET_MARKER.sub("", piece).strip()
+            for piece in _BULLET_BREAK.split(value)
+        )
+        return [piece for piece in pieces if piece]
+    if isinstance(value, dict):
+        for key in _BULLET_KEYS:
+            bullets = _bullets(value.get(key), depth + 1)
+            if bullets:
+                return bullets
+        return []
+    if isinstance(value, list):
+        return [bullet for item in value for bullet in _bullets(item, depth + 1)]
+    return []
+
+
+def _unique_bullets(value: Any) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for bullet in _bullets(value):
+        key = _bullet_key(bullet)
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(bullet)
+    return unique
+
+
+def _without_bullets(description: str, bullets: list[str]) -> str:
+    """La descripción sin las oraciones que ya están como viñetas.
+
+    La web muestra la descripción en viñetas y después los logros: si la IA repite los
+    mismos en los dos campos, el CV descargable los imprime dos veces. Solo sale una
+    oración que coincide entera; una que comparte una parte con una viñeta se conserva.
+    """
+    if not description or not bullets:
+        return description
+    covered = {_bullet_key(bullet) for bullet in bullets}
+    for bullet in bullets:
+        covered.update(_bullet_key(part) for part in _SENTENCE_BREAK.split(bullet))
+    covered.discard("")
+
+    segments = [
+        sentence.strip()
+        for line in _BULLET_BREAK.split(description)
+        for sentence in _SENTENCE_BREAK.split(_BULLET_MARKER.sub("", line).strip())
+        if sentence.strip()
+    ]
+    kept = [segment for segment in segments if _bullet_key(segment) not in covered]
+    if len(kept) == len(segments):
+        return description
+    return " ".join(kept)
 
 
 def _normalize_items(value: Any) -> list[dict[str, Any]]:
@@ -230,17 +339,20 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         company = _pick(item, "company", "employer", "organization")
         if not title and not company:
             continue
-        achievements = [
-            _clean_str(achievement)
-            for achievement in _ensure_list(item.get("achievements"))
-            if _clean_str(achievement)
-        ]
+        achievements = _unique_bullets(item.get("achievements"))
+        started_at, ended_at, is_current = read_period(
+            item, _START_KEYS, _END_KEYS, _CURRENT_KEYS
+        )
         experiences.append(
             {
                 "company": company,
                 "title": title,
-                "started_at": _pick(item, "started_at", "start_date", "from"),
-                "description": _pick(item, "description", "summary"),
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "is_current": is_current,
+                "description": _without_bullets(
+                    _pick(item, "description", "summary"), achievements
+                ),
                 "achievements": achievements,
             }
         )
@@ -252,11 +364,17 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         degree = _pick(item, "degree_level", "degree", "title")
         if not institution and not field and not degree:
             continue
+        started_at, ended_at, is_ongoing = read_period(
+            item, _START_KEYS, _STUDY_END_KEYS, _ONGOING_KEYS
+        )
         educations.append(
             {
                 "institution": institution,
                 "field_of_study": field,
                 "degree_level": degree,
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "is_ongoing": is_ongoing,
             }
         )
 
@@ -289,6 +407,7 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
             {
                 "name": name,
                 "issuer": _pick(item, "issuer", "organization", "authority"),
+                "issued_at": normalize_date(first_value(item, _ISSUE_KEYS)),
             }
         )
 
