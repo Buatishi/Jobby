@@ -1,4 +1,5 @@
 import unicodedata
+from collections.abc import Iterable
 from typing import Any
 
 from app.services.cv_parser.ai_structurer import CVStructuredData
@@ -98,12 +99,58 @@ def skills_named_in_linkedin(
     «React» y «API Integrations» marca «Integración de APIs», pero «Java» no marca
     «JavaScript».
     """
-    named = {canonical_skill_key(skill.name) for skill in parsed_data.skills}
-    named.discard("")
+    named = _canonical_names(skill.name for skill in parsed_data.skills)
     return [
         str(skill["id"])
         for skill in existing_skills
         if skill.get("id")
         and skill.get("in_linkedin") is not True
         and canonical_skill_key(skill.get("name")) in named
+    ]
+
+
+def _canonical_names(names: Iterable[Any]) -> set[str]:
+    named = {canonical_skill_key(name) for name in names}
+    named.discard("")
+    return named
+
+
+def linkedin_skill_names(parsed_data: Any) -> list[str]:
+    """Los nombres de skills que quedaron en el `parsed_data` de un PDF de LinkedIn.
+
+    Lo guardado es JSON de una tarea anterior: lo que no tenga la forma esperada se
+    descarta en lugar de fallar, porque un CV nuevo no puede depender de él.
+    """
+    if not isinstance(parsed_data, dict):
+        return []
+    skills = parsed_data.get("skills")
+    if not isinstance(skills, list):
+        return []
+    return [
+        skill["name"]
+        for skill in skills
+        if isinstance(skill, dict) and isinstance(skill.get("name"), str)
+    ]
+
+
+def mark_skills_in_linkedin(
+    skills: list[dict[str, Any]],
+    linkedin_names: Iterable[Any],
+) -> list[dict[str, Any]]:
+    """Las skills con `in_linkedin` en verdadero si el PDF de LinkedIn las nombró.
+
+    El PDF de LinkedIn marca solo las skills que la persona ya tenía al subirlo. Si el
+    CV se sube después, sus skills nacen sin la marca y nada las volvía a marcar: el
+    resultado dependía del orden de las cargas. Acá se vuelve a aplicar con los nombres
+    que el PDF dejó guardados, con la misma regla de coincidencia.
+    """
+    named = _canonical_names(linkedin_names)
+    if not named:
+        return skills
+    return [
+        {**skill, "in_linkedin": True}
+        if skill.get("in_linkedin") is not True
+        and canonical_skill_key(skill.get("name")) in named
+        else skill
+        for skill in skills
     ]
