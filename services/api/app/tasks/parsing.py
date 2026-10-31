@@ -11,6 +11,8 @@ from app.services.account_deletion import capture_exception
 from app.services.ai_gateway import AIGateway
 from app.services.cv_parser import (
     extract_pdf_content,
+    linkedin_skill_names,
+    mark_skills_in_linkedin,
     merge_parsed_skills,
     skills_named_in_linkedin,
     strip_embeddings,
@@ -48,6 +50,22 @@ async def _fetch_profile_skills(supabase: Any, profile_id: str) -> list[dict[str
     )
     if isinstance(data, list):
         return [skill for skill in data if isinstance(skill, dict)]
+    return []
+
+
+async def _saved_linkedin_skill_names(supabase: Any, profile_id: str) -> list[str]:
+    """Las skills que el último PDF de LinkedIn leído de la persona nombró."""
+    data = await _execute(
+        supabase.table("uploaded_documents")
+        .select("parsed_data")
+        .eq("profile_id", profile_id)
+        .eq("type", "linkedin")
+        .eq("status", "done")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return linkedin_skill_names(data[0].get("parsed_data"))
     return []
 
 
@@ -192,6 +210,20 @@ async def run_parse_cv(
             )
         else:
             merged_skills = merge_parsed_skills(structured_data, existing_skills)
+            # El PDF de LinkedIn solo marcó las skills que ya existían cuando se subió:
+            # un CV que llega después crea las suyas sin la marca (Decisión 31).
+            try:
+                merged_skills = mark_skills_in_linkedin(
+                    merged_skills,
+                    await _saved_linkedin_skill_names(
+                        supabase_client, str(document["profile_id"])
+                    ),
+                )
+            except Exception as exc:
+                # La marca es secundaria: sin ella el CV se lee igual y la persona puede
+                # volver a subir el PDF de LinkedIn para marcarlas.
+                logger.warning("No se pudo aplicar la marca de LinkedIn: %s", exc)
+                capture_exception(exc)
             await _upsert_skill_embeddings(
                 supabase_client,
                 str(document["profile_id"]),
