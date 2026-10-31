@@ -2676,3 +2676,65 @@ Los puestos con coincidencia del 25 % o más no cambian (backend, datos, Full St
 **Pruebas.** `tests/unit/test_relevance_gate.py`: los valores de la compuerta, una cuarta parte de las skills ya es del área, menos de eso se atenúa en proporción, sin coincidencia queda en el piso, un puesto del área con el 25 % no se atenúa en el match completo y uno de cocina con un CV de sistemas queda en el piso y en 15 o menos. `apps/web/lib/guides/guides.test.ts` compara el 25 de la guía con la constante del backend. Las pruebas de relevancia existentes usan la constante, por eso siguen pasando.
 
 **Reversión.** Deshacer el commit de este cambio: vuelven el 0,4 en el backend y el 40 % en las guías.
+
+
+---
+
+## Decisión 41 — El lector de CV guarda las fechas, «actualidad» y una viñeta por logro
+
+**Estado:** Pedida por el autor el 2026-10-31. Va en el PR de la rama `feat/cv-reader-dates-bullets`, **sin mergear**. **Mergearlo cambia el análisis de todo CV (y de todo PDF de LinkedIn) que se suba después del deploy**: cambia el prompt que se le manda a DeepSeek, la forma en que se guarda `parsed_data` y el formato de `started_at`. Los CV ya analizados no se migran ni se recalculan. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-31, solo lectura de `uploaded_documents.parsed_data` del CV de la cuenta del autor, hecha por la sesión que pidió este cambio; no se copiaron datos personales). De cada tipo de fila el lector guardaba:
+
+- `experiences[*]`: `company`, `title`, `started_at` (texto libre, «Julio 2026»), `description` (**un solo párrafo con todas las viñetas pegadas**) y `achievements`, que **siempre estaba vacío**. Sin fecha de fin ni «actualidad».
+- `educations[*]`: `institution`, `field_of_study`, `degree_level`. Sin fechas ni «en curso».
+- `certifications[*]`: `name` e `issuer`. Sin fecha.
+
+El PR #130 (distribución del CV descargable como el CV modelo) ya imprime todo eso si existe, pero no puede inventarlo: con estos datos el PDF muestra la fecha de inicio sola, el párrafo cortado en oraciones y los estudios sin fecha.
+
+**Elegido.** Todo es opcional y vive solo en `services/api/app/services/cv_parser/`:
+
+| Sección | Campos nuevos | Cambia lo que ya había |
+|---|---|---|
+| `experiences` | `ended_at`, `is_current` | `achievements` pasa a tener **una viñeta por elemento**; `description` queda solo con el texto que no es viñeta; `started_at` cambia de formato (ver abajo) |
+| `educations` | `started_at`, `ended_at`, `is_ongoing` | — |
+| `certifications` | `issued_at` | — |
+
+- **Quién hace qué.** La IA copia las fechas como el CV las escribe y marca las viñetas; el formato, «actualidad» y la limpieza los pone código determinista (`dates.py` y `_normalize_structured_payload`), sin una llamada más a la IA. Así la IA no puede inventar un mes que el CV no dice.
+- **Formato de fecha que guarda el lector.** `AAAA-MM`, o `AAAA` si el CV solo trae el año, **cuando la fecha es inequívoca**: mes en español o inglés con año («Julio 2026», «Jul. 2026», «15 de julio de 2026», «Sept 2019»), `03/2021` o `2021-03`. Lo que no es inequívoco queda **como lo escribió el CV** (`15/03/2021` puede ser día/mes o mes/día; «Verano 2020»; meses en otro idioma). Lo que no es una fecha (más de 40 caracteres, un objeto sin año, una lista) queda vacío. No se guarda el día ni se completa un mes que el CV no trae: «2020» queda `2020`, no `2020-01`. La web los muestra con los dos diseños: el actual (`main`) corta la fecha a 7 caracteres (`slice(0, 7)`, pensado para ISO), así que un texto libre como «Julio 2026» salía como «Julio 2» y con `AAAA-MM` sale «2026-07»; el del PR #130 (`formatMonthYear`) escribe «2026-07» como «Julio 2026» y deja un texto libre tal cual.
+- **Por qué `AAAA-MM` y no el texto del CV.** El CV descargable ordena las experiencias comparando `started_at` como texto: con «Septiembre 2024», «Marzo 2025» y «Julio 2026» sale primero la de septiembre (por el nombre del mes, no por la fecha). Con `AAAA-MM` ordena bien sin tocar el PR #130, y el PDF queda en español aunque el CV esté en inglés. Una prueba lo fija. Descartado: guardar el día (`2026-07-01`) porque lo inventa.
+- **«Actualidad».** Un fin que dice «Presente», «Actual», «Actualidad», «A la fecha», «Present», «To date», «En curso», «Cursando» y similares **no se guarda como fecha**: `ended_at` queda vacío y `is_current` (o `is_ongoing` en estudios) en `true`. Si la IA marca `is_current` pero el CV trae una fecha de fin real, **gana la fecha** (sale del CV; la bandera es una inferencia). Si la IA escribe el período entero en el inicio («Julio 2026 - Presente», «2019-2021»), se separa.
+- **Viñetas.** Cada elemento de `achievements` es una viñeta. Si la IA las manda en un solo texto con renglones o marcadores («• A\n• B»), o como objetos (`{"text": ...}`), se separan; los números, booleanos y repetidos se descartan. Si la IA repite las viñetas también en `description`, **se sacan de la descripción las oraciones que coinciden enteras** (sin mayúsculas, acentos ni signos): la web muestra la descripción en viñetas y después los logros, y repetidas se imprimirían dos veces. Una oración que solo comparte una parte con una viñeta se conserva. Si la IA sigue mandando todo en `description` y `achievements` vacío, queda como hoy y la web lo corta por oraciones.
+- **Tolerancia.** Ningún valor de los campos nuevos puede hacer fallar el análisis: nulos, números, listas, objetos anidados, textos de 10 000 caracteres, «sí»/`"true"`/`1` para los booleanos. Se coercen o se descartan antes de validar, así que no se gasta el reintento de validación (que es otra llamada a DeepSeek). Un CV sin los campos nuevos valida igual que antes. Los únicos errores del lector siguen siendo los de antes (sin clave, HTTP, JSON inválido).
+
+**Efecto en tokens y en el presupuesto** (medido con datos sintéticos, USD 20/mes de tope; `scratchpad` de la sesión, no está en el repo):
+
+| | Antes | Ahora |
+|---|---|---|
+| Prompt del lector (sistema + usuario, sin el texto del CV) | 1326 caracteres | 1856 (+530, unos +130 a +180 tokens) |
+| Respuesta de ejemplo (4 experiencias de 5 viñetas, 2 estudios, 3 certificados) | 4012 caracteres | 4448 (+436, +11 %, unos +110 a +145 tokens) |
+
+Con los precios de lista de `deepseek-chat` que usé como cota (USD 0,28 por millón de tokens de entrada y 1,10 de salida; **a verificar en el panel de DeepSeek**) son **menos de USD 0,0003 más por CV**, o unos USD 0,2 por cada 1000 CV al mes. No compromete el presupuesto. Los CV leídos después del deploy llevan además unos 100 tokens más (las claves nuevas) en los prompts del kit de entrevista y del optimizador; las viñetas que antes iban pegadas en `description` ahora van en `achievements`, así que el texto no se duplica. El ATS pide el vector de cada viñeta en lugar del de un párrafo: el texto total es el mismo, y a USD 0,02 por millón de tokens de `text-embedding-3-small` (a verificar) la diferencia es despreciable frente al tope.
+
+**Puntajes: qué se midió y qué no.** Todos los lectores de estas claves (`s_soft`, `s_relevance`/`build_profile_text`, `keyword_matcher._cv_terms`, el optimizador y el kit) leen `description` y `achievements` como una bolsa de texto, así que repartir el texto entre los dos no los mueve. Con un CV sintético en la forma de antes (todo en `description`) y en la de ahora (introducción en `description`, viñetas en `achievements`, con la IA repitiéndolas):
+
+- Habilidades blandas detectadas y puntaje de blandas: **iguales**.
+- Relevancia (evidencia 0,75 con 3 de 4 skills pedidas nombradas): **igual**.
+- ATS, coincidencias **literales** de cinco palabras clave: **iguales**.
+- ATS, coincidencia **semántica**: **no se midió y puede cambiar.** Los términos del CV pasan de ~1 por experiencia a ~1 por viñeta (en el ejemplo, de 4 a 8 vectores pedidos). Un término corto se parece más a una palabra clave corta que un párrafo entero, así que algunas palabras clave que hoy figuran como `missing` podrían pasar a `semantic` (umbral 0,75) y el puntaje ATS subir un poco. Medirlo exige los vectores reales de OpenAI (la clave de `.env` y el OK del autor; costaría menos de USD 0,01) y un CV real; con el gateway falso de las pruebas no se puede. Afecta solo a los CV leídos después del deploy; los reportes ATS ya guardados no se recalculan (Decisión 33).
+
+**Qué cambia para la persona.** Quien sube su CV después del deploy tiene en `parsed_data` las fechas, «actualidad» y las viñetas, y su CV descargable sale con «Julio 2026 - Presente», una viñeta por logro y estudios y certificados con fecha, ordenado del más reciente al más antiguo. Quien no lo vuelva a subir ve lo mismo que hoy.
+
+**Límites conocidos.**
+- **No se verificó con DeepSeek real.** Las pruebas usan respuestas falsas. No se sabe cuánto va a cumplir la IA con las instrucciones nuevas (por ejemplo, poner las viñetas en `achievements`); el código cubre lo que devuelva (repetidas, en un texto, como objetos, o todo en `description` como hoy), pero la calidad del resultado se ve recién al releer un CV real en producción.
+- **Solo meses en español e inglés.** Un CV en portugués o francés conserva el texto tal cual, y como ya no es `AAAA-MM` se ordena después de los que sí lo son (el texto «Julio 2026» queda antes que «2026-07» al ordenar de más nuevo a más viejo). El orden puede salir mal en un CV con fechas de formatos mezclados.
+- **Fechas ambiguas y períodos raros** («Q1 2021», «Verano 2020», «hace dos años») se guardan como texto, no se interpretan.
+- **El sacado de viñetas repetidas es literal por oración.** Una descripción que parafrasea las viñetas no se toca.
+- **Las viñetas no tienen tope de largo ni de cantidad.** El parseo guarda con la clave de servicio y no pasa por los modelos de escritura (hay una prueba que lo fija). Si más adelante algún flujo copia estas viñetas a la tabla `experiences` con `ExperienceCreate`, tendrá que recortar a 1000 caracteres y 50 elementos.
+- **El PDF de LinkedIn pasa por el mismo lector** y también guarda los campos nuevos; no se probó con un PDF de LinkedIn real.
+- **El PR #130 es independiente.** Lee estas claves con `.get`, así que ninguno de los dos PR necesita al otro: con el diseño actual el período sale «2026-07 – actualidad»; con el del #130, «Julio 2026 - Presente». El CV descargable sale completo cuando están los dos en producción y la persona vuelve a subir su CV. Una fecha que quedó como texto (ambigua) la sigue cortando a 7 caracteres el diseño actual.
+- No hay migración ni cambios en `render.yaml`, variables de entorno, workflows, webhooks o flujos de cobro. No se tocó producción.
+
+**Pruebas.** `tests/unit/test_cv_dates.py` (141): cada formato de fecha en los dos idiomas, lo ambiguo que se conserva, los valores que no son texto, las palabras de «actualidad» y las que no lo son, y el período (fin real contra bandera, rango escrito en el inicio, alias de claves). `tests/unit/test_cv_parser_extended_fields.py` (105): los campos de experiencias, estudios y certificados; las viñetas en cada forma y la descripción sin repetidos; 23 valores hostiles (nulos, números, enteros de 400 dígitos, `nan`, listas, objetos, un texto de 10 000 caracteres) en cada campo nuevo (validan y salen como texto o booleano); la respuesta completa y la malformada por el camino real de `structure_cv_text` con DeepSeek simulado (una sola llamada, sin reintento); el prompt y su tope de 1900 caracteres; que los datos lleguen a `parsed_data` (CV y LinkedIn) y al CV descargable, incluido el orden; y la equivalencia de blandas, relevancia y ATS literal entre la forma vieja y la nueva. Se verificó que 63 de las 105 fallan contra el código anterior; las 42 que pasan fijan lo que no cambia (por ejemplo, que un valor raro no haga fallar). Se agregaron 246 pruebas; la suite unitaria completa pasa (1545) y `mypy` y `ruff` no marcan nada. Las pruebas de integración contra Supabase de pruebas no se corrieron (faltan los secretos `TEST_*`).
+
+**Reversión.** Deshacer el commit de este cambio: vuelve el prompt y la forma de antes. Lo guardado con las claves nuevas queda en `parsed_data` y los lectores lo ignoran (leen con `.get`); no hace falta limpiar nada.
