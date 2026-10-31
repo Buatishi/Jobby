@@ -18,6 +18,43 @@ def skill_key(name: Any) -> str:
     return canonical_skill_key(name) or normalize_text(name)
 
 
+def _has_text(experience: dict[str, Any]) -> bool:
+    achievements = experience.get("achievements")
+    return bool(str(experience.get("description") or "").strip()) or (
+        isinstance(achievements, list)
+        and any(str(item or "").strip() for item in achievements)
+    )
+
+
+def experiences_with_text(
+    rows: list[dict[str, Any]], documents: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Las experiencias con qué leer: las del perfil, o las del CV si no dicen nada.
+
+    El parseo del CV guarda sus experiencias en `parsed_data` y las filas de
+    `experiences` las carga la persona a mano: quien subió el CV y no las completó tiene
+    filas sin descripción ni logros, y el motor no veía nada de lo que el CV cuenta
+    (Decisión 40). Si alguna fila tiene texto, manda el perfil, que es lo que la persona
+    confirmó.
+    """
+    if any(_has_text(row) for row in rows):
+        return rows
+    primary_cv = next(
+        (
+            document
+            for document in documents
+            if document.get("type") == "cv" and document.get("is_primary")
+        ),
+        None,
+    )
+    parsed = primary_cv.get("parsed_data") if primary_cv else None
+    items = parsed.get("experiences") if isinstance(parsed, dict) else None
+    if not isinstance(items, list):
+        return rows
+    with_text = [item for item in items if isinstance(item, dict) and _has_text(item)]
+    return with_text or rows
+
+
 def clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, value))
 

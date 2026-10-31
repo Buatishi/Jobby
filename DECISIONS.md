@@ -2589,3 +2589,51 @@ sin limpiar y el ATS vuelve a importar el filtro de su carpeta); son independien
 **Pruebas.** `tests/unit/test_format_checker.py`: un CV sin ningún título habitual resta una vez, títulos raros entre habituales no restan, títulos compuestos y en inglés son habituales, una palabra dentro de otra no cuenta, el caso de los nombres de empresa (con nombres inventados) y la lista vacía. Se verificó que 10 de las 33 fallan contra el código anterior; el resto fija reglas que no cambian. `apps/web/lib/guides/guides.test.ts` sigue el texto nuevo de las guías; no se corrió localmente (el worktree no tiene `node_modules`), lo corre el CI.
 
 **Reversión.** Deshacer el commit de este cambio: vuelve la regla de igualdad exacta, el mensaje anterior y el texto de las guías.
+
+
+---
+
+## Decisión 40 — Las habilidades blandas se leen en los dos idiomas y salen del CV
+
+**Estado:** Pedida por el autor el 2026-10-30. Va en el PR #129, en un commit aparte de los de la Decisión 39 y de la Actualización de la Decisión 34, **sin mergear**: mergearlo cambia el puntaje de blandas, y con él el del match, de **todos los matches nuevos** (los ya guardados no se recalculan). El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-30, solo lectura sobre producción y código). El sub-puntaje de blandas (5 % del match) dio 0 en los 7 puestos guardados que piden blandas, con una persona cuyo CV dice «trabajo colaborativo en equipo» y «resolución de incidencias». Eran tres causas, ninguna era una palabra clave que faltara en el CV:
+
+- **El puesto.** `compute_soft_score` comparaba cada frase del puesto, pasada a minúsculas y con guiones bajos, con diez claves en inglés de una palabra (`leadership`, `collaboration`…). «Teamwork», «Trabajo en equipo», «Comunicación» o «liderazgo» no se llaman así: de 29 habilidades pedidas en los 7 puestos, **3** podían coincidir alguna vez.
+- **El CV.** `infer_soft_skills` buscaba raíces como texto contenido, sin quitar acentos y casi todas en inglés: «Resolución de incidencias» y «Trabajo colaborativo» no disparaban nada, y «líder» no coincidía con «lider».
+- **De dónde se leía.** El motor lee las filas de `experiences`, que carga la persona a mano. El parseo del CV guarda las suyas solo en `parsed_data`. La cuenta medida tenía una fila de experiencia sin descripción ni logros, y el CV principal cuatro con unos 1100 caracteres. Además `inferred_soft_skills` se leía como caché sin vencimiento: si tenía algo, nunca se volvía a inferir.
+
+**Elegido.**
+
+- **Cada frase del puesto se lleva a las habilidades que nombra** (`SOFT_SKILL_ALIASES` en `s_soft.py`): «Teamwork» y «Trabajo en equipo» son `collaboration`; «Autonomía», `ownership`; «Ganas de resolver problemas», `problem_solving`; «Ganas de aprender», `adaptability`. Una frase que nombra dos («Autonomy to research and solve problems») cuenta una vez y se cumple con cualquiera. **Una frase que no nombra ninguna («Curiosity», «Passion for innovation», «Mejora continua») no cuenta**, ni a favor ni en contra. Si ninguna frase del puesto se reconoce, el puntaje es el neutro de 0,75, el mismo de un puesto que no pide blandas, en lugar de 0.
+- **El CV se lee sin acentos y por raíz al empezar una palabra** (`SOFT_SKILL_SIGNALS`): se agregaron raíces en español y en inglés (`colabor`, `resoluc`, `comunic`, `responsab`, `analiz`, `iniciativ`, `adapt`, `entrega`…) y se quitó `trabaj con`, que ninguna frase real contiene. «comunic» sirve para «comunicación» y ya no para «telecomunicaciones»; «lanc» ya no coincide con «balance». Esto último cambia también las raíces de antes: dejan de coincidir dentro de otra palabra.
+- **Lo que dice el CV hoy manda sobre la caché.** `inferred_soft_skills` solo se usa si el CV no dice nada. Sin esto, quien ya tenía una lectura vieja guardada no se beneficiaba de nada de lo anterior.
+- **Las experiencias salen del CV si el perfil no tiene texto.** `experiences_with_text` (en `match_engine/common.py`) usa las filas del perfil si alguna tiene descripción o logros, porque es lo que la persona confirmó; si ninguna tiene, usa las experiencias del CV principal (`parsed_data.experiences`). Hay un precedente en `printable_cv._rows_or_parsed`, que usa el CV solo cuando no hay filas; acá se usa también cuando hay filas sin texto, que es el caso medido. Lo mismo alimenta el texto de relevancia (`build_profile_text`).
+
+**Medido** (2026-10-30, 8 puestos guardados, solo lectura): con las frases «Trabajo colaborativo en equipo. Resolución de incidencias.» como CV (sintéticas, tomadas del pedido; no se copió texto del CV real), con el código de antes las blandas dan 0 en los 7 puestos que las piden y con el de ahora:
+
+| Puesto | Blandas pedidas | Blandas: antes → ahora | Match (con el stack de la Decisión 39) |
+|---|---|---|---|
+| Ingeniería de IA | 5 (3 reconocidas) | 0 → 0,67 | 14 → 16 |
+| Ingeniería (banco) | 7 (6 reconocidas) | 0 → 0,50 | 19 → 20 |
+| Desarrollo de software (telecom) | 5 (4 reconocidas) | 0 → 0,50 | 21 → 23 |
+| Generalista | 8 (6 reconocidas) | 0 → 0,33 | 34 → 35 |
+| Backend Python Jr | 2 (2 reconocidas) | 0 → 0,50 | 71 → 74 |
+| Análisis de datos Jr | 1 | 0 → 0,03 | 55 → 55 |
+| Chef ejecutivo | 1 | 0 → 0,03 | 3 → 4 |
+| Full Stack Jr | 0 | 0,75 → 0,75 | 71 → 71 |
+
+El techo es chico a propósito: las blandas pesan 5 %, así que el efecto máximo sobre el match es de 5 puntos multiplicado por la relevancia. El valor de este cambio es que deja de dar 0 sin mirar el CV.
+
+**Qué cambia para la persona.** Quien sube su CV y no completa las experiencias a mano deja de tener blandas en 0 y un texto de relevancia vacío. Un puesto cuyas blandas no se reconocen ya no resta. El campo `inferred_soft_skills` del perfil se actualiza con lo que el CV dice en el momento del match.
+
+**Límites conocidos.**
+- La tabla de alias es chica y mapea con criterio: «Autonomía» como `ownership`, «aprender» y «flexibilidad» como `adaptability`, cualquier «problem(a)» como `problem_solving` («Motivated by hard technical problems» también lo cumple una persona que resuelve incidencias). «Curiosity», «Passion for innovation» y «Mejora continua» no se mapean.
+- La detección del CV sigue siendo por raíces, no entiende negaciones ni contexto. «Trabajo en equipo» en una lista de cualidades cuenta igual que en un logro.
+- Si la persona tiene filas de experiencia con texto, el CV no se mira aunque diga más. Es a propósito (manda lo confirmado).
+- No se tocó el parseo del CV: no se copian experiencias a la tabla `experiences`, solo se leen del CV al calcular.
+- No se verificó en producción con un match nuevo; se midió con el código y las frases de arriba. No se recalculan ni se borran matches guardados. No hay migración ni cambios en `render.yaml`, variables de entorno, workflows o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_soft_skills.py`: frases del puesto y la habilidad que nombran (17 casos en los dos idiomas), frases sin habilidad, una frase con dos, puesto neutro, solo cuentan las reconocidas; el CV en los dos idiomas con y sin acentos (10 casos), logros, raíces dentro de otra palabra, el CV de hoy contra una caché vieja y la caché si el CV no dice nada; de dónde salen las experiencias (perfil con texto, filas vacías, sin filas, solo el CV principal, CV sin experiencias utilizables), el texto de relevancia y el match completo con `FakeSupabase` (la cuenta medida: fila sin texto y CV con la historia). No se pudo correr el archivo contra el código anterior porque importa funciones nuevas; el comportamiento anterior se comprobó a mano con las mismas frases: no detectaba nada y daba 0 en «Teamwork», «Trabajo en equipo» y «Autonomy to research and solve problems». Se agregaron 51 pruebas; el resto de la suite sigue pasando.
+
+**Reversión.** Deshacer el commit de este cambio: vuelve el cálculo anterior (blandas en 0 si el puesto no usa las diez claves exactas) y el motor deja de leer el CV para las experiencias.

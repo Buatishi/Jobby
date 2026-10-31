@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from app.services.match_engine.common import clamp
+from app.services.match_engine.common import clamp, experiences_with_text
 from app.services.match_engine.s_company import compute_company_score
 from app.services.match_engine.s_education import compute_education_score
 from app.services.match_engine.s_languages import compute_languages_score
@@ -137,6 +137,7 @@ async def compute_match_score(profile_id: str, job_id: str, db: Any) -> MatchRes
         profile_id=profile_id,
         user_id=profile["user_id"],
     )
+    experiences = experiences_with_text(experiences, documents)
 
     skills_result = compute_skills_score(profile_skills, job)
     seniority_score = compute_seniority_score(profile, job)
