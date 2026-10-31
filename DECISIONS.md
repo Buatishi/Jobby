@@ -2456,20 +2456,25 @@ toda URL responde con el aviso de pegar el texto. No hay migración ni variable 
 
 ---
 
-## Decisión 39 — El MatchScore compara nombres de skills, no tareas escritas como frase
+## Decisión 39 — El MatchScore compara nombres de skills y cuenta también el stack tecnológico del puesto
 
 **Estado:** Pedida por el autor el 2026-10-30, después de medir los puntajes de una cuenta real. Cambio en
-la rama `fix/match-clean-required-skills`, **sin mergear**: mergearlo despliega y cambia el puntaje de
-**todos los matches nuevos** (los ya guardados no se recalculan). El texto es un borrador redactado con
-asistencia de IA que el autor revisa y hace suyo. Es la primera de las propuestas del diagnóstico
-(limpiar la lista); las otras (`tech_stack`, formato del ATS, habilidades blandas) no están incluidas.
+la rama `fix/match-clean-required-skills` (PR #129), **sin mergear**: mergearlo despliega y cambia el
+puntaje de **todos los matches nuevos** (los ya guardados no se recalculan). El texto es un borrador
+redactado con asistencia de IA que el autor revisa y hace suyo. Cubre las propuestas P1 (limpiar la lista)
+y P2 (contar el `tech_stack`) del diagnóstico. El formato del ATS (Actualización de la Decisión 34) y las
+habilidades blandas (Decisión 40) van en el mismo PR, en commits aparte para poder revertirlos por
+separado. Quedan afuera: embeber cada skill pedida, mover la compuerta de relevancia, el matching parcial
+del ATS y colapsar keywords duplicadas.
 
 **Hallazgo** (2026-10-30, solo lectura sobre producción y código). El puesto de «Software Engineer | AI
 Engineer» de una empresa grande dio Match 6 con un CV de sistemas. La IA que lee el aviso devolvió 17
 `required_skills`, casi todas tareas escritas como frase («Optimizing sessions, events, latency, turns,
 interruptions and error fallbacks», «Relational databases (MySQL or similar)»). `compute_skills_score`
 las compara por nombre contra las skills del perfil («Python», «SQL»): una frase no coincide nunca, pero
-sí suma al divisor. El ATS ya filtraba esto desde la Decisión 35; el motor de comparación no.
+sí suma al divisor. El ATS ya filtraba esto desde la Decisión 35; el motor de comparación no. Además
+`required_skills` de ese puesto ni siquiera incluía «Python», que sí estaba en su `tech_stack` junto con
+«REST APIs», y el puntaje no miraba el `tech_stack`.
 
 **Elegido.**
 
@@ -2483,10 +2488,15 @@ sí suma al divisor. El ATS ya filtraba esto desde la Decisión 35; el motor de 
   texto entre paréntesis («Relational databases (MySQL or similar)» pide «Relational databases»), se
   descarta lo que no es una habilidad con el mismo criterio del ATS (más de 5 palabras, nivel,
   modalidad, título, empresa, ciudad) y el mismo nombre cuenta una sola vez.
-- **Dos alias del mismo nombre siguen contando cada uno** («REST API» y «API REST»): es la regla de
-  alias de la Decisión 31 y su prueba; limpiar la lista no la toca.
-- **Si no queda ninguna skill, se conserva la lista como vino.** Vacía se leería como «el puesto no pide
-  nada» y daría el puntaje neutro de 0,8; con la lista original el puntaje es 0, como hasta ahora.
+- **Dos alias del mismo nombre siguen contando cada uno** («REST API» y «API REST») dentro de
+  `required_skills`: es la regla de alias de la Decisión 31 y su prueba; limpiar la lista no la toca.
+- **El `tech_stack` del puesto también se pide** («stack completo»): se suma a la lista lo que no esté ya
+  por forma común (`skill_key`: «API REST» del stack no repite «REST APIs» de `required_skills`) y pasa
+  por la misma limpieza. Es un criterio, no un error corregido: todo lo que figura en el stack cuenta,
+  no solo lo que el aviso exige.
+- **Si no queda ninguna skill, se conserva `required_skills` como vino.** Vacía se leería como «el puesto
+  no pide nada» y daría el puntaje neutro de 0,8; con la lista original el puntaje es 0, como hasta
+  ahora. Si hay stack, la lista de frases se reemplaza por el stack.
 - **Se le pide a la IA otra cosa** en `analysis._user_prompt`: una skill por ítem, con su nombre corto y
   común, hasta 4 palabras, sin paréntesis y sin frases ni descripciones de tareas. Es la primera
   defensa; el filtro es la segunda porque la IA no es determinista (mismo esquema que la Decisión 35).
@@ -2494,47 +2504,58 @@ sí suma al divisor. El ATS ya filtraba esto desde la Decisión 35; el motor de 
 
 **Medido** (2026-10-30, 8 puestos guardados en producción, solo lectura, con las skills actuales de la
 cuenta; la relevancia por texto del perfil no se pudo reconstruir y se tomó el valor guardado, así que
-las cifras son un piso). «Antes» es `main`, «después» es esta rama, mismo script:
+las cifras son un piso). «Antes» es `main`; «limpia» es P1; «limpia + stack» es P1 y P2 juntas, que es
+lo que hace el PR. Mismo script en los tres:
 
-| Puesto | Skills pedidas | Puntaje de skills | Match |
-|---|---|---|---|
-| Ingeniería de IA (empresa grande) | 17 → 12 | 0 → 0 | 6 → 6 |
-| Ingeniería (banco) | 10 → 9 | 0,10 → 0,11 | 18 → 19 |
-| Desarrollo de software (telecom) | 12 → 9 | 0,25 → 0,33 | 27 → 36 |
-| Generalista (Python, Rust, Nix) | 13 → 13 | 0,23 → 0,23 | 28 → 28 |
-| Backend Python Jr | 9 → 6 | 0,44 → 0,67 | 58 → 65 |
-| Análisis de datos Jr | 5 → 5 | 0,60 → 0,60 | 52 → 52 |
-| Chef ejecutivo | 9 → 9 | 0 → 0 | 3 → 3 |
-| Full Stack Jr | 6 → 6 | 1,00 → 1,00 | 71 → 71 |
+| Puesto | Skills pedidas | Match: antes → limpia → limpia + stack |
+|---|---|---|
+| Ingeniería de IA (empresa grande) | 17 → 12 → 21 | 6 → 6 → **14** |
+| Ingeniería (banco) | 10 → 9 → 9 | 18 → 19 → 19 |
+| Desarrollo de software (telecom) | 12 → 9 → 20 | 27 → 36 → **21** |
+| Generalista (Python, Rust, Nix) | 13 → 13 → 18 | 28 → 28 → 34 |
+| Backend Python Jr | 9 → 6 → 12 | 58 → 65 → 71 |
+| Análisis de datos Jr | 5 → 5 → 6 | 52 → 52 → 55 |
+| Chef ejecutivo | 9 → 9 → 9 | 3 → 3 → 3 |
+| Full Stack Jr | 6 → 6 → 10 | 71 → 71 → 71 |
 
-**El caso que originó el pedido no cambia con este PR (6 → 6).** Las frases largas que salen no podían
-coincidir de todos modos, y lo que queda sigue sin coincidir: `required_skills` de ese puesto ni siquiera
-incluye «Python», que sí está en su `tech_stack`. Moverlo requiere que el `tech_stack` cuente como skill
-pedida (propuesta aparte, con efecto medido de 6 → 14 pero también de 36 → 21 en otro puesto) y es una
-decisión de criterio que no está tomada.
+**Qué puestos suben y cuáles bajan con el PR completo.** Suben el de ingeniería de IA (6 → 14: por fin
+cuentan «Python» y «REST APIs»), el generalista (28 → 34), el backend Python Jr (58 → 71) y el de datos
+(52 → 55). **Baja el de desarrollo de software de telecom: 27 → 21** (con solo limpiar subía a 36). Su
+`tech_stack` trae Kubernetes, BGP, VRRP, Claude Code y Codex, que la persona no tiene, y contar el stack
+completo los suma al divisor. Contar solo lo exigido evitaría esa baja, pero dejaría en 6 el puesto de
+ingeniería de IA, cuyo «Python» está solo en el stack. El criterio de «stack completo» lo eligió el autor.
 
 **Qué cambia para la persona.** Los puestos cuya lista traía tareas largas suben (sin frases imposibles
-en el divisor), y la lista de «skills que faltan» deja de mostrar frases que ninguna persona podría tener.
-Puede bajar en casos raros: un puesto que repite el mismo nombre dos veces y la persona lo tiene cuenta
-ahora una sola vez.
+en el divisor), la lista de «skills que faltan» deja de mostrar frases que ninguna persona podría tener, y
+pasa a mostrar las tecnologías del stack que faltan. Los puestos que listan un stack largo y ajeno bajan.
+Puede bajar también por un caso raro: un puesto que repite el mismo nombre dos veces y la persona lo tiene
+cuenta ahora una sola vez.
 
 **Límites conocidos.**
 - El tope de 5 palabras (`MAX_SKILL_WORDS`) deja pasar tareas cortas («Building AI agents», «Collecting
   conversations and production traces», 5 palabras). El filtro solo descarta lo que seguro no es una
   skill; bajar el tope también descartaría nombres legítimos (se evaluó en la Decisión 35).
+- El `tech_stack` mezcla lo exigido con lo mencionado, y desde acá todo cuenta igual. Un puesto sin
+  `required_skills` y con stack pasa del puntaje neutro (0,8) a puntuarse por ese stack.
 - No se modela la comparación semántica: `semantic_hits` fue 0 en los 12 matches guardados. La causa
-  (cada skill pedida recibe de respaldo el vector del puesto entero) no se toca acá.
+  (cada skill pedida recibe de respaldo el vector del puesto entero) no se toca acá. Medido con los
+  vectores guardados, un par de nombres cortos relacionados queda muy por debajo del umbral de 0,82
+  (Git y GitHub 0,71; «Integración de APIs» y «REST APIs» 0,58), así que embeber cada skill rendiría poco.
 - No se recalculan ni se borran matches guardados. No hay migración ni cambios en `render.yaml`,
   variables de entorno, workflows o flujos de cobro.
 
-**Pruebas.** `tests/unit/test_required_skills_clean.py` (paréntesis, frases largas, tarea corta que se
+**Pruebas.** `tests/unit/test_required_skills_clean.py` (P1: paréntesis, frases largas, tarea corta que se
 conserva, puntaje sin el peso de las frases, una falta real que sigue bajando el puntaje, nivel/modalidad/
 título, mismo nombre una sola vez, alias que siguen contando cada uno, lista solo de frases, puesto sin
 skills, skill con vector que conserva su vector, relevancia sobre los nombres limpios, importación en
-cualquier orden de `match_engine` y `ats_analyzer`, y lo que se le pide a la IA). Se verificó que 9 de
-las 15 fallan contra el código anterior; las otras 6 fijan reglas que no cambian. Suite del backend sin
-`tests/integration` (necesita base real): 1206 pruebas pasan; `mypy app/` y `ruff check` sin hallazgos.
+cualquier orden de `match_engine` y `ats_analyzer`, y lo que se le pide a la IA) y
+`tests/unit/test_tech_stack_as_required_skill.py` (P2: el stack se suma, no se cuenta dos veces por forma
+común ni repetido, se limpia como las skills, el caso medido, el costo de un stack ajeno, puesto solo con
+stack, stack que reemplaza a una lista de frases, frases sin stack, puesto sin nada, puesto sin clave de
+stack y relevancia sobre el stack). Se verificó que las de P1 y P2 que cambian el comportamiento fallan
+contra el código anterior.
 
 **Validación y reversión.** Tras el deploy, analizar un puesto de prueba y mirar
-`score_breakdown.required_skills` del match: tiene que traer nombres cortos y sin paréntesis. Para
-revertir, deshacer el merge: vuelve la lista sin limpiar y el ATS vuelve a importar el filtro de su carpeta.
+`score_breakdown.required_skills` del match: tiene que traer nombres cortos y sin paréntesis, más el stack
+del puesto. Para revertir, deshacer los commits de P2 (el stack deja de contar) o de P1 (vuelve la lista
+sin limpiar y el ATS vuelve a importar el filtro de su carpeta); son independientes en el código.

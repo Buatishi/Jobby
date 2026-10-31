@@ -36,6 +36,28 @@ def _raw_required_skill_items(job: dict[str, Any]) -> list[dict[str, Any]]:
     return []
 
 
+def _tech_stack_items(job: dict[str, Any]) -> list[dict[str, Any]]:
+    fallback_embedding = job.get("embedding")
+    tech_stack = job.get("tech_stack")
+    if not isinstance(tech_stack, list):
+        return []
+    return [{"name": str(tech), "embedding": fallback_embedding} for tech in tech_stack]
+
+
+def _clean_skill_items(
+    items: list[dict[str, Any]], job: dict[str, Any]
+) -> list[dict[str, Any]]:
+    cleaned: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in items:
+        name = _PARENTHETICAL.sub("", str(item.get("name") or "")).strip()
+        if not skill_keywords([name], job) or name.casefold() in seen:
+            continue
+        seen.add(name.casefold())
+        cleaned.append({**item, "name": name})
+    return cleaned
+
+
 def _job_required_skill_items(job: dict[str, Any]) -> list[dict[str, Any]]:
     """Las skills que pide el puesto, como nombres y no como tareas (Decisión 39).
 
@@ -47,19 +69,22 @@ def _job_required_skill_items(job: dict[str, Any]) -> list[dict[str, Any]]:
     sola vez el mismo nombre. Dos alias distintos («REST API» y «API REST») siguen
     contando cada uno.
 
-    Si no queda ninguna, se conserva la lista tal como vino: una lista vacía se leería
-    como «el puesto no pide nada» y daría el puntaje neutro (0,8) en lugar de 0.
+    El `tech_stack` del puesto también se pide: la IA suele dejar ahí «Python» y no en
+    `required_skills`. Se suma lo que no esté ya (por forma común, `skill_key`: «API
+    REST» y «REST APIs» son la misma) y pasa por la misma limpieza.
+
+    Si no queda ninguna, se conserva `required_skills` tal como vino: una lista vacía se
+    leería como «el puesto no pide nada» y daría el puntaje neutro (0,8) en lugar de 0.
     """
     items = _raw_required_skill_items(job)
-    cleaned: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for item in items:
-        name = _PARENTHETICAL.sub("", str(item.get("name") or "")).strip()
-        if not skill_keywords([name], job) or name.casefold() in seen:
-            continue
-        seen.add(name.casefold())
-        cleaned.append({**item, "name": name})
-    return cleaned or items
+    required = _clean_skill_items(items, job)
+    known = {skill_key(item["name"]) for item in required}
+    for item in _clean_skill_items(_tech_stack_items(job), job):
+        key = skill_key(item["name"])
+        if key not in known:
+            known.add(key)
+            required.append(item)
+    return required or items
 
 
 def required_skill_names(job: dict[str, Any]) -> list[str]:
