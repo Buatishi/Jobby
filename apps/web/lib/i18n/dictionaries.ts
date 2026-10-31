@@ -325,6 +325,8 @@ export const dictionaries: Record<Language, TranslationTree> = {
       urlReadFail:
         "No pudimos leer esa URL. Pegá el texto del puesto para continuar.",
       analysisQueued: "Analizando... te avisamos cuando esté listo.",
+      viewJob: "Ver job",
+      matchPreparing: "Calculando tu match...",
       analysisStartFail: "No se pudo iniciar el análisis.",
       viewAtsReport: "Ver reporte ATS",
       atsListTitle: "Elegí un puesto para ver su reporte ATS",
@@ -754,6 +756,8 @@ export const dictionaries: Record<Language, TranslationTree> = {
       analysisComplete: "Analysis complete. You can review the job now.",
       urlReadFail: "We could not read that URL. Paste the job text to continue.",
       analysisQueued: "Analyzing... we will let you know when it is ready.",
+      viewJob: "View job",
+      matchPreparing: "Calculating your match...",
       analysisStartFail: "Could not start the analysis.",
       viewAtsReport: "View ATS report",
       atsListTitle: "Pick a job to see its ATS report",

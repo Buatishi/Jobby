@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { AlertCircle, ClipboardPaste, Link2, Send } from "lucide-react";
 
+import { JobReadyAction } from "@/components/job-ready-action";
 import { TaskPoller } from "@/components/task-poller";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
@@ -28,6 +29,8 @@ export function JobInputForm() {
   const [url, setUrl] = useState("");
   const [rawText, setRawText] = useState("");
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [completedJobId, setCompletedJobId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,8 +43,9 @@ export function JobInputForm() {
       kind: "success",
       message: t("app.analysisComplete")
     });
+    setCompletedJobId(jobId);
     setTaskId(null);
-  }, [showToast, t]);
+  }, [jobId, showToast, t]);
 
   const handleFail = useCallback(
     (message: string) => {
@@ -61,6 +65,7 @@ export function JobInputForm() {
     event.preventDefault();
     setIsSubmitting(true);
     setToast(null);
+    setCompletedJobId(null);
 
     try {
       const response = await apiClient<AnalyzeResponse>("/api/v1/jobs/analyze", {
@@ -73,6 +78,7 @@ export function JobInputForm() {
       });
 
       setTaskId(response.task_id);
+      setJobId(response.job_id);
       window.localStorage.setItem(
         `jobmatch_profile_confidence:${response.job_id}`,
         response.profile_confidence
@@ -169,6 +175,11 @@ export function JobInputForm() {
           role="status"
         >
           {toast.message}
+          {toast.kind === "success" && completedJobId ? (
+            <div className="mt-3">
+              <JobReadyAction jobId={completedJobId} />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
