@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from app.services.ats_analyzer.keyword_filter import skill_keywords
 from app.services.ats_analyzer.keyword_matcher import analyze_keywords
+from app.services.skill_filter import skill_keywords
 
 JOB_TITLE = "Desarrollador/a Backend Python Jr"
 

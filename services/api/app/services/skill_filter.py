@@ -1,4 +1,4 @@
-"""Qué cuenta como keyword del ATS: las habilidades del puesto, no sus datos.
+"""Qué cuenta como habilidad de un puesto: su nombre, no sus datos ni sus tareas.
 
 La IA que extrae las keywords recibía la orden de incluir «seniority, idiomas y
 títulos», y el reporte pedía «Junior», «Full time», «Buenos Aires» o el título del
@@ -8,6 +8,10 @@ tanto las que devuelve la IA como las que un reporte viejo dejó guardadas.
 
 El pedido a la IA es la primera defensa (`extract_job_keywords`); esto es la segunda,
 y es conservadora: solo descarta lo que seguro no es una habilidad.
+
+Lo usan el ATS y el MatchScore (Decisión 39). Vive fuera de `ats_analyzer` porque el
+ATS ya importa del motor de comparación y el motor no puede importar del ATS sin un
+ciclo.
 
 - El nivel (junior, senior, «semi senior»…), la modalidad (remoto, híbrido…) y el
   tipo de jornada («full time»), y lo que el puesto guarda como nivel y modalidad:

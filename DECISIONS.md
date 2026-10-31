@@ -2453,3 +2453,226 @@ probó y LinkedIn lo bloquearía igual desde un servidor. (d) Dejar abiertos dos
 cuenta propia y mirar el log de Render (`El navegador del scraper falló`, `La tarea … falló`) y la memoria del
 servicio en el panel. Para revertir, deshacer el merge: el `Dockerfile` vuelve a la imagen sin Chromium y
 toda URL responde con el aviso de pegar el texto. No hay migración ni variable de entorno nueva.
+
+---
+
+## Decisión 39 — El MatchScore compara nombres de skills y cuenta también el stack tecnológico del puesto
+
+**Estado:** Pedida por el autor el 2026-10-30, después de medir los puntajes de una cuenta real. Cambio en
+la rama `fix/match-clean-required-skills` (PR #129), **sin mergear**: mergearlo despliega y cambia el
+puntaje de **todos los matches nuevos** (los ya guardados no se recalculan). El texto es un borrador
+redactado con asistencia de IA que el autor revisa y hace suyo. Cubre las propuestas P1 (limpiar la lista)
+y P2 (contar el `tech_stack`) del diagnóstico. El formato del ATS (Actualización de la Decisión 34) y las
+habilidades blandas (Decisión 40) van en el mismo PR, en commits aparte para poder revertirlos por
+separado, y también en un commit aparte la compuerta de relevancia (Actualización de la Decisión 29). Quedan
+afuera: embeber cada skill pedida, el matching parcial del ATS y colapsar keywords duplicadas.
+
+**Hallazgo** (2026-10-30, solo lectura sobre producción y código). El puesto de «Software Engineer | AI
+Engineer» de una empresa grande dio Match 6 con un CV de sistemas. La IA que lee el aviso devolvió 17
+`required_skills`, casi todas tareas escritas como frase («Optimizing sessions, events, latency, turns,
+interruptions and error fallbacks», «Relational databases (MySQL or similar)»). `compute_skills_score`
+las compara por nombre contra las skills del perfil («Python», «SQL»): una frase no coincide nunca, pero
+sí suma al divisor. El ATS ya filtraba esto desde la Decisión 35; el motor de comparación no. Además
+`required_skills` de ese puesto ni siquiera incluía «Python», que sí estaba en su `tech_stack` junto con
+«REST APIs», y el puntaje no miraba el `tech_stack`.
+
+**Elegido.**
+
+- **El filtro del ATS pasa a un módulo neutro**, `app/services/skill_filter.py` (antes
+  `ats_analyzer/keyword_filter.py`; mismo código, movido con `git mv`). No se podía importar desde
+  `match_engine` sin un ciclo: `ats_analyzer/__init__` → `keyword_matcher` → `match_engine.common` →
+  `match_engine/__init__` → `formula` → `s_skills`. Los dos importadores se actualizaron; la
+  Decisión 35 sigue nombrando el archivo anterior porque no se reescribe.
+- **Las skills que pide el puesto se limpian antes de compararlas** (`_job_required_skill_items` en
+  `s_skills.py`, que alimenta el puntaje, la relevancia y `score_breakdown.required_skills`): se saca el
+  texto entre paréntesis («Relational databases (MySQL or similar)» pide «Relational databases»), se
+  descarta lo que no es una habilidad con el mismo criterio del ATS (más de 5 palabras, nivel,
+  modalidad, título, empresa, ciudad) y el mismo nombre cuenta una sola vez.
+- **Dos alias del mismo nombre siguen contando cada uno** («REST API» y «API REST») dentro de
+  `required_skills`: es la regla de alias de la Decisión 31 y su prueba; limpiar la lista no la toca.
+- **El `tech_stack` del puesto también se pide** («stack completo»): se suma a la lista lo que no esté ya
+  por forma común (`skill_key`: «API REST» del stack no repite «REST APIs» de `required_skills`) y pasa
+  por la misma limpieza. Es un criterio, no un error corregido: todo lo que figura en el stack cuenta,
+  no solo lo que el aviso exige.
+- **Si no queda ninguna skill, se conserva `required_skills` como vino.** Vacía se leería como «el puesto
+  no pide nada» y daría el puntaje neutro de 0,8; con la lista original el puntaje es 0, como hasta
+  ahora. Si hay stack, la lista de frases se reemplaza por el stack.
+- **Se le pide a la IA otra cosa** en `analysis._user_prompt`: una skill por ítem, con su nombre corto y
+  común, hasta 4 palabras, sin paréntesis y sin frases ni descripciones de tareas. Es la primera
+  defensa; el filtro es la segunda porque la IA no es determinista (mismo esquema que la Decisión 35).
+  Solo afecta a los puestos que se analicen después del despliegue.
+
+**Medido** (2026-10-30, 8 puestos guardados en producción, solo lectura, con las skills actuales de la
+cuenta; la relevancia por texto del perfil no se pudo reconstruir y se tomó el valor guardado, así que
+las cifras son un piso). «Antes» es `main`; «limpia» es P1; «limpia + stack» es P1 y P2 juntas, que es
+lo que hace el PR. Mismo script en los tres:
+
+| Puesto | Skills pedidas | Match: antes → limpia → limpia + stack |
+|---|---|---|
+| Ingeniería de IA (empresa grande) | 17 → 12 → 21 | 6 → 6 → **14** |
+| Ingeniería (banco) | 10 → 9 → 9 | 18 → 19 → 19 |
+| Desarrollo de software (telecom) | 12 → 9 → 20 | 27 → 36 → **21** |
+| Generalista (Python, Rust, Nix) | 13 → 13 → 18 | 28 → 28 → 34 |
+| Backend Python Jr | 9 → 6 → 12 | 58 → 65 → 71 |
+| Análisis de datos Jr | 5 → 5 → 6 | 52 → 52 → 55 |
+| Chef ejecutivo | 9 → 9 → 9 | 3 → 3 → 3 |
+| Full Stack Jr | 6 → 6 → 10 | 71 → 71 → 71 |
+
+**Qué puestos suben y cuáles bajan con el PR completo.** Suben el de ingeniería de IA (6 → 14: por fin
+cuentan «Python» y «REST APIs»), el generalista (28 → 34), el backend Python Jr (58 → 71) y el de datos
+(52 → 55). **Baja el de desarrollo de software de telecom: 27 → 21** (con solo limpiar subía a 36). Su
+`tech_stack` trae Kubernetes, BGP, VRRP, Claude Code y Codex, que la persona no tiene, y contar el stack
+completo los suma al divisor. Contar solo lo exigido evitaría esa baja, pero dejaría en 6 el puesto de
+ingeniería de IA, cuyo «Python» está solo en el stack. El criterio de «stack completo» lo eligió el autor.
+Con la compuerta más suave de la Actualización de la Decisión 29 (mismo PR) el de telecom termina en 33 y
+ningún puesto de los ocho queda por debajo de lo que daba `main`.
+
+**Qué cambia para la persona.** Los puestos cuya lista traía tareas largas suben (sin frases imposibles
+en el divisor), la lista de «skills que faltan» deja de mostrar frases que ninguna persona podría tener, y
+pasa a mostrar las tecnologías del stack que faltan. Los puestos que listan un stack largo y ajeno bajan.
+Puede bajar también por un caso raro: un puesto que repite el mismo nombre dos veces y la persona lo tiene
+cuenta ahora una sola vez.
+
+**Límites conocidos.**
+- El tope de 5 palabras (`MAX_SKILL_WORDS`) deja pasar tareas cortas («Building AI agents», «Collecting
+  conversations and production traces», 5 palabras). El filtro solo descarta lo que seguro no es una
+  skill; bajar el tope también descartaría nombres legítimos (se evaluó en la Decisión 35).
+- El `tech_stack` mezcla lo exigido con lo mencionado, y desde acá todo cuenta igual. Un puesto sin
+  `required_skills` y con stack pasa del puntaje neutro (0,8) a puntuarse por ese stack.
+- No se modela la comparación semántica: `semantic_hits` fue 0 en los 12 matches guardados. La causa
+  (cada skill pedida recibe de respaldo el vector del puesto entero) no se toca acá. Medido con los
+  vectores guardados, un par de nombres cortos relacionados queda muy por debajo del umbral de 0,82
+  (Git y GitHub 0,71; «Integración de APIs» y «REST APIs» 0,58), así que embeber cada skill rendiría poco.
+- No se recalculan ni se borran matches guardados. No hay migración ni cambios en `render.yaml`,
+  variables de entorno, workflows o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_required_skills_clean.py` (P1: paréntesis, frases largas, tarea corta que se
+conserva, puntaje sin el peso de las frases, una falta real que sigue bajando el puntaje, nivel/modalidad/
+título, mismo nombre una sola vez, alias que siguen contando cada uno, lista solo de frases, puesto sin
+skills, skill con vector que conserva su vector, relevancia sobre los nombres limpios, importación en
+cualquier orden de `match_engine` y `ats_analyzer`, y lo que se le pide a la IA) y
+`tests/unit/test_tech_stack_as_required_skill.py` (P2: el stack se suma, no se cuenta dos veces por forma
+común ni repetido, se limpia como las skills, el caso medido, el costo de un stack ajeno, puesto solo con
+stack, stack que reemplaza a una lista de frases, frases sin stack, puesto sin nada, puesto sin clave de
+stack y relevancia sobre el stack). Se verificó que las de P1 y P2 que cambian el comportamiento fallan
+contra el código anterior.
+
+**Validación y reversión.** Tras el deploy, analizar un puesto de prueba y mirar
+`score_breakdown.required_skills` del match: tiene que traer nombres cortos y sin paréntesis, más el stack
+del puesto. Para revertir, deshacer los commits de P2 (el stack deja de contar) o de P1 (vuelve la lista
+sin limpiar y el ATS vuelve a importar el filtro de su carpeta); son independientes en el código.
+
+---
+
+## Actualización — Decisión 34 (2026-10-30): los títulos de sección restan solo si ninguno es de los habituales
+
+**Estado:** Pedida por el autor el 2026-10-30. Va en el PR #129, en un commit aparte de los de la Decisión 39, **sin mergear**. Mergearlo cambia el puntaje de los reportes ATS que se calculen desde el despliegue; los ya guardados **no se recalculan**. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-30, solo lectura sobre producción y código). Un CV leído con tres nombres de empresa y tres títulos reales recibió −5 por «títulos no habituales», y con eso el reporte de un puesto de ingeniería de IA dio 4 (2 de 22 palabras clave, menos 5). Dos defectos se sumaban en `check_cv_format`:
+
+- **El lector del PDF toma por título un nombre de empresa** (`pdf_layout._section_titles`: renglón corto, en negrita y mayúsculas, con el estilo que comparte otro renglón). En el CV medido, `format_flags.headers` traía `HABILIDADES Y COMPETENCIAS`, `EXPERIENCIA PROFESIONAL`, tres nombres de empresa y `EDUCACIÓN`. Por estilo no se pueden distinguir de un título; no se tocó el lector.
+- **La comparación era por igualdad exacta** con `STANDARD_HEADERS`: «EXPERIENCIA PROFESIONAL» y «HABILIDADES Y COMPETENCIAS», títulos perfectamente habituales, también se marcaban. De los 6 títulos, solo `EDUCACIÓN` pasaba. Cualquier título compuesto o con un nombre de empresa al lado costaba 5 puntos.
+
+**Elegido.**
+
+- **Un título es habitual si lleva una palabra habitual entera** (`experiencia`, `educación`, `habilidades`, `idiomas`, `certificaciones` y sus equivalentes en inglés), sin importar mayúsculas, acentos ni los dos puntos finales: «Experiencia profesional», «Work Experience», «Skills & Tools» y «Educación y formación» lo son; «Skillset» no.
+- **Se resta 5 solo si ningún título es de los habituales** (`NON_STANDARD_HEADERS`, una vez). Un título raro entre los habituales no cuesta nada. Un CV sin títulos leídos tampoco pierde puntos por ellos, como hasta ahora.
+- **Diferencia con lo propuesto en el diagnóstico.** Se propuso restar solo «si no se reconoce ninguna sección de experiencia». Se usó «ninguna sección habitual» porque lo primero habría empezado a restar 5 a un CV sin experiencia (de estudiante o de primer empleo) con `Educación` y `Habilidades`, que hoy no resta nada.
+- **No se sube `ATS_REPORT_VERSION`** (Decisión 33): los reportes guardados con la regla vieja se siguen sirviendo con su puntaje hasta que cambie el CV, el puesto o la versión. Se evitó a propósito para no recalcular nada de lo guardado ni gastar el tope diario. Si se quiere que los reportes viejos se rehagan, es subir la versión de 3 a 4 en un cambio aparte.
+- Cambia el mensaje del aviso en el reporte nuevo: «Ningún título de sección del CV es de los habituales.» (antes «El CV tiene headers no estándar.»). El código y el valor (−5) son los mismos. Las guías públicas (`apps/web/lib/guides/guides.ts`) decían «si algún título de sección no es de los habituales»; ahora dicen «si ningún título».
+
+**Medido** (2026-10-30, solo lectura): el reporte del puesto de ingeniería de IA con el CV de la cuenta, 2 palabras clave de 22 y los 6 títulos de arriba, pasa de **4 a 9** (se va el −5). El resto de los reportes guardados ya tenía otras penalizaciones (varias columnas, imágenes) de un CV anterior y no cambia.
+
+**Límites conocidos.**
+- Los nombres de empresa siguen apareciendo en `format_flags.headers`; solo dejan de costar. Un CV cuyos únicos títulos leídos son nombres de empresa o títulos poco habituales sigue perdiendo 5.
+- La lista de palabras habituales no incluye «Estudios», «Formación», «Perfil», «Proyectos» ni «Conocimientos»; un CV cuyos títulos sean solo esos pierde 5, como antes.
+- No se verificó en producción con un CV nuevo; se midió con las banderas ya guardadas.
+
+**Pruebas.** `tests/unit/test_format_checker.py`: un CV sin ningún título habitual resta una vez, títulos raros entre habituales no restan, títulos compuestos y en inglés son habituales, una palabra dentro de otra no cuenta, el caso de los nombres de empresa (con nombres inventados) y la lista vacía. Se verificó que 10 de las 33 fallan contra el código anterior; el resto fija reglas que no cambian. `apps/web/lib/guides/guides.test.ts` sigue el texto nuevo de las guías; no se corrió localmente (el worktree no tiene `node_modules`), lo corre el CI.
+
+**Reversión.** Deshacer el commit de este cambio: vuelve la regla de igualdad exacta, el mensaje anterior y el texto de las guías.
+
+
+---
+
+## Decisión 40 — Las habilidades blandas se leen en los dos idiomas y salen del CV
+
+**Estado:** Pedida por el autor el 2026-10-30. Va en el PR #129, en un commit aparte de los de la Decisión 39 y de la Actualización de la Decisión 34, **sin mergear**: mergearlo cambia el puntaje de blandas, y con él el del match, de **todos los matches nuevos** (los ya guardados no se recalculan). El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-30, solo lectura sobre producción y código). El sub-puntaje de blandas (5 % del match) dio 0 en los 7 puestos guardados que piden blandas, con una persona cuyo CV dice «trabajo colaborativo en equipo» y «resolución de incidencias». Eran tres causas, ninguna era una palabra clave que faltara en el CV:
+
+- **El puesto.** `compute_soft_score` comparaba cada frase del puesto, pasada a minúsculas y con guiones bajos, con diez claves en inglés de una palabra (`leadership`, `collaboration`…). «Teamwork», «Trabajo en equipo», «Comunicación» o «liderazgo» no se llaman así: de 29 habilidades pedidas en los 7 puestos, **3** podían coincidir alguna vez.
+- **El CV.** `infer_soft_skills` buscaba raíces como texto contenido, sin quitar acentos y casi todas en inglés: «Resolución de incidencias» y «Trabajo colaborativo» no disparaban nada, y «líder» no coincidía con «lider».
+- **De dónde se leía.** El motor lee las filas de `experiences`, que carga la persona a mano. El parseo del CV guarda las suyas solo en `parsed_data`. La cuenta medida tenía una fila de experiencia sin descripción ni logros, y el CV principal cuatro con unos 1100 caracteres. Además `inferred_soft_skills` se leía como caché sin vencimiento: si tenía algo, nunca se volvía a inferir.
+
+**Elegido.**
+
+- **Cada frase del puesto se lleva a las habilidades que nombra** (`SOFT_SKILL_ALIASES` en `s_soft.py`): «Teamwork» y «Trabajo en equipo» son `collaboration`; «Autonomía», `ownership`; «Ganas de resolver problemas», `problem_solving`; «Ganas de aprender», `adaptability`. Una frase que nombra dos («Autonomy to research and solve problems») cuenta una vez y se cumple con cualquiera. **Una frase que no nombra ninguna («Curiosity», «Passion for innovation», «Mejora continua») no cuenta**, ni a favor ni en contra. Si ninguna frase del puesto se reconoce, el puntaje es el neutro de 0,75, el mismo de un puesto que no pide blandas, en lugar de 0.
+- **El CV se lee sin acentos y por raíz al empezar una palabra** (`SOFT_SKILL_SIGNALS`): se agregaron raíces en español y en inglés (`colabor`, `resoluc`, `comunic`, `responsab`, `analiz`, `iniciativ`, `adapt`, `entrega`…) y se quitó `trabaj con`, que ninguna frase real contiene. «comunic» sirve para «comunicación» y ya no para «telecomunicaciones»; «lanc» ya no coincide con «balance». Esto último cambia también las raíces de antes: dejan de coincidir dentro de otra palabra.
+- **Lo que dice el CV hoy manda sobre la caché.** `inferred_soft_skills` solo se usa si el CV no dice nada. Sin esto, quien ya tenía una lectura vieja guardada no se beneficiaba de nada de lo anterior.
+- **Las experiencias salen del CV si el perfil no tiene texto.** `experiences_with_text` (en `match_engine/common.py`) usa las filas del perfil si alguna tiene descripción o logros, porque es lo que la persona confirmó; si ninguna tiene, usa las experiencias del CV principal (`parsed_data.experiences`). Hay un precedente en `printable_cv._rows_or_parsed`, que usa el CV solo cuando no hay filas; acá se usa también cuando hay filas sin texto, que es el caso medido. Lo mismo alimenta el texto de relevancia (`build_profile_text`).
+
+**Medido** (2026-10-30, 8 puestos guardados, solo lectura): con las frases «Trabajo colaborativo en equipo. Resolución de incidencias.» como CV (sintéticas, tomadas del pedido; no se copió texto del CV real), con el código de antes las blandas dan 0 en los 7 puestos que las piden y con el de ahora:
+
+| Puesto | Blandas pedidas | Blandas: antes → ahora | Match (con el stack de la Decisión 39) |
+|---|---|---|---|
+| Ingeniería de IA | 5 (3 reconocidas) | 0 → 0,67 | 14 → 16 |
+| Ingeniería (banco) | 7 (6 reconocidas) | 0 → 0,50 | 19 → 20 |
+| Desarrollo de software (telecom) | 5 (4 reconocidas) | 0 → 0,50 | 21 → 23 |
+| Generalista | 8 (6 reconocidas) | 0 → 0,33 | 34 → 35 |
+| Backend Python Jr | 2 (2 reconocidas) | 0 → 0,50 | 71 → 74 |
+| Análisis de datos Jr | 1 | 0 → 0,03 | 55 → 55 |
+| Chef ejecutivo | 1 | 0 → 0,03 | 3 → 4 |
+| Full Stack Jr | 0 | 0,75 → 0,75 | 71 → 71 |
+
+El techo es chico a propósito: las blandas pesan 5 %, así que el efecto máximo sobre el match es de 5 puntos multiplicado por la relevancia. El valor de este cambio es que deja de dar 0 sin mirar el CV.
+
+**Qué cambia para la persona.** Quien sube su CV y no completa las experiencias a mano deja de tener blandas en 0 y un texto de relevancia vacío. Un puesto cuyas blandas no se reconocen ya no resta. El campo `inferred_soft_skills` del perfil se actualiza con lo que el CV dice en el momento del match.
+
+**Límites conocidos.**
+- La tabla de alias es chica y mapea con criterio: «Autonomía» como `ownership`, «aprender» y «flexibilidad» como `adaptability`, cualquier «problem(a)» como `problem_solving` («Motivated by hard technical problems» también lo cumple una persona que resuelve incidencias). «Curiosity», «Passion for innovation» y «Mejora continua» no se mapean.
+- La detección del CV sigue siendo por raíces, no entiende negaciones ni contexto. «Trabajo en equipo» en una lista de cualidades cuenta igual que en un logro.
+- Si la persona tiene filas de experiencia con texto, el CV no se mira aunque diga más. Es a propósito (manda lo confirmado).
+- No se tocó el parseo del CV: no se copian experiencias a la tabla `experiences`, solo se leen del CV al calcular.
+- No se verificó en producción con un match nuevo; se midió con el código y las frases de arriba. No se recalculan ni se borran matches guardados. No hay migración ni cambios en `render.yaml`, variables de entorno, workflows o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_soft_skills.py`: frases del puesto y la habilidad que nombran (17 casos en los dos idiomas), frases sin habilidad, una frase con dos, puesto neutro, solo cuentan las reconocidas; el CV en los dos idiomas con y sin acentos (10 casos), logros, raíces dentro de otra palabra, el CV de hoy contra una caché vieja y la caché si el CV no dice nada; de dónde salen las experiencias (perfil con texto, filas vacías, sin filas, solo el CV principal, CV sin experiencias utilizables), el texto de relevancia y el match completo con `FakeSupabase` (la cuenta medida: fila sin texto y CV con la historia). No se pudo correr el archivo contra el código anterior porque importa funciones nuevas; el comportamiento anterior se comprobó a mano con las mismas frases: no detectaba nada y daba 0 en «Teamwork», «Trabajo en equipo» y «Autonomy to research and solve problems». Se agregaron 51 pruebas; el resto de la suite sigue pasando.
+
+**Reversión.** Deshacer el commit de este cambio: vuelve el cálculo anterior (blandas en 0 si el puesto no usa las diez claves exactas) y el motor deja de leer el CV para las experiencias.
+
+
+---
+
+## Actualización — Decisión 29 (2026-10-30): la relevancia llega a pleno con el 25 % de las skills pedidas
+
+**Estado:** Pedida por el autor el 2026-10-30 («Sí, sumarla», a una propuesta con las cifras de abajo). Va en el PR #129, en un commit aparte de los de las Decisiones 39 y 40 y de la Actualización de la 34, **sin mergear**. Mergearlo sube el puntaje de **todos los matches nuevos** cuyo puesto comparta entre el 0 y el 25 % de las skills pedidas con la persona. **Es una decisión de producto, no la corrección de un error**: el valor anterior (0,4) también era una elección, y este no sale de una medición que diga que 0,25 es el correcto, sino de ocho puestos de una sola cuenta. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Qué cambia.** `FULL_RELEVANCE_AT` en `s_relevance.py` pasa de 0,4 a 0,25: con una de cada cuatro skills pedidas en común, el puesto ya se considera del área de la persona y el puntaje no se atenúa. **El piso (`RELEVANCE_FLOOR`, 0,15) no cambia**: sin ninguna coincidencia el puntaje sigue multiplicándose por 0,15. Entre el piso y el 25 % la relevancia sube más rápido (cada skill en común vale 1,6 veces lo que valía). El potencial no se atenúa por área, así que no cambia. `FULL_RELEVANCE_PERCENT` en `apps/web/lib/guides/facts.ts` pasa de 40 a 25: las guías públicas citan ese porcentaje y un test de la web lo compara con la constante del backend.
+
+**Por qué.** La Decisión 29 eligió el 40 % cuando la lista de skills pedidas era corta. Desde la Decisión 39 incluye también el `tech_stack` del puesto (hasta 20 ítems) y ya no incluye las frases imposibles; un puesto con 20 skills exigía 8 en el perfil para no atenuarse, y una persona con la mitad del stack de un puesto de su rubro quedaba con la relevancia partida. Una de cada cuatro en común sigue siendo una señal clara de misma área, y el piso sigue frenando al CV de sistemas contra un puesto de cocina.
+
+**Medido** (2026-10-30, 8 puestos guardados, solo lectura, con las skills actuales de la cuenta; la relevancia por texto del perfil se tomó del valor guardado, así que son un piso; las blandas se calcularon con las dos frases del pedido como CV, sintéticas). «Antes» es `main`:
+
+| Puesto | `main` | P1+P2 (0,4) | P1+P2 (0,25) | P1 a P4 (0,4) | **P1 a P5 (0,25)** |
+|---|---|---|---|---|---|
+| Ingeniería de IA | 6 | 14 | 19 | 16 | **21** |
+| Ingeniería (banco) | 18 | 19 | 26 | 20 | **27** |
+| Desarrollo de software (telecom) | 27 | 21 | 31 | 23 | **33** |
+| Generalista | 28 | 34 | 46 | 35 | **47** |
+| Backend Python Jr | 58 | 71 | 71 | 74 | **74** |
+| Análisis de datos Jr | 52 | 55 | 55 | 55 | **55** |
+| Chef ejecutivo | 3 | 3 | 3 | 4 | **4** |
+| Full Stack Jr | 71 | 71 | 71 | 71 | **71** |
+
+Los puestos con coincidencia del 25 % o más no cambian (backend, datos, Full Stack). El Chef sigue en su piso: la compuerta cumple su función (el +1 es de las blandas, no de la compuerta). Los potenciales no cambian (72, 80, 65, 71, 77, 66, 58, 71): la brecha entre match y potencial se achica en los puestos de ingeniería.
+
+**Qué cambia para la persona.** Los puestos de su rubro que listan mucha tecnología, de la que conoce una parte, dejan de quedar atenuados a la mitad o menos. Los puestos de otra área sin ninguna coincidencia siguen en el piso.
+
+**Límites conocidos.**
+- El único puesto de otra área guardado es el de chef. **No se midió** un puesto de otra área que comparta herramientas genéricas con la persona (Excel, Git, Office): con el 25 % pleno, 1 skill genérica sobre 4 pedidas ya cuenta como misma área. El piso protege del caso extremo, no de este.
+- Ni 0,25 ni 0,4 se calibraron contra una muestra más grande que estos ocho puestos de una cuenta.
+- No se recalculan ni se borran matches guardados. No hay migración ni cambios en `render.yaml`, variables de entorno, workflows o flujos de cobro.
+
+**Pruebas.** `tests/unit/test_relevance_gate.py`: los valores de la compuerta, una cuarta parte de las skills ya es del área, menos de eso se atenúa en proporción, sin coincidencia queda en el piso, un puesto del área con el 25 % no se atenúa en el match completo y uno de cocina con un CV de sistemas queda en el piso y en 15 o menos. `apps/web/lib/guides/guides.test.ts` compara el 25 de la guía con la constante del backend. Las pruebas de relevancia existentes usan la constante, por eso siguen pasando.
+
+**Reversión.** Deshacer el commit de este cambio: vuelven el 0,4 en el backend y el 40 % en las guías.

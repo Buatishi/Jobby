@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from app.services.ai_gateway import AIGateway
-from app.services.ats_analyzer.keyword_filter import skill_keywords
 from app.services.match_engine.common import cosine_similarity, normalize_text
+from app.services.skill_filter import skill_keywords
 from app.services.skill_names import canonical_skill_key
 
 KeywordStatus = Literal["literal", "semantic", "missing"]
@@ -178,7 +178,7 @@ async def analyze_keywords(
 ) -> ATSKeywordResult:
     """`keywords` son las que el puesto ya tiene guardadas: con ellas no se consulta a
     la IA, que daría otras cada vez. Las de la IA y las guardadas pasan por el mismo
-    filtro: solo cuentan las habilidades (`keyword_filter`)."""
+    filtro: solo cuentan las habilidades (`skill_filter`)."""
     ai_gateway = gateway or AIGateway()
     if keywords is None:
         keywords = await extract_job_keywords(job, ai_gateway)

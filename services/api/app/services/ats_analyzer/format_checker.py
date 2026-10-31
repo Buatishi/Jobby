@@ -1,3 +1,4 @@
+import re
 import unicodedata
 from dataclasses import dataclass
 from typing import Any
@@ -10,6 +11,8 @@ class FormatIssue:
     penalty: int
 
 
+# Palabras de los títulos de sección que un ATS reconoce. Un título las lleva enteras:
+# «Experiencia profesional» y «Habilidades y competencias» son habituales.
 STANDARD_HEADERS = {
     "experience",
     "experiencia",
@@ -23,12 +26,21 @@ STANDARD_HEADERS = {
     "certificaciones",
 }
 
+_HEADER_WORD = re.compile(r"[a-z]+")
+
 
 def _normalize_header(header: str) -> str:
     """Sin mayúsculas, acentos ni dos puntos finales: «Educación:» es «educacion»."""
     decomposed = unicodedata.normalize("NFKD", header.strip().casefold())
     plain = "".join(char for char in decomposed if not unicodedata.combining(char))
     return " ".join(plain.removesuffix(":").split())
+
+
+def _is_usual_header(header: str) -> bool:
+    return any(
+        word in STANDARD_HEADERS
+        for word in _HEADER_WORD.findall(_normalize_header(header))
+    )
 
 
 def format_was_evaluated(primary_cv: dict[str, Any]) -> bool:
@@ -61,20 +73,21 @@ def check_cv_format(primary_cv: dict[str, Any]) -> list[FormatIssue]:
         if flags.get("has_images"):
             issues.append(FormatIssue("IMAGES", "El CV contiene imágenes.", 10))
 
+        # Se resta solo si ningún título es de los habituales: el ATS no encontraría las
+        # secciones. Uno raro entre los habituales no cuesta nada, y el lector del PDF a
+        # veces toma por título un nombre de empresa en mayúsculas (Decisión 34).
         headers = flags.get("headers") or []
-        if isinstance(headers, list):
-            non_standard = [
-                str(header)
-                for header in headers
-                if _normalize_header(str(header)) not in STANDARD_HEADERS
-            ]
-            if non_standard:
-                issues.append(
-                    FormatIssue(
-                        "NON_STANDARD_HEADERS",
-                        "El CV tiene headers no estándar.",
-                        5,
-                    )
+        if (
+            isinstance(headers, list)
+            and headers
+            and not any(_is_usual_header(str(header)) for header in headers)
+        ):
+            issues.append(
+                FormatIssue(
+                    "NON_STANDARD_HEADERS",
+                    "Ningún título de sección del CV es de los habituales.",
+                    5,
                 )
+            )
 
     return issues
