@@ -1,10 +1,12 @@
 """Arma los datos del CV descargable (Decisión 26).
 
 El contenido sale del perfil que la persona confirmó; si una sección está vacía (por
-ejemplo, si salteó el último paso del asistente), se usa lo que leyó el CV principal.
-El encabezado sale del CV principal y, si falta, de la cuenta y del perfil.
+ejemplo, si salteó el último paso del asistente), o sus filas no dicen nada (solo el
+cargo, sin descripción ni fechas), se usa lo que leyó el CV principal. El encabezado
+sale del CV principal y, si falta, de la cuenta y del perfil.
 """
 
+from collections.abc import Callable
 from typing import Any
 
 from app.models.profiles import (
@@ -27,17 +29,43 @@ def _level(value: Any) -> str | None:
     return level if level and level.lower() != "unknown" else None
 
 
+def _has_text(row: dict[str, Any]) -> bool:
+    achievements = row.get("achievements")
+    return bool(_text(row.get("description"))) or (
+        isinstance(achievements, list)
+        and any(_text(achievement) for achievement in achievements)
+    )
+
+
+def _has_detail(row: dict[str, Any]) -> bool:
+    keys = ("field_of_study", "started_at", "ended_at")
+    return any(_text(row.get(key)) for key in keys)
+
+
 def _rows_or_parsed(
     rows: list[dict[str, Any]],
     parsed_data: dict[str, Any],
     key: str,
+    says_something: Callable[[dict[str, Any]], bool] | None = None,
 ) -> list[dict[str, Any]]:
-    if rows:
-        return rows
+    """Las filas del perfil, o lo que leyó el CV si ellas no tienen con qué armarlo.
+
+    Una fila cargada con solo el cargo o la institución, sin descripción, logros ni
+    fechas, no alcanza para un CV: con ella y las cuatro experiencias que el CV cuenta,
+    el PDF mostraba una. Si alguna fila dice algo (`says_something`), manda el perfil,
+    que es lo que la persona confirmó (Decisión 26).
+    """
     parsed = parsed_data.get(key)
-    if not isinstance(parsed, list):
-        return []
-    return [item for item in parsed if isinstance(item, dict)]
+    from_cv = (
+        [item for item in parsed if isinstance(item, dict)]
+        if isinstance(parsed, list)
+        else []
+    )
+    if not rows:
+        return from_cv
+    if says_something is None or any(says_something(row) for row in rows):
+        return rows
+    return from_cv or rows
 
 
 def _contact(
@@ -92,7 +120,7 @@ def build_printable_cv(
                 if _text(achievement)
             ],
         )
-        for item in _rows_or_parsed(experiences, parsed_data, "experiences")
+        for item in _rows_or_parsed(experiences, parsed_data, "experiences", _has_text)
     ]
     # Lo más reciente primero, como se lee un CV; sin fecha, al final.
     experience_items.sort(key=lambda item: item.started_at or "", reverse=True)
@@ -108,8 +136,13 @@ def build_printable_cv(
                 institution=_text(item.get("institution")),
                 field_of_study=_text(item.get("field_of_study")) or None,
                 degree_level=_text(item.get("degree_level")) or None,
+                started_at=_text(item.get("started_at")) or None,
+                ended_at=_text(item.get("ended_at")) or None,
+                is_ongoing=bool(item.get("is_ongoing")),
             )
-            for item in _rows_or_parsed(educations, parsed_data, "educations")
+            for item in _rows_or_parsed(
+                educations, parsed_data, "educations", _has_detail
+            )
         ],
         languages=[
             PrintableCVLanguage(
@@ -123,6 +156,7 @@ def build_printable_cv(
             PrintableCVCertification(
                 name=_text(item.get("name")),
                 issuer=_text(item.get("issuer")) or None,
+                issued_at=_text(item.get("issued_at")) or None,
             )
             for item in _rows_or_parsed(certifications, parsed_data, "certifications")
             if _text(item.get("name"))

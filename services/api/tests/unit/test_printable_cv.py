@@ -97,7 +97,12 @@ def test_the_confirmed_profile_wins_over_the_cv_text() -> None:
         skills=[{"name": "Python"}, {"name": "python"}, {"name": "Looker Studio"}],
         languages=[{"name": "Inglés", "proficiency": "intermediate"}],
         experiences=[
-            {"company": "A", "title": "Antes", "started_at": "2025-01-01"},
+            {
+                "company": "A",
+                "title": "Antes",
+                "started_at": "2025-01-01",
+                "description": "Armó reportes.",
+            },
             {"company": "B", "title": "Después", "started_at": "2026-03-01"},
             {"company": "C", "title": "Sin fecha"},
         ],
@@ -106,6 +111,72 @@ def test_the_confirmed_profile_wins_over_the_cv_text() -> None:
     assert cv.skills == ["Python", "Looker Studio"]
     assert cv.languages[0].level == "intermediate"
     assert [item.title for item in cv.experiences] == ["Después", "Antes", "Sin fecha"]
+
+
+def test_profile_rows_with_nothing_to_print_give_way_to_the_cv() -> None:
+    """Una fila con solo el cargo no alcanza: el CV cuenta más que ella."""
+    cv = _build(
+        experiences=[{"company": "Freelance", "title": "Desarrollador"}],
+        educations=[{"institution": "Escuela Técnica - Técnico Informático"}],
+    )
+
+    assert [item.title for item in cv.experiences] == ["Pasante de datos"]
+    assert cv.educations[0].field_of_study == "Programación"
+
+
+def test_a_profile_row_with_text_or_dates_still_wins_over_the_cv() -> None:
+    cv = _build(
+        experiences=[
+            {"company": "A", "title": "Antes", "achievements": ["Bajó la cola"]}
+        ],
+        educations=[{"institution": "Universidad Demo", "started_at": "2025-03-01"}],
+    )
+
+    assert [item.title for item in cv.experiences] == ["Antes"]
+    assert cv.educations[0].institution == "Universidad Demo"
+
+
+def test_sparse_profile_rows_stay_when_the_cv_has_nothing_either() -> None:
+    cv = _build(
+        primary_cv=None,
+        experiences=[{"company": "Freelance", "title": "Desarrollador"}],
+    )
+
+    assert [item.title for item in cv.experiences] == ["Desarrollador"]
+
+
+def test_the_dates_of_studies_and_certificates_travel_with_their_rows() -> None:
+    cv = _build(
+        educations=[
+            {
+                "institution": "Universidad Demo",
+                "field_of_study": "Sistemas",
+                "started_at": "2025-03-01",
+                "ended_at": None,
+                "is_ongoing": True,
+            }
+        ],
+        certifications=[
+            {
+                "name": "Análisis de datos",
+                "issuer": "Plataforma",
+                "issued_at": "2025-04-01",
+            }
+        ],
+    )
+
+    assert cv.educations[0].started_at == "2025-03-01"
+    assert cv.educations[0].ended_at is None
+    assert cv.educations[0].is_ongoing is True
+    assert cv.certifications[0].issued_at == "2025-04-01"
+
+
+def test_the_dates_stay_empty_when_the_cv_text_has_none() -> None:
+    cv = _build()
+
+    assert cv.educations[0].started_at is None
+    assert cv.educations[0].is_ongoing is False
+    assert cv.certifications[0].issued_at is None
 
 
 def test_the_header_falls_back_to_the_account_and_the_profile() -> None:

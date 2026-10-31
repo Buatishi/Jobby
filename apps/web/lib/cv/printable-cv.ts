@@ -24,9 +24,17 @@ export type PrintableCV = {
     institution: string;
     field_of_study: string | null;
     degree_level: string | null;
+    // Opcionales: una API desplegada antes que la web no los manda.
+    started_at?: string | null;
+    ended_at?: string | null;
+    is_ongoing?: boolean;
   }>;
   languages: Array<{ name: string; level: string | null }>;
-  certifications: Array<{ name: string; issuer: string | null }>;
+  certifications: Array<{
+    name: string;
+    issuer: string | null;
+    issued_at?: string | null;
+  }>;
 };
 
 export type OptimizedSection = {

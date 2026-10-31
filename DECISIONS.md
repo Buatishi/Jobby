@@ -937,6 +937,55 @@ por el autor; (b) campos nuevos en el perfil maestro — descartada: exige migra
 para cargarlos; (c) generar el PDF en el servidor — descartada: suma una dependencia pesada a la
 API (512 MB de RAM en Render) para lo que el navegador ya hace bien.
 
+## Actualización — Decisión 26 (2026-10-31)
+
+**Estado:** Pedida por el autor el 2026-10-31. Cambio en la rama `feat/cv-model-layout`, **sin
+mergear**: mergearlo despliega la API y la web. El texto es un borrador redactado con asistencia de IA
+que el autor revisa y hace suyo.
+
+**Pedido.** Que el PDF descargable use la estructura de un CV modelo del autor para ordenar y mostrar el
+CV de cualquier persona, con los datos de esa persona y sin importar qué IA reescriba el texto. La IA
+solo cambia el texto de las secciones; el PDF lo arma la app, así que el diseño no depende del modelo.
+
+**Elegido.** `PrintableCVDocument` reproduce el modelo, en una hoja A4 con márgenes de 11 y 15 mm:
+
+- Arial; nombre centrado en mayúsculas; teléfono, email y LinkedIn en una línea y la ciudad debajo.
+- El título profesional en mayúsculas con raya y el resumen justificado debajo, sin un título «Perfil».
+- **HABILIDADES Y COMPETENCIAS** en una grilla de tres columnas con viñetas; los idiomas van en la última
+  celda («Español Nativo / Inglés B2»). Más de doce celdas se agrupan con « / » para no pasar a otra hoja.
+- **EXPERIENCIA PROFESIONAL**: la empresa en mayúsculas, el cargo en negrita cursiva, las fechas a la
+  derecha («Julio 2026 - Presente») y una viñeta por oración.
+- **EDUCACIÓN**: estudios y certificados juntos, con el título y la fecha a la derecha y la institución
+  debajo.
+- `GET /profiles/cv` suma las fechas de los estudios (`started_at`, `ended_at`, `is_ongoing`) y de los
+  certificados (`issued_at`): campos nuevos opcionales, sin migración (las columnas ya existían).
+- **Cambio de regla.** El perfil confirmado sigue ganando, pero una fila sin descripción ni logros
+  (experiencias) o sin título de estudio ni fechas (educación) ya no alcanza: con una fila así y las cuatro
+  experiencias que el CV cuenta, el PDF mostraba una. Si ninguna fila dice algo, se usa lo que leyó el CV.
+
+**Verificación.** Se generó el PDF con Chromium con los datos del autor y se lo pasó por el lector de PDF
+del propio proyecto (`read_layout` y `check_cv_format`): una página A4, sin tablas, sin columnas, sin
+imágenes y sin penalización de formato; las fuentes son las del modelo. Hallazgo: con el fondo blanco de
+la hoja en el PDF, el lector veía una **tabla** (el fondo más las rayas de los títulos) y restaba 10
+puntos; por eso el fondo es transparente al imprimir (`print:bg-transparent`, con una prueba que lo fija).
+
+**Límites.**
+
+- **Las fechas y las viñetas dependen de los datos.** Hoy el lector de CV guarda de cada experiencia la
+  fecha de inicio como la escribió el CV («Julio 2026») y un solo párrafo; no guarda fecha de fin ni de
+  «actualidad», ni fechas de estudios o certificados. Sin esos datos el PDF muestra lo que hay: la fecha
+  de inicio sola, el párrafo partido en viñetas por oraciones y los estudios sin fecha. Para que salgan
+  completas hay que extender el lector de CV, que es otro cambio.
+- No hay GitHub en el contacto: la app no lo guarda.
+- Reemplaza el diseño para todas las personas: no hay plantillas por persona (hacerlo exigiría subir y
+  leer una plantilla, mucho más trabajo).
+- El partido en oraciones es una heurística (corta donde una oración termina y empieza otra con
+  mayúscula, sin cortar tras «Jr.», «Ing.» y similares): una viñeta larga con puntos internos puede
+  salir en dos.
+
+**Validación y reversión.** Tras el deploy, abrir «Descargar CV en PDF» con la cuenta propia y comparar con
+el CV modelo. Para revertir, deshacer el merge: no hay migración ni variable de entorno nueva.
+
 ## Decisión 27 — Estética v2 para toda la web
 
 **Estado:** Aprobada por el autor (2026-10-06), que eligió la versión v2 como la estética definitiva
