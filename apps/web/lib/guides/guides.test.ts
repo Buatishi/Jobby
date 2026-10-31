@@ -204,7 +204,7 @@ describe("guide figures match the backend code", () => {
     const checklist = guideText(getGuide("cv-compatible-con-ats")!);
     expect(checklist).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
     expect(checklist).toContain(
-      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título`
+      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si ningún título`
     );
 
     const analysis = guideText(getGuide("analizar-cv-con-ia")!);
@@ -234,7 +234,7 @@ describe("guide figures match the backend code", () => {
     const ats = guideText(getGuide("que-es-un-ats")!);
     expect(ats).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
     expect(ats).toContain(
-      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si algún título`
+      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si ningún título`
     );
     expect(ats).toContain("suma 0,5");
   });

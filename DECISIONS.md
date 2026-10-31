@@ -2559,3 +2559,33 @@ contra el código anterior.
 `score_breakdown.required_skills` del match: tiene que traer nombres cortos y sin paréntesis, más el stack
 del puesto. Para revertir, deshacer los commits de P2 (el stack deja de contar) o de P1 (vuelve la lista
 sin limpiar y el ATS vuelve a importar el filtro de su carpeta); son independientes en el código.
+
+---
+
+## Actualización — Decisión 34 (2026-10-30): los títulos de sección restan solo si ninguno es de los habituales
+
+**Estado:** Pedida por el autor el 2026-10-30. Va en el PR #129, en un commit aparte de los de la Decisión 39, **sin mergear**. Mergearlo cambia el puntaje de los reportes ATS que se calculen desde el despliegue; los ya guardados **no se recalculan**. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo** (2026-10-30, solo lectura sobre producción y código). Un CV leído con tres nombres de empresa y tres títulos reales recibió −5 por «títulos no habituales», y con eso el reporte de un puesto de ingeniería de IA dio 4 (2 de 22 palabras clave, menos 5). Dos defectos se sumaban en `check_cv_format`:
+
+- **El lector del PDF toma por título un nombre de empresa** (`pdf_layout._section_titles`: renglón corto, en negrita y mayúsculas, con el estilo que comparte otro renglón). En el CV medido, `format_flags.headers` traía `HABILIDADES Y COMPETENCIAS`, `EXPERIENCIA PROFESIONAL`, tres nombres de empresa y `EDUCACIÓN`. Por estilo no se pueden distinguir de un título; no se tocó el lector.
+- **La comparación era por igualdad exacta** con `STANDARD_HEADERS`: «EXPERIENCIA PROFESIONAL» y «HABILIDADES Y COMPETENCIAS», títulos perfectamente habituales, también se marcaban. De los 6 títulos, solo `EDUCACIÓN` pasaba. Cualquier título compuesto o con un nombre de empresa al lado costaba 5 puntos.
+
+**Elegido.**
+
+- **Un título es habitual si lleva una palabra habitual entera** (`experiencia`, `educación`, `habilidades`, `idiomas`, `certificaciones` y sus equivalentes en inglés), sin importar mayúsculas, acentos ni los dos puntos finales: «Experiencia profesional», «Work Experience», «Skills & Tools» y «Educación y formación» lo son; «Skillset» no.
+- **Se resta 5 solo si ningún título es de los habituales** (`NON_STANDARD_HEADERS`, una vez). Un título raro entre los habituales no cuesta nada. Un CV sin títulos leídos tampoco pierde puntos por ellos, como hasta ahora.
+- **Diferencia con lo propuesto en el diagnóstico.** Se propuso restar solo «si no se reconoce ninguna sección de experiencia». Se usó «ninguna sección habitual» porque lo primero habría empezado a restar 5 a un CV sin experiencia (de estudiante o de primer empleo) con `Educación` y `Habilidades`, que hoy no resta nada.
+- **No se sube `ATS_REPORT_VERSION`** (Decisión 33): los reportes guardados con la regla vieja se siguen sirviendo con su puntaje hasta que cambie el CV, el puesto o la versión. Se evitó a propósito para no recalcular nada de lo guardado ni gastar el tope diario. Si se quiere que los reportes viejos se rehagan, es subir la versión de 3 a 4 en un cambio aparte.
+- Cambia el mensaje del aviso en el reporte nuevo: «Ningún título de sección del CV es de los habituales.» (antes «El CV tiene headers no estándar.»). El código y el valor (−5) son los mismos. Las guías públicas (`apps/web/lib/guides/guides.ts`) decían «si algún título de sección no es de los habituales»; ahora dicen «si ningún título».
+
+**Medido** (2026-10-30, solo lectura): el reporte del puesto de ingeniería de IA con el CV de la cuenta, 2 palabras clave de 22 y los 6 títulos de arriba, pasa de **4 a 9** (se va el −5). El resto de los reportes guardados ya tenía otras penalizaciones (varias columnas, imágenes) de un CV anterior y no cambia.
+
+**Límites conocidos.**
+- Los nombres de empresa siguen apareciendo en `format_flags.headers`; solo dejan de costar. Un CV cuyos únicos títulos leídos son nombres de empresa o títulos poco habituales sigue perdiendo 5.
+- La lista de palabras habituales no incluye «Estudios», «Formación», «Perfil», «Proyectos» ni «Conocimientos»; un CV cuyos títulos sean solo esos pierde 5, como antes.
+- No se verificó en producción con un CV nuevo; se midió con las banderas ya guardadas.
+
+**Pruebas.** `tests/unit/test_format_checker.py`: un CV sin ningún título habitual resta una vez, títulos raros entre habituales no restan, títulos compuestos y en inglés son habituales, una palabra dentro de otra no cuenta, el caso de los nombres de empresa (con nombres inventados) y la lista vacía. Se verificó que 10 de las 33 fallan contra el código anterior; el resto fija reglas que no cambian. `apps/web/lib/guides/guides.test.ts` sigue el texto nuevo de las guías; no se corrió localmente (el worktree no tiene `node_modules`), lo corre el CI.
+
+**Reversión.** Deshacer el commit de este cambio: vuelve la regla de igualdad exacta, el mensaje anterior y el texto de las guías.
