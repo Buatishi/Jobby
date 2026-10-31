@@ -42,6 +42,38 @@ describe("OptimizedCVResult", () => {
     expect(html).toContain("Kubernetes");
   });
 
+  it("explains why the score does not move when it stays the same", () => {
+    const same: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [section],
+      ats_score_before: 0,
+      ats_score_after: 0
+    };
+    const better: ATSOptimizeResponse = { ...same, ats_score_after: 12 };
+
+    expect(renderToStaticMarkup(<OptimizedCVResult optimized={same} />)).toContain(
+      "No cambia: las palabras que faltan no figuran en tu CV"
+    );
+    expect(renderToStaticMarkup(<OptimizedCVResult optimized={better} />)).not.toContain(
+      "No cambia"
+    );
+  });
+
+  it("shows two sections with the same name without merging them", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [
+        { ...section, section_name: "experiences", rewritten_text: "Texto A nuevo" },
+        { ...section, section_name: "experiences", rewritten_text: "Texto B nuevo" }
+      ]
+    };
+
+    const html = renderToStaticMarkup(<OptimizedCVResult optimized={optimized} />);
+
+    expect(html).toContain("Texto A nuevo");
+    expect(html).toContain("Texto B nuevo");
+  });
+
   it("keeps working with answers from before the verification", () => {
     const optimized: ATSOptimizeResponse = { job_id: "job-1", sections: [section] };
 

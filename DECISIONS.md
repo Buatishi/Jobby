@@ -2804,3 +2804,25 @@ Con los precios de lista de `deepseek-chat` que usé como cota (USD 0,28 por mil
 - Una skill agregada a mano (`POST /profiles/skills`) no se marca hasta que se relea un CV o el PDF.
 - Las copias de una misma skill siguen existiendo: el lector infiere la categoría distinto en cada CV y `merge_parsed_skills` las trata como skills distintas (la cuenta del autor tiene 59 filas para 39 nombres). Este cambio las marca todas, no las unifica; hacerlo es otro cambio.
 - Borrar el PDF de LinkedIn no apaga las marcas (igual que antes).
+
+## Actualización — Decisión 26 (2026-10-31): contacto, cursos repetidos y experiencias reescritas
+
+**Estado:** Corrección pedida por el autor tras descargar su CV optimizado en producción: el nombre salía como «Tu nombre», el CV se pasaba de una hoja (tuvo que bajar la escala de impresión a 98 %) y las secciones «experiences» salían repetidas y «sin ubicar» aunque arriba se mostraba el texto nuevo. Las tres causas se midieron en la cuenta del autor (solo lectura) y en el código.
+
+**Qué se midió.**
+- **Contacto:** el `parsed_data` del CV no tenía la clave `contact`. La Decisión 26 (2026-10-04) dice que el contacto queda en el documento, pero `run_parse_cv` arma el `parsed_data` con las skills sin vector y las secciones, y no la copia (se perdió al sacar los vectores del `parsed_data`). Sin ella, el PDF solo tenía el email de la cuenta y el LinkedIn del perfil.
+- **Cursos repetidos:** el lector de CV listó los tres cursos tanto en `educations` como en `certifications` (cuatro estudios y tres certificados, con el mismo nombre y la misma institución). El PDF imprime los certificados bajo Educación: salían dos veces, seis renglones de más. Es una inferencia que eso explique las dos hojas: no se renderizó el PDF de la cuenta.
+- **Experiencias sin ubicar:** el fragmento que la IA copia como `original_excerpt` suele abarcar varias viñetas seguidas. Desde la Decisión 41 el lector guarda una viñeta por elemento y la web solo reemplazaba un fragmento que estuviera entero en una viñeta o en la descripción: ninguna contenía el fragmento. Antes todas las viñetas iban pegadas en un párrafo y el fragmento entraba. Es una inferencia: no se vio la respuesta real de la IA.
+
+**Elegido.**
+- `run_parse_cv` guarda `contact` en el `parsed_data` de un **CV** (no en el de LinkedIn). Los CV ya leídos no lo tienen: se completa al volver a subir el CV, o a mano en la pantalla de descarga, como decía la Decisión 26.
+- `build_printable_cv` no imprime como certificado un curso que los estudios ya listan: mismo título (en `field_of_study` o `degree_level`) y misma institución, comparados sin acentos, mayúsculas ni signos; si falta quién emite, el nombre alcanza. Queda la copia de los estudios, que trae más datos. Los estudios entre sí no se deduplican.
+- La web ubica un fragmento que copia varias viñetas (y/o la descripción) de **una** experiencia: si casi todo el fragmento (80 %) es lo que dicen esas viñetas, se reemplazan por el texto nuevo, una viñeta por renglón u oración, y las demás quedan en su lugar. Un fragmento de menos de 20 caracteres o que no está casi entero en una sola experiencia sigue sin ubicarse: no se pisa una experiencia a ciegas.
+- Cada sección optimizada se rotula con el comienzo de su fragmento («experiences «Pipeline end-to-end…»») en la lista y en el aviso de «No pudimos ubicar»; antes decían solo «experiences». La lista del resultado usaba el nombre como `key` de React: con dos experiencias la clave se repetía.
+- Si el puntaje ATS con las secciones nuevas no cambia, se explica por qué (las palabras que faltan no figuran en el CV y no se cuentan, y el formato sigue restando). No se toca la fórmula: ver los límites.
+
+**Límites que quedan abiertos.**
+- **El 0 → 0 no es un arreglo del puntaje.** El ATS del puesto de la prueba daba 0 por 1 de 8 palabras clave y 20 puntos de formato (columnas e imágenes); la reescritura honesta no puede agregar palabras que el CV no respalda. Si esa fórmula y esas penalizaciones se parecen a las de un ATS real es una pregunta aparte, en investigación.
+- Si la IA copia un fragmento que mezcla una experiencia con otra, o que solo parafrasea el CV, sigue sin ubicarse y se ofrece el texto para copiarlo a mano.
+- La copia de los estudios gana siempre: si el certificado tenía una fecha y el estudio no, esa fecha no se pasa.
+- No se probó con DeepSeek real ni se renderizó el PDF de la cuenta del autor.

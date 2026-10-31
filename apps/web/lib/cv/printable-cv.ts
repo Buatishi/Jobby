@@ -1,3 +1,5 @@
+import { splitSentences } from "@/lib/cv/cv-layout";
+
 export type PrintableCVContact = {
   full_name: string;
   email: string;
@@ -73,6 +75,96 @@ export function splitSkills(text: string): string[] {
     .filter(Boolean);
 }
 
+// Un fragmento tan corto puede estar en cualquier experiencia: no alcanza para decidir
+// cuál se reescribe.
+const MIN_EXCERPT_LENGTH = 20;
+// Casi todo el fragmento tiene que ser lo que ya dicen las viñetas que se reemplazan.
+const MIN_EXCERPT_COVERAGE = 0.8;
+
+// Compara textos sin depender de acentos, mayúsculas, signos ni marcas de viñeta.
+function looseKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function rewrittenBullets(text: string): string[] {
+  const pieces = text
+    .split(/[\r\n]+|[•●▪◦]/)
+    .map((piece) => piece.replace(/^[\s*–—·-]+/, "").trim())
+    .filter(Boolean);
+  return pieces.length === 1 ? splitSentences(pieces[0]) : pieces;
+}
+
+// El lector guarda una viñeta por logro y la IA suele copiar como «fragmento» varias
+// seguidas: ninguna las contiene sola. Si el fragmento es, casi entero, lo que dicen
+// la descripción y/o varias viñetas de UNA experiencia, esas viñetas se reemplazan por
+// el texto nuevo. Lo que el fragmento no cubre se deja como está.
+function placeAcrossBullets(
+  experience: PrintableCV["experiences"][number],
+  excerpt: string,
+  rewritten: string
+): boolean {
+  const excerptKey = looseKey(excerpt);
+  if (excerptKey.length < MIN_EXCERPT_LENGTH) {
+    return false;
+  }
+
+  const descriptionKey = looseKey(experience.description ?? "");
+  const coversDescription =
+    descriptionKey !== "" && excerptKey.includes(descriptionKey);
+  const covered = experience.achievements.flatMap((achievement, index) => {
+    const key = looseKey(achievement);
+    return key !== "" && excerptKey.includes(key) ? [{ index, length: key.length }] : [];
+  });
+  if (!coversDescription && covered.length === 0) {
+    return false;
+  }
+
+  const coveredLength = covered.reduce(
+    (total, item) => total + item.length + 1,
+    coversDescription ? descriptionKey.length + 1 : 0
+  );
+  const bullets = rewrittenBullets(rewritten);
+  if (bullets.length === 0 || coveredLength < excerptKey.length * MIN_EXCERPT_COVERAGE) {
+    return false;
+  }
+
+  const coveredIndexes = new Set(covered.map((item) => item.index));
+  const firstCovered = covered[0]?.index;
+  const kept: string[] = [];
+  for (const [index, achievement] of experience.achievements.entries()) {
+    if (index === firstCovered) {
+      kept.push(...bullets);
+    }
+    if (!coveredIndexes.has(index)) {
+      kept.push(achievement);
+    }
+  }
+  // Solo la descripción estaba cubierta: las viñetas nuevas ocupan su lugar, arriba.
+  experience.achievements = firstCovered === undefined ? [...bullets, ...kept] : kept;
+  if (coversDescription) {
+    experience.description = null;
+  }
+  return true;
+}
+
+// Una experiencia por línea: sin esto, dos secciones «experiences» no se distinguen.
+export function describeSection(section: OptimizedSection): string {
+  if (section.section_name === "summary" || section.section_name === "skills") {
+    return section.section_name;
+  }
+  const preview = squash(section.original_excerpt || section.rewritten_text);
+  if (!preview) {
+    return section.section_name;
+  }
+  const short = preview.length > 56 ? `${preview.slice(0, 56).trimEnd()}…` : preview;
+  return `${section.section_name} «${short}»`;
+}
+
 function placeSection(cv: PrintableCV, section: OptimizedSection): boolean {
   const { original_excerpt: excerpt, rewritten_text: rewritten } = section;
 
@@ -94,6 +186,12 @@ function placeSection(cv: PrintableCV, section: OptimizedSection): boolean {
         experience.achievements[index] = replaced;
         return true;
       }
+    }
+  }
+
+  for (const experience of cv.experiences) {
+    if (placeAcrossBullets(experience, excerpt, rewritten)) {
+      return true;
     }
   }
 

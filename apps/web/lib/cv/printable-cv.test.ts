@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyOptimizedSections,
+  describeSection,
   splitSkills,
   type PrintableCV
 } from "@/lib/cv/printable-cv";
@@ -101,6 +102,184 @@ describe("applyOptimizedSections", () => {
     ]);
 
     expect(cv.summary).toBe("Técnica en programación con foco en datos.");
+  });
+});
+
+describe("applyOptimizedSections across several bullets", () => {
+  const withBullets: PrintableCV = {
+    ...cv,
+    experiences: [
+      {
+        company: "PYME",
+        title: "Desarrollador Freelance",
+        started_at: "2026-03",
+        ended_at: "2026-05",
+        is_current: false,
+        description: null,
+        achievements: [
+          "Pipeline end-to-end de automatización de facturas",
+          "Reduje el tiempo de procesamiento un 70% sobre más de 200 registros",
+          "Manejo de errores, logging y casos de prueba documentados"
+        ]
+      },
+      {
+        company: "Independiente",
+        title: "Analista Digital",
+        started_at: "2024-01",
+        ended_at: "2024-10",
+        is_current: false,
+        description: null,
+        achievements: ["Venta de productos online"]
+      }
+    ]
+  };
+
+  it("replaces the bullets the excerpt copies, keeping the others in place", () => {
+    const { cv: result, unplaced } = applyOptimizedSections(withBullets, [
+      {
+        section_name: "experiences",
+        // Con marcas de viñeta, mayúsculas y signos distintos a los guardados.
+        original_excerpt:
+          "• Pipeline end-to-end de automatizacion de facturas\n• Reduje el tiempo de procesamiento un 70% sobre mas de 200 registros.",
+        rewritten_text:
+          "Diseñé un pipeline de automatización de facturas en Python.\nRedujo un 70% el tiempo de procesamiento."
+      }
+    ]);
+
+    expect(unplaced).toEqual([]);
+    expect(result.experiences[0].achievements).toEqual([
+      "Diseñé un pipeline de automatización de facturas en Python.",
+      "Redujo un 70% el tiempo de procesamiento.",
+      "Manejo de errores, logging y casos de prueba documentados"
+    ]);
+    // La otra experiencia no se toca.
+    expect(result.experiences[1]).toEqual(withBullets.experiences[1]);
+  });
+
+  it("splits a single rewritten paragraph into one bullet per sentence", () => {
+    const { cv: result } = applyOptimizedSections(withBullets, [
+      {
+        section_name: "experiences",
+        original_excerpt:
+          "Pipeline end-to-end de automatización de facturas Reduje el tiempo de procesamiento un 70% sobre más de 200 registros",
+        rewritten_text: "Automaticé facturas con Python. Reduje el tiempo un 70%."
+      }
+    ]);
+
+    expect(result.experiences[0].achievements).toEqual([
+      "Automaticé facturas con Python.",
+      "Reduje el tiempo un 70%.",
+      "Manejo de errores, logging y casos de prueba documentados"
+    ]);
+  });
+
+  it("replaces the description and the bullets when the excerpt covers both", () => {
+    const base: PrintableCV = {
+      ...withBullets,
+      experiences: [
+        {
+          ...withBullets.experiences[0],
+          description: "Proyecto de automatización para una pyme.",
+          achievements: ["Pipeline end-to-end de automatización de facturas"]
+        }
+      ]
+    };
+
+    const { cv: result, unplaced } = applyOptimizedSections(base, [
+      {
+        section_name: "experiences",
+        original_excerpt:
+          "Proyecto de automatización para una pyme. Pipeline end-to-end de automatización de facturas",
+        rewritten_text: "Automaticé la facturación de una pyme con Python."
+      }
+    ]);
+
+    expect(unplaced).toEqual([]);
+    expect(result.experiences[0].description).toBeNull();
+    expect(result.experiences[0].achievements).toEqual([
+      "Automaticé la facturación de una pyme con Python."
+    ]);
+  });
+
+  it("leaves a section unplaced when the excerpt is mostly text the CV does not have", () => {
+    const section = {
+      section_name: "experiences",
+      original_excerpt:
+        "Pipeline end-to-end de automatización de facturas. Lideré un equipo de diez personas en tres países y coordiné la migración completa a la nube",
+      rewritten_text: "Texto nuevo"
+    };
+
+    const { cv: result, unplaced } = applyOptimizedSections(withBullets, [section]);
+
+    expect(result.experiences).toEqual(withBullets.experiences);
+    expect(unplaced).toEqual([section]);
+  });
+
+  it("does not place an excerpt too short to tell which experience it is", () => {
+    const section = {
+      section_name: "experiences",
+      original_excerpt: "Venta online",
+      rewritten_text: "Texto nuevo"
+    };
+
+    const { cv: result, unplaced } = applyOptimizedSections(withBullets, [section]);
+
+    expect(result.experiences).toEqual(withBullets.experiences);
+    expect(unplaced).toEqual([section]);
+  });
+});
+
+describe("describeSection", () => {
+  it("tells apart two sections with the same name by their excerpt", () => {
+    const first = describeSection({
+      section_name: "experiences",
+      original_excerpt: "Pipeline end-to-end de automatización de facturas",
+      rewritten_text: "x"
+    });
+    const second = describeSection({
+      section_name: "experiences",
+      original_excerpt: "Venta de productos online y análisis de mercado",
+      rewritten_text: "x"
+    });
+
+    expect(first).toBe("experiences «Pipeline end-to-end de automatización de facturas»");
+    expect(second).not.toBe(first);
+  });
+
+  it("shortens a long excerpt and falls back to the new text, then to the name", () => {
+    const long = describeSection({
+      section_name: "experiences",
+      original_excerpt: "palabra ".repeat(30),
+      rewritten_text: "x"
+    });
+    const fromRewritten = describeSection({
+      section_name: "educations",
+      original_excerpt: "",
+      rewritten_text: "Técnico informático"
+    });
+    const bare = describeSection({
+      section_name: "certifications",
+      original_excerpt: "",
+      rewritten_text: ""
+    });
+
+    expect(long.endsWith("…»")).toBe(true);
+    expect(long.length).toBeLessThan(80);
+    expect(fromRewritten).toBe("educations «Técnico informático»");
+    expect(bare).toBe("certifications");
+  });
+
+  it("keeps summary and skills as they are: there is only one of each", () => {
+    expect(
+      describeSection({
+        section_name: "summary",
+        original_excerpt: "texto",
+        rewritten_text: "otro"
+      })
+    ).toBe("summary");
+    expect(
+      describeSection({ section_name: "skills", original_excerpt: "", rewritten_text: "" })
+    ).toBe("skills");
   });
 });
 
