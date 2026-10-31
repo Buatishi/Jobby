@@ -44,6 +44,12 @@ export function OptimizedCVResult({
           <p className="mt-1 text-xs text-muted-foreground">
             Solo cuenta lo que tu CV respalda.
           </p>
+          {optimized.ats_score_after === optimized.ats_score_before ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              No cambia: las palabras que faltan no figuran en tu CV y no se
+              cuentan, y los problemas de formato del reporte siguen restando.
+            </p>
+          ) : null}
         </div>
       ) : null}
       {optimized.sections.length === 0 ? (
@@ -51,10 +57,11 @@ export function OptimizedCVResult({
           No detectamos secciones con baja cobertura para reescribir.
         </p>
       ) : (
-        optimized.sections.map((section) => (
+        optimized.sections.map((section, index) => (
           <div
             className="rounded-2xl border border-border p-4"
-            key={section.section_name}
+            // Dos experiencias llegan como «experiences»: el nombre solo no es único.
+            key={`${section.section_name}-${index}`}
           >
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
               <div>

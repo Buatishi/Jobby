@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import {
   applyOptimizedSections,
+  describeSection,
   type OptimizedSection,
   type PrintableCV,
   type PrintableCVContact
@@ -141,7 +142,7 @@ export function DownloadCVPanel({
                 type="checkbox"
               />
               <span>
-                {section.section_name}
+                {describeSection(section)}
                 {section.unverified_keywords?.length ? (
                   <span className="text-muted-foreground">
                     {" "}
@@ -154,7 +155,7 @@ export function DownloadCVPanel({
           {result.unplaced.length > 0 ? (
             <p className="text-muted-foreground">
               No pudimos ubicar en tu CV:{" "}
-              {result.unplaced.map((section) => section.section_name).join(", ")}.
+              {result.unplaced.map(describeSection).join(", ")}.
               Copiá ese texto a mano si querés usarlo.
             </p>
           ) : null}

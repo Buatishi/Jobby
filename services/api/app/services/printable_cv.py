@@ -6,6 +6,7 @@ cargo, sin descripción ni fechas), se usa lo que leyó el CV principal. El enca
 sale del CV principal y, si falta, de la cuenta y del perfil.
 """
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -17,6 +18,7 @@ from app.models.profiles import (
     PrintableCVExperience,
     PrintableCVLanguage,
 )
+from app.services.text_quality import fold
 
 
 def _text(value: Any) -> str:
@@ -66,6 +68,30 @@ def _rows_or_parsed(
     if says_something is None or any(says_something(row) for row in rows):
         return rows
     return from_cv or rows
+
+
+def _words(value: Any) -> str:
+    """Las palabras de un texto sin acentos, mayúsculas ni signos, para compararlo."""
+    return " ".join(re.findall(r"[^\W_]+", fold(_text(value))))
+
+
+def _same_place(first: str, second: str) -> bool:
+    # Un lado vacío no contradice: la IA a veces no lee quién emite el curso.
+    return not first or not second or first in second or second in first
+
+
+def _listed_as_education(
+    certification: PrintableCVCertification,
+    educations: list[PrintableCVEducation],
+) -> bool:
+    """¿El curso ya figura entre los estudios? El lector suele listarlo en los dos."""
+    name = _words(certification.name)
+    issuer = _words(certification.issuer)
+    return bool(name) and any(
+        name in {_words(education.field_of_study), _words(education.degree_level)}
+        and _same_place(issuer, _words(education.institution))
+        for education in educations
+    )
 
 
 def _contact(
@@ -125,25 +151,40 @@ def build_printable_cv(
     # Lo más reciente primero, como se lee un CV; sin fecha, al final.
     experience_items.sort(key=lambda item: item.started_at or "", reverse=True)
 
+    education_items = [
+        PrintableCVEducation(
+            institution=_text(item.get("institution")),
+            field_of_study=_text(item.get("field_of_study")) or None,
+            degree_level=_text(item.get("degree_level")) or None,
+            started_at=_text(item.get("started_at")) or None,
+            ended_at=_text(item.get("ended_at")) or None,
+            is_ongoing=bool(item.get("is_ongoing")),
+        )
+        for item in _rows_or_parsed(educations, parsed_data, "educations", _has_detail)
+    ]
+    # Un curso que el CV lista como estudio y como certificado se imprime una sola vez:
+    # con los dos, la hoja se pasaba de una página.
+    certification_items = [
+        certification
+        for certification in (
+            PrintableCVCertification(
+                name=_text(item.get("name")),
+                issuer=_text(item.get("issuer")) or None,
+                issued_at=_text(item.get("issued_at")) or None,
+            )
+            for item in _rows_or_parsed(certifications, parsed_data, "certifications")
+            if _text(item.get("name"))
+        )
+        if not _listed_as_education(certification, education_items)
+    ]
+
     return PrintableCV(
         contact=_contact(parsed_data, profile, account_email),
         headline=_text(profile.get("headline")) or None,
         summary=_text(profile.get("summary")) or None,
         skills=skill_names,
         experiences=experience_items,
-        educations=[
-            PrintableCVEducation(
-                institution=_text(item.get("institution")),
-                field_of_study=_text(item.get("field_of_study")) or None,
-                degree_level=_text(item.get("degree_level")) or None,
-                started_at=_text(item.get("started_at")) or None,
-                ended_at=_text(item.get("ended_at")) or None,
-                is_ongoing=bool(item.get("is_ongoing")),
-            )
-            for item in _rows_or_parsed(
-                educations, parsed_data, "educations", _has_detail
-            )
-        ],
+        educations=education_items,
         languages=[
             PrintableCVLanguage(
                 name=_text(item.get("name")),
@@ -152,13 +193,5 @@ def build_printable_cv(
             for item in _rows_or_parsed(languages, parsed_data, "languages")
             if _text(item.get("name"))
         ],
-        certifications=[
-            PrintableCVCertification(
-                name=_text(item.get("name")),
-                issuer=_text(item.get("issuer")) or None,
-                issued_at=_text(item.get("issued_at")) or None,
-            )
-            for item in _rows_or_parsed(certifications, parsed_data, "certifications")
-            if _text(item.get("name"))
-        ],
+        certifications=certification_items,
     )

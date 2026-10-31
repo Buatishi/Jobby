@@ -235,6 +235,9 @@ async def run_parse_cv(
             # solo los datos legibles. Con el vector un CV pesaba ~80 KB y llegaba a los
             # prompts.
             parsed_data = {
+                # El encabezado del CV descargable (Decisión 26). Sin esta clave el PDF
+                # salía con «Tu nombre» y sin teléfono ni ciudad.
+                "contact": structured_data.contact.model_dump(),
                 "skills": strip_embeddings(merged_skills),
                 **_structured_sections(structured_data),
             }
