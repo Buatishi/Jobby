@@ -2,7 +2,6 @@
 
 import { Check, Info, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n/provider";
 
@@ -60,9 +59,11 @@ export function FormatIssuesCard({ issues, evaluated }: FormatIssuesCardProps) {
                   <X className="h-5 w-5 text-destructive" />
                   <p className="font-medium">{issue.message}</p>
                 </div>
-                <Badge variant="outline">-{issue.penalty}</Badge>
               </div>
             ))}
+            <p className="text-sm text-muted-foreground">
+              {t("app.atsFormatNoPenalty")}
+            </p>
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-2xl border border-border p-4">

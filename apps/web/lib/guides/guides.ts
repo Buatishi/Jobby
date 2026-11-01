@@ -1,5 +1,5 @@
 import {
-  ATS_FORMAT_PENALTIES,
+  ATS_SCORE_WEIGHTS,
   ATS_KEYWORD_POINTS,
   CV_OPTIMIZATIONS_PER_MONTH,
   FREE_JOB_ANALYSES_PER_MONTH,
@@ -101,7 +101,7 @@ const queEsUnAts: Guide = {
       blocks: [
         {
           type: "paragraph",
-          text: "Cuando pedís el análisis ATS en Jobby, tu CV se revisa contra un puesto concreto y desde dos ángulos."
+          text: "Cuando pedís el análisis ATS en Jobby, tu CV se revisa contra un puesto concreto desde tres ángulos: las palabras clave, los requisitos del puesto y la lectura del archivo."
         },
         {
           type: "paragraph",
@@ -109,7 +109,15 @@ const queEsUnAts: Guide = {
         },
         {
           type: "paragraph",
-          text: `El segundo es el formato, que le resta puntos al resultado: ${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si ningún título de sección es de los habituales.`
+          text: "El segundo son los requisitos del puesto: los años de experiencia, la formación y los idiomas que pide. Los años salen solo de puestos de trabajo (freelance, por cuenta propia, en una pyme o en una empresa) y solo cuenta la experiencia directa con lo que pide el puesto. No hace falta cumplir lo pedido al pie de la letra: si lo superás, cuenta como cumplido y se aclara aparte, sin sumar ni restar."
+        },
+        {
+          type: "paragraph",
+          text: `El puntaje combina las palabras clave (${ATS_SCORE_WEIGHTS.skills} %), los años (${ATS_SCORE_WEIGHTS.experience} %), la formación (${ATS_SCORE_WEIGHTS.education} %) y los idiomas (${ATS_SCORE_WEIGHTS.languages} %). Lo que el puesto no pide no entra, y su peso se reparte entre el resto.`
+        },
+        {
+          type: "paragraph",
+          text: "El tercero es la lectura del archivo. Jobby te avisa si el CV tiene tablas, varias columnas, imágenes o títulos de sección poco habituales, porque no todos los sistemas leen igual esos recursos. Es un aviso: no resta puntos."
         },
         {
           type: "paragraph",
@@ -527,7 +535,7 @@ const cvCompatibleConAts: Guide = {
       blocks: [
         {
           type: "paragraph",
-          text: `En el análisis ATS de Jobby, el formato le resta puntos al resultado: ${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas, ${ATS_FORMAT_PENALTIES.MULTI_COLUMN} si usa varias columnas, ${ATS_FORMAT_PENALTIES.IMAGES} si tiene imágenes y ${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si ningún título de sección es de los habituales. El reporte también te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no.`
+          text: `En el análisis ATS de Jobby, el formato no resta puntos: el reporte te avisa si el CV tiene tablas, varias columnas, imágenes o títulos de sección poco habituales, para que decidas si conviene cambiarlo. También te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no, y si cumplís los años, la formación y los idiomas que pide.`
         },
         {
           type: "paragraph",

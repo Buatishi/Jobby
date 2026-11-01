@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
-  ATS_FORMAT_PENALTIES,
   ATS_KEYWORD_POINTS,
+  ATS_SCORE_WEIGHTS,
   CV_OPTIMIZATIONS_PER_MONTH,
   FREE_JOB_ANALYSES_PER_MONTH,
   FULL_RELEVANCE_PERCENT,
@@ -116,7 +116,8 @@ describe("guides content", () => {
       FULL_RELEVANCE_PERCENT,
       GAP_THRESHOLD_PERCENT,
       MATCH_SCORE_WEIGHTS[0].percent + MATCH_SCORE_WEIGHTS[1].percent,
-      ...MATCH_SCORE_WEIGHTS.map((weight) => weight.percent)
+      ...MATCH_SCORE_WEIGHTS.map((weight) => weight.percent),
+      ...Object.values(ATS_SCORE_WEIGHTS)
     ]);
 
     for (const guide of GUIDES) {
@@ -162,18 +163,25 @@ describe("guide figures match the backend code", () => {
     expect(Math.round(Number(match?.[1]) * 100)).toBe(FULL_RELEVANCE_PERCENT);
   });
 
-  it("uses the ATS format penalties", () => {
-    const source = readService("ats_analyzer/format_checker.py");
-    const inCode = new Map<string, number>();
-    for (const match of source.matchAll(
-      /FormatIssue\(\s*"(\w+)",\s*"[^"]*",\s*(\d+),?\s*\)/g
-    )) {
-      inCode.set(match[1], Number(match[2]));
-    }
+  it("uses the weights of each part of the ATS score", () => {
+    const source = readService("ats_analyzer/scoring.py");
+    const weight = (name: string) =>
+      Number(source.match(new RegExp(String.raw`WEIGHT_${name} = (\d+)`))?.[1]);
 
-    for (const [code, penalty] of Object.entries(ATS_FORMAT_PENALTIES)) {
-      expect(inCode.get(code), code).toBe(penalty);
-    }
+    expect(weight("SKILLS")).toBe(ATS_SCORE_WEIGHTS.skills);
+    expect(weight("EXPERIENCE")).toBe(ATS_SCORE_WEIGHTS.experience);
+    expect(weight("EDUCATION")).toBe(ATS_SCORE_WEIGHTS.education);
+    expect(weight("LANGUAGES")).toBe(ATS_SCORE_WEIGHTS.languages);
+    expect(Object.values(ATS_SCORE_WEIGHTS).reduce((sum, value) => sum + value, 0)).toBe(
+      100
+    );
+  });
+
+  it("does not take points off for the file format", () => {
+    const source = readService("ats_analyzer/scoring.py");
+
+    expect(source).not.toMatch(/penalty/);
+    expect(source).not.toMatch(/format_issues/);
   });
 
   it("uses the points of each keyword match", () => {
@@ -202,10 +210,8 @@ describe("guide figures match the backend code", () => {
 
   it("writes the figures the newer guides cite", () => {
     const checklist = guideText(getGuide("cv-compatible-con-ats")!);
-    expect(checklist).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
-    expect(checklist).toContain(
-      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si ningún título`
-    );
+    expect(checklist).toContain("el formato no resta puntos");
+    expect(checklist).toContain("los años, la formación y los idiomas");
 
     const analysis = guideText(getGuide("analizar-cv-con-ia")!);
     expect(analysis).toContain(
@@ -232,10 +238,9 @@ describe("guide figures match the backend code", () => {
     }
 
     const ats = guideText(getGuide("que-es-un-ats")!);
-    expect(ats).toContain(`${ATS_FORMAT_PENALTIES.TABLES} si el CV tiene tablas`);
-    expect(ats).toContain(
-      `${ATS_FORMAT_PENALTIES.NON_STANDARD_HEADERS} si ningún título`
-    );
+    expect(ats).toContain(`las palabras clave (${ATS_SCORE_WEIGHTS.skills} %)`);
+    expect(ats).toContain(`los años (${ATS_SCORE_WEIGHTS.experience} %)`);
+    expect(ats).toContain("Es un aviso: no resta puntos.");
     expect(ats).toContain("suma 0,5");
   });
 

@@ -489,7 +489,7 @@ def test_a_report_saved_with_non_skill_keywords_is_recalculated_without_them(
     assert gateway.generate_calls == 1
 
 
-def test_the_format_penalties_lower_the_score_of_a_cv_read_with_problems(
+def test_the_format_problems_are_listed_but_do_not_lower_the_score(
     client: TestClient, gateway: KeywordGateway
 ) -> None:
     supabase = _world()
@@ -512,7 +512,8 @@ def test_the_format_penalties_lower_the_score_of_a_cv_read_with_problems(
         "NON_STANDARD_HEADERS": 5,
     }
     assert flagged["format_evaluated"] is True
-    assert flagged["ats_score"] == clean["ats_score"] - 25
+    # El formato se muestra como lectura del CV y no resta puntos (Decisión 42).
+    assert flagged["ats_score"] == clean["ats_score"]
 
 
 def test_a_cv_read_before_the_format_check_is_reported_as_not_evaluated(
@@ -563,8 +564,164 @@ def test_reading_the_same_cv_again_with_the_format_check_recalculates_the_report
     assert before["format_evaluated"] is False
     assert after["format_evaluated"] is True
     assert [issue["code"] for issue in after["format_issues"]] == ["TABLES"]
-    assert after["ats_score"] == before["ats_score"] - 10
+    assert after["ats_score"] == before["ats_score"]
     assert _queries_spent(fake_redis) == 2
+
+
+# --- requisitos del puesto (Decisión 42) --------------------------------------------
+
+
+def _world_with_requirements() -> FakeSupabase:
+    supabase = _world()
+    supabase.tables["job_descriptions"][0].update(
+        {
+            "required_seniority": "Senior",
+            "required_education": "Bachelor's degree",
+            "required_languages": ["English"],
+        }
+    )
+    parsed = supabase.tables["uploaded_documents"][0]["parsed_data"]
+    parsed["experiences"] = [
+        {
+            "title": "Backend dev",
+            "company": "Acme",
+            "started_at": "2025-01",
+            "ended_at": "2025-06",
+            "description": "Built services",
+        }
+    ]
+    parsed["educations"] = [
+        {"institution": "UTN", "field_of_study": "Licenciatura en Sistemas"}
+    ]
+    parsed["languages"] = [{"name": "English", "level": "advanced"}]
+    return supabase
+
+
+def test_the_report_carries_the_requirements_and_scores_with_them(
+    client: TestClient, gateway: KeywordGateway
+) -> None:
+    supabase = _world_with_requirements()
+    _serve(supabase)
+
+    body = _open(client).json()
+
+    by_key = {item["key"]: item for item in body["requirements"]}
+    assert list(by_key) == ["experience", "education", "language:english"]
+    assert by_key["experience"]["actual"] == "6 meses"
+    assert by_key["experience"]["estimated"] is True
+    assert by_key["experience"]["ratio"] == pytest.approx(0.1)
+    assert by_key["education"]["status"] == "met"
+    assert by_key["language:english"]["status"] == "met"
+    # Skills 60 × 0,5 + años 20 × 0,1 + formación 10 + idioma 10 = 52.
+    assert body["ats_score"] == 52
+    [saved] = supabase.tables["ats_reports"]
+    assert saved["ats_score"] == 52
+    # Los requisitos no se guardan: salen del perfil de cada vez.
+    assert "requirements" not in saved
+
+
+def test_a_report_for_a_posting_that_asks_nothing_has_no_requirements(
+    client: TestClient, gateway: KeywordGateway
+) -> None:
+    _serve(_world())
+
+    body = _open(client).json()
+
+    assert body["requirements"] == []
+    assert body["ats_score"] == 50
+
+
+def test_a_saved_report_reads_the_profile_again_without_spending_a_query(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    supabase = _world_with_requirements()
+    supabase.tables["uploaded_documents"][0]["parsed_data"]["languages"] = []
+    _serve(supabase)
+    first = _open(client).json()
+
+    supabase.tables["languages"].append(
+        {"profile_id": "profile-1", "name": "Inglés", "proficiency": "advanced"}
+    )
+    second = _open(client).json()
+
+    english = {item["key"]: item for item in first["requirements"]}["language:english"]
+    assert english["status"] == "unmet"
+    english = {item["key"]: item for item in second["requirements"]}["language:english"]
+    assert english["status"] == "met"
+    assert second["ats_score"] > first["ats_score"]
+    assert gateway.generate_calls == 1
+    assert _queries_spent(fake_redis) == 1
+
+
+def test_the_linkedin_pdf_adds_the_roles_it_lists(
+    client: TestClient, gateway: KeywordGateway
+) -> None:
+    supabase = _world_with_requirements()
+    supabase.tables["uploaded_documents"].append(
+        {
+            "id": "linkedin-1",
+            "user_id": "user-1",
+            "profile_id": "profile-1",
+            "type": "linkedin",
+            "is_primary": False,
+            "status": "done",
+            "created_at": "2026-10-22T00:00:00+00:00",
+            "parsed_data": {
+                "experiences": [
+                    {
+                        "title": "Python Developer",
+                        "company": "Paogi",
+                        "started_at": "2025-07",
+                        "ended_at": "2025-12",
+                    }
+                ]
+            },
+        }
+    )
+    _serve(supabase)
+
+    body = _open(client).json()
+
+    experience = {item["key"]: item for item in body["requirements"]}["experience"]
+    # Enero a junio del CV y julio a diciembre de LinkedIn: un año entero.
+    assert experience["actual"] == "1 año"
+    assert "Paogi — Python Developer: 6 meses" in experience["detail"]
+
+
+def test_a_failure_evaluating_the_requirements_keeps_the_report_with_the_skills_only(
+    client: TestClient, gateway: KeywordGateway, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def explode(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("falló la evaluación")
+
+    monkeypatch.setattr("app.api.v1.ats.evaluate_requirements", explode)
+    _serve(_world_with_requirements())
+
+    response = _open(client)
+
+    assert response.status_code == 200
+    assert response.json()["requirements"] == []
+    assert response.json()["ats_score"] == 50
+
+
+def test_a_saved_report_whose_requirements_fail_shows_the_score_of_the_skills(
+    client: TestClient, gateway: KeywordGateway, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    supabase = _world_with_requirements()
+    _serve(supabase)
+    _open(client)
+    # El puntaje guardado puede venir de una versión anterior de la fórmula.
+    supabase.tables["ats_reports"][0]["ats_score"] = 3
+
+    def explode(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("falló la evaluación")
+
+    monkeypatch.setattr("app.api.v1.ats.evaluate_requirements", explode)
+
+    body = _open(client).json()
+
+    assert body["requirements"] == []
+    assert body["ats_score"] == 50
 
 
 # --- unidades -------------------------------------------------------------------------

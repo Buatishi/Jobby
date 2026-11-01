@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from app.models.ats import ATSKeywordMatch, OptimizedCVSection
+from app.models.ats import ATSKeywordMatch, ATSRequirement, OptimizedCVSection
 from app.services.ats_analyzer.cv_optimizer import (
     optimize_cv_sections,
     score_after_optimization,
@@ -105,8 +105,22 @@ def test_the_score_after_counts_only_verified_keywords() -> None:
     sections = [_section("Python, Power BI y Kubernetes", ["Power BI", "Kubernetes"])]
 
     # Después: Power BI pasa a literal (2 sobre 4 = 50); Kubernetes sigue ausente.
-    assert score_after_optimization(sections, MATCHES, penalty=0) == 50
-    assert score_after_optimization(sections, MATCHES, penalty=10) == 40
+    assert score_after_optimization(sections, MATCHES, []) == 50
+
+
+def test_the_score_after_keeps_the_requirements_the_rewrite_cannot_change() -> None:
+    sections = [_section("Python, Power BI y Kubernetes", ["Power BI", "Kubernetes"])]
+    experience = ATSRequirement(
+        key="experience",
+        label="Experiencia directa",
+        required="5 años",
+        actual="0 meses",
+        status="unmet",
+        ratio=0.0,
+    )
+
+    # Skills 60 con 50 % y años 20 con 0 %: (60 × 0,5) / 80 = 37,5 -> 38.
+    assert score_after_optimization(sections, MATCHES, [experience]) == 38
 
 
 class _OneCallGateway:

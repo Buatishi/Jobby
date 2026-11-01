@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -31,7 +32,9 @@ from app.services.ats_analyzer.report_store import (
     save_report,
     skill_vector_loader,
 )
-from app.services.ats_analyzer.scoring import compute_ats_score
+from app.services.ats_analyzer.requirement_inputs import fetch_requirement_inputs
+from app.services.ats_analyzer.requirements import evaluate_requirements
+from app.services.ats_analyzer.scoring import compose_ats_score, compute_ats_score
 from app.services.rate_limits import (
     RateLimitExceededError,
     RateLimitKind,
@@ -39,6 +42,7 @@ from app.services.rate_limits import (
 )
 
 router = APIRouter(prefix="/ats", tags=["ats"])
+logger = logging.getLogger("jobmatch.ats")
 
 
 async def _execute(query: Any) -> Any:
@@ -103,7 +107,8 @@ async def _build_ats_report(
         saved_vectors=skill_vector_loader(supabase, primary_cv),
     )
     format_issues = check_cv_format(primary_cv)
-    ats_score = compute_ats_score(keyword_result.matches, format_issues)
+    # Sin requisitos todavía: `_with_requirements` los suma y vuelve a puntuar.
+    ats_score = compute_ats_score(keyword_result.matches)
 
     return ATSReport(
         job_id=job_id,
@@ -139,8 +144,48 @@ async def _calculate_and_save_report(
     report = await _build_ats_report(
         job_id, job, primary_cv, supabase, keywords_from_row(saved_row)
     )
+    report = await _with_requirements(supabase, user_id, job, primary_cv, report)
     await save_report(supabase, user_id, primary_cv, report)
     return report
+
+
+async def _with_requirements(
+    supabase: Any,
+    user_id: str,
+    job: dict[str, Any],
+    primary_cv: dict[str, Any],
+    report: ATSReport,
+) -> ATSReport:
+    """Suma los requisitos del puesto (años, formación, idiomas) y vuelve a puntuar.
+
+    Se calculan al leer y no se guardan: salen de datos que la persona puede cambiar sin
+    tocar su CV principal (el perfil, el PDF de LinkedIn) y no usan IA ni gastan el
+    límite diario. Si fallan, el reporte sigue valiendo solo con las skills.
+    """
+    try:
+        inputs = await fetch_requirement_inputs(supabase, user_id, primary_cv)
+        requirements = evaluate_requirements(
+            job,
+            experiences=inputs.experiences,
+            educations=inputs.educations,
+            languages=inputs.languages,
+        )
+    except Exception:
+        logger.exception("No se pudieron evaluar los requisitos del puesto")
+        # Un reporte guardado trae el puntaje de cuando se calculó: sin requisitos vale
+        # el de las skills solas, que es lo que el reporte puede sostener.
+        return report.model_copy(
+            update={
+                "requirements": [],
+                "ats_score": compose_ats_score(report.keyword_matches, []),
+            }
+        )
+    return report.model_copy(
+        update={
+            "requirements": requirements,
+            "ats_score": compose_ats_score(report.keyword_matches, requirements),
+        }
+    )
 
 
 async def _spend_daily_ats_query(current_user: CurrentUser) -> None:
@@ -178,7 +223,9 @@ async def get_ats_report(
     # principal) cuenta.
     saved = report_from_row(saved_row, job_id, primary_cv)
     if saved is not None:
-        return saved
+        return await _with_requirements(
+            supabase, current_user.id, job, primary_cv, saved
+        )
 
     await _spend_daily_ats_query(current_user)
     return await _calculate_and_save_report(
@@ -222,6 +269,10 @@ async def optimize_ats_cv(
         ats_report = await _calculate_and_save_report(
             supabase, current_user.id, payload.job_id, job, primary_cv, saved_row
         )
+    else:
+        ats_report = await _with_requirements(
+            supabase, current_user.id, job, primary_cv, ats_report
+        )
     try:
         sections = await optimize_cv_sections(
             primary_cv,
@@ -239,7 +290,6 @@ async def optimize_ats_cv(
                 "details": {},
             },
         ) from exc
-    penalty = sum(issue.penalty for issue in ats_report.format_issues)
     return ATSOptimizeResponse(
         job_id=payload.job_id,
         sections=sections,
@@ -247,6 +297,6 @@ async def optimize_ats_cv(
         ats_score_after=score_after_optimization(
             sections,
             ats_report.keyword_matches,
-            penalty,
+            ats_report.requirements,
         ),
     )
