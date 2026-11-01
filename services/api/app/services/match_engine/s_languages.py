@@ -141,6 +141,16 @@ def _profile_levels(profile_languages: list[dict[str, Any]]) -> dict[str, int]:
     return levels
 
 
+def required_languages(job: dict[str, Any]) -> list[dict[str, str]]:
+    """Los idiomas que pide el puesto, cada uno con su nombre canónico y su nivel."""
+    return _required_languages(job)
+
+
+def profile_language_levels(profile_languages: list[dict[str, Any]]) -> dict[str, int]:
+    """El mejor nivel de la persona en cada idioma, por clave canónica."""
+    return _profile_levels(profile_languages)
+
+
 def compute_languages_score(
     profile_languages: list[dict[str, Any]],
     job: dict[str, Any],

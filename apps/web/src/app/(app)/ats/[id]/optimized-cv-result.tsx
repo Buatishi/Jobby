@@ -47,7 +47,8 @@ export function OptimizedCVResult({
           {optimized.ats_score_after === optimized.ats_score_before ? (
             <p className="mt-1 text-xs text-muted-foreground">
               No cambia: las palabras que faltan no figuran en tu CV y no se
-              cuentan, y los problemas de formato del reporte siguen restando.
+              cuentan, y reescribir texto no cambia tus años, tu formación ni
+              tus idiomas.
             </p>
           ) : null}
         </div>

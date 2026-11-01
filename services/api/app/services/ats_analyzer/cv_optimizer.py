@@ -5,11 +5,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
-from app.models.ats import ATSKeywordMatch, OptimizedCVSection
+from app.models.ats import ATSKeywordMatch, ATSRequirement, OptimizedCVSection
 from app.services.ai_gateway import AIGateway, UserTier
 from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_ES
-from app.services.ats_analyzer.scoring import score_keyword_coverage
+from app.services.ats_analyzer.scoring import compose_ats_score
 from app.services.cv_parser import strip_embeddings
 from app.services.match_engine.common import normalize_text
 
@@ -144,12 +144,13 @@ def verify_sections(
 def score_after_optimization(
     sections: list[OptimizedCVSection],
     matches: list[ATSKeywordMatch],
-    penalty: int,
+    requirements: list[ATSRequirement],
 ) -> int:
     """Puntaje ATS si se usan las secciones nuevas, contando solo lo verificado.
 
     Una keyword semántica que el texto nuevo nombra pasa a literal. Las ausentes
-    siguen ausentes aunque el texto las mencione: no tienen respaldo en el CV.
+    siguen ausentes aunque el texto las mencione: no tienen respaldo en el CV. Los
+    requisitos (años, formación, idiomas) no cambian: reescribir texto no los cambia.
     """
     rewritten = "\n".join(section.rewritten_text for section in sections)
     updated = [
@@ -158,7 +159,7 @@ def score_after_optimization(
         else match
         for match in matches
     ]
-    return score_keyword_coverage(updated, penalty)
+    return compose_ats_score(updated, requirements)
 
 
 async def optimize_cv_sections(

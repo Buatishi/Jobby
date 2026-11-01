@@ -27,6 +27,7 @@ import {
   OptimizedCVResult,
   type ATSOptimizeResponse
 } from "./optimized-cv-result";
+import { RequirementsCard, type ATSRequirement } from "./requirements-card";
 
 type KeywordStatus = "literal" | "semantic" | "missing";
 
@@ -39,6 +40,8 @@ type ATSReport = {
     matched_text: string | null;
   }>;
   format_issues: FormatIssue[];
+  /** Años, formación e idiomas que pide el puesto; una API anterior no lo manda. */
+  requirements?: ATSRequirement[];
   /** false: el CV se leyó antes del chequeo de formato; `format_issues` vacío no es «sin problemas». */
   format_evaluated?: boolean;
 };
@@ -149,7 +152,8 @@ export default function ATSReportPage() {
           <CardHeader>
             <CardTitle>ATS Score</CardTitle>
             <CardDescription>
-              Keywords literales, semánticas y penalizaciones de formato.
+              Palabras clave, años, formación e idiomas. El formato no resta
+              puntos.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -213,6 +217,10 @@ export default function ATSReportPage() {
             </div>
           </CardContent>
         </Card>
+      </section>
+
+      <section className="mt-4">
+        <RequirementsCard requirements={report.requirements} />
       </section>
 
       <section className="mt-4">

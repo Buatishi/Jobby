@@ -54,15 +54,16 @@ export const FULL_RELEVANCE_PERCENT = 25;
 // `formula.py` (`_gap_origin`): por debajo de este valor un componente se marca como brecha.
 export const GAP_THRESHOLD_PERCENT = 70;
 
-// `ats_analyzer/format_checker.py`: puntos que resta cada problema de formato.
-export const ATS_FORMAT_PENALTIES = {
-  TABLES: 10,
-  MULTI_COLUMN: 10,
-  IMAGES: 10,
-  NON_STANDARD_HEADERS: 5
+// `ats_analyzer/scoring.py` (`WEIGHT_*`): peso de cada parte del puntaje ATS. El formato del
+// archivo no entra: se muestra aparte y no resta puntos.
+export const ATS_SCORE_WEIGHTS = {
+  skills: 60,
+  experience: 20,
+  education: 10,
+  languages: 10
 } as const;
 
-// `ats_analyzer/scoring.py` (`score_keyword_coverage`): lo que suma cada palabra clave.
+// `ats_analyzer/scoring.py` (`keyword_coverage`): lo que suma cada palabra clave.
 export const ATS_KEYWORD_POINTS = { literal: 1, semantic: 0.5 } as const;
 
 // `services/api/app/services/rate_limits.py` (`_rule`): análisis de puestos del plan gratis por

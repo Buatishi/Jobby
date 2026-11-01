@@ -2826,3 +2826,39 @@ Con los precios de lista de `deepseek-chat` que usé como cota (USD 0,28 por mil
 - Si la IA copia un fragmento que mezcla una experiencia con otra, o que solo parafrasea el CV, sigue sin ubicarse y se ofrece el texto para copiarlo a mano.
 - La copia de los estudios gana siempre: si el certificado tenía una fecha y el estudio no, esa fecha no se pasa.
 - No se probó con DeepSeek real ni se renderizó el PDF de la cuenta del autor.
+
+## Decisión 42 — El reporte ATS puntúa los requisitos del puesto y el formato deja de restar puntos
+
+**Estado:** Pedido por el autor (2026-10-31) tras ver su reporte en 0/100 y el optimizador en «0 → 0», y preguntar si el reporte se podía tercerizar o hacer con una base lógica entre el puesto y la persona. Aprobó ir por el análisis por requisitos y dio dos reglas (cómo se cuentan los años y que superar lo pedido cuenta como cumplido). Lo que no dijo (los pesos, la estimación de años por el nivel, qué es una experiencia «directa» y sacar el descuento de formato) son **propuestas del cambio, no aprobadas por separado**.
+
+**Problema (medido).**
+- El puntaje era `max(0, cobertura − penalización de formato)`: 1 palabra clave de 8 (12,5) menos 20 de formato (columnas e imágenes) daba 0, y la reescritura del optimizador no podía moverlo (las palabras que el CV no respalda no se cuentan): «0 → 0».
+- Según el informe de investigación del 2026-10-31 (un subagente; sus fuentes no se verificaron una por una, salvo la fórmula actual, el estado del #116 y las licencias), ningún ATS documentado publica un puntaje de 0 a 100 de un CV contra un puesto: lo documentado son preguntas excluyentes, búsqueda por palabras y, en algunos, una banda (Workday HiredScore de A a D, Ashby con el porcentaje de criterios cumplidos). Tampoco se encontró respaldo para restar 10 por columnas o por imágenes.
+- El aviso de la prueba (JPMorgan, 13 mil caracteres) no pide años por escrito: dice «Senior».
+
+**Alternativas descartadas.**
+- **Tercerizar el puntaje en un servicio externo:** ningún proveedor publica la fórmula de «el» ATS de una empresa, el más barato que se encontró (Affinda, unos USD 0,10 por documento según el informe) usaría todo el presupuesto de USD 20 al mes con unos 200 CV, y habría que mandar los CV de personas reales a un tercero.
+- **Rehacer el PR #116** (descontar el formato en proporción): sigue restando un formato que no tiene respaldo y no mira lo que el puesto pide.
+
+**Elegido.**
+- **Puntaje:** promedio ponderado de lo que el aviso pide: palabras clave 60, años 20, formación 10 e idiomas 10 (repartido entre los idiomas pedidos). Lo que el aviso no pide no entra y su peso se reparte entre el resto. Cada parte vale lo que cubre (de 0 a 1).
+- **Años (reglas del autor):** solo cuentan los puestos de trabajo (freelance, por cuenta propia, pyme o empresa grande; no cursos, formación, voluntariados ni proyectos personales) y solo la experiencia **directa**. Un puesto es directo si lo que hizo nombra una skill del aviso, si su cargo se parece al del aviso (con «desarrollador» = «developer»), o si los dos son de software o TI (un «IT Trainee» cuenta para un aviso de Python). Los meses se cuentan completos (marzo a mayo son tres) y un mes en dos puestos cuenta una vez. El aviso manda: se toma la primera mención de años de experiencia; si no hay, se estima por el nivel (mid 3, senior 5, staff 8, principal 10; junior no estima), marcado como estimado.
+- **Superar lo pedido (regla del autor):** cuenta como cumplido por completo y deja una nota que dice que no suma ni resta. Para los años, la nota aparece con más de 12 meses sobre lo pedido.
+- **Formación:** escalones (secundario, técnico, grado, posgrado, doctorado) leídos del texto del puesto y de los estudios; un curso suelto no es formación; un título en curso cuenta a medias; si el aviso acepta «experiencia equivalente», cuenta al menos a medias. Cada escalón que falta resta un cuarto.
+- **Idiomas:** se compara el nivel con el que pide el aviso (si no dice nivel, se supone intermedio); cada escalón que falta resta un cuarto y un idioma que no figura vale 0.
+- **De dónde salen los datos:** el perfil, el CV principal y el PDF de LinkedIn. Se calculan al leer el reporte y no se guardan: no usan IA, no gastan el límite diario y siguen al perfil si la persona lo cambia. Si fallan, el reporte vale solo con las palabras clave.
+- **Formato:** se muestra como lectura del CV y **no resta puntos**. El campo `penalty` sigue en la respuesta por compatibilidad.
+- **Pantalla y guías:** una tarjeta «Requisitos del puesto» con lo que pide el aviso, lo que tiene la persona y qué puestos se tuvieron en cuenta; las guías públicas dicen 60/20/10/10 y que el formato no resta (un test las ata a `scoring.py`).
+- Sin migración, sin IA nueva. `ATS_REPORT_VERSION` no cambia: el puntaje guardado deja de ser la fuente y se recalcula al leer.
+
+**Con los datos reales del autor** (corrido en local, solo lectura): 7 meses de experiencia directa (freelance de marzo a mayo y Paogi de julio a octubre) contra 5 años estimados por el nivel; formación técnica contra un grado que acepta experiencia equivalente (parcial); inglés cumplido (con nota). Puntaje 27, contra 0 de antes y 12 con las palabras clave solas.
+
+**Límites que quedan abiertos.**
+- Las palabras clave siguen siendo las de antes: frases genéricas del aviso («Software maintenance»), sin separar obligatorias de deseables y sin buscar en el resto del CV (resumen, idiomas). Es la etapa siguiente.
+- «Directa» es una heurística sin IA: un puesto que no nombra la skill ni es de TI queda como «no relacionado» (el motivo se lista).
+- Los años estimados por el nivel y los pesos son una convención mía, probada con un solo puesto real: medir con los 8 puestos guardados antes de confiar en los umbrales.
+- No hay un veredicto con IA para los requisitos ambiguos ni se leen certificaciones.
+- Las fechas pueden diferir entre el CV y LinkedIn (la cuenta del autor tiene Paogi desde julio en LinkedIn y el autor cuenta 6 meses): se muestran los puestos y los meses que se usaron para poder corregirlos.
+- Los PDF de `docs/pdf` no se regeneraron con el cambio del `docs/03-dfd-nivel-2.md`.
+
+**Reversión.** Deshacer el merge: vuelve la fórmula anterior. Nada guardado cambia.
