@@ -74,9 +74,7 @@ async def _free_user() -> CurrentUser:
     return CurrentUser(id="user-1", supabase_uid="auth-user-1", email="p@example.com")
 
 
-def _cv_document(
-    document_id: str = "doc-1", *, primary: bool = True
-) -> dict[str, Any]:
+def _cv_document(document_id: str = "doc-1", *, primary: bool = True) -> dict[str, Any]:
     return {
         "id": document_id,
         "user_id": "user-1",
@@ -290,7 +288,7 @@ def test_a_job_that_already_existed_gets_its_keywords_the_first_time_it_is_opene
     assert gateway.generate_calls == 1
 
 
-def test_a_job_with_saved_keywords_never_asks_the_ai(
+def test_a_job_with_saved_keywords_never_asks_the_ai_for_other_keywords(
     client: TestClient, gateway: KeywordGateway
 ) -> None:
     supabase = _world()
@@ -319,7 +317,9 @@ def test_a_job_with_saved_keywords_never_asks_the_ai(
         "Python",
         "GraphQL",
     ]
-    assert gateway.generate_calls == 0
+    # No se piden otras palabras: solo una clasificación barata (obligatoria o deseable)
+    # porque ese reporte es de antes de guardar la prioridad.
+    assert gateway.generate_calls == 1
 
 
 def test_the_eleventh_new_report_of_the_day_is_blocked_on_the_free_plan(
@@ -486,7 +486,8 @@ def test_a_report_saved_with_non_skill_keywords_is_recalculated_without_them(
     ]
     assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
     assert ATS_REPORT_VERSION > 2
-    assert gateway.generate_calls == 1
+    # La extracción de la primera apertura y la clasificación de la segunda.
+    assert gateway.generate_calls == 2
 
 
 def test_the_format_problems_are_listed_but_do_not_lower_the_score(
@@ -754,10 +755,125 @@ def test_a_report_saved_before_the_change_is_recomputed_without_the_language(
     body = _open(client).json()
 
     assert [item["keyword"] for item in body["keyword_matches"]] == ["Python"]
-    # Se recalcula con las keywords guardadas, sin pedirle otras a la IA.
-    assert fake.generate_calls == 0
+    # Se recalcula con las keywords guardadas: la IA solo clasifica cuáles son
+    # deseables.
+    assert fake.generate_calls == 1
     assert _queries_spent(fake_redis) == 1
     assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
+
+
+def _priority_gateway(monkeypatch: pytest.MonkeyPatch) -> KeywordGateway:
+    fake = KeywordGateway(
+        [
+            [
+                {"name": "Python", "priority": "required"},
+                {"name": "GraphQL", "priority": "required"},
+                {"name": "REST APIs", "priority": "nice"},
+            ]
+        ]
+    )
+    monkeypatch.setattr(
+        "app.services.ats_analyzer.keyword_matcher.AIGateway", lambda: fake
+    )
+    return fake
+
+
+def test_the_report_saves_which_keywords_the_posting_calls_nice_to_have(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _priority_gateway(monkeypatch)
+    supabase = _world()
+    _serve(supabase)
+
+    body = _open(client).json()
+
+    assert {m["keyword"]: m["priority"] for m in body["keyword_matches"]} == {
+        "GraphQL": "required",
+        "Python": "required",
+        "REST APIs": "nice",
+    }
+    [saved] = supabase.tables["ats_reports"]
+    assert {m["keyword"]: m["priority"] for m in saved["keyword_matches"]} == {
+        "GraphQL": "required",
+        "Python": "required",
+        "REST APIs": "nice",
+    }
+    assert fake.generate_calls == 1
+
+
+def test_a_nice_to_have_keyword_weighs_half_in_the_score(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _priority_gateway(monkeypatch)
+    _serve(_world())
+
+    body = _open(client).json()
+
+    # Python literal (1) y REST APIs por significado (0,5, deseable: peso 0,5) contra
+    # GraphQL faltante (1): (1 + 0,5 × 0,5) / (1 + 1 + 0,5) = 0,5 -> 50.
+    assert body["ats_score"] == 50
+
+
+def test_a_report_saved_with_priorities_is_read_without_asking_the_ai_again(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, fake_redis: FakeRedis
+) -> None:
+    fake = _priority_gateway(monkeypatch)
+    supabase = _world()
+    _serve(supabase)
+    first = _open(client).json()
+    # Cambia el CV principal: se rehace con las palabras y las prioridades guardadas.
+    supabase.tables["uploaded_documents"][0]["parsed_data"]["skills"].append(
+        {"name": "GraphQL"}
+    )
+
+    second = _open(client).json()
+
+    assert fake.generate_calls == 1
+    assert {m["keyword"]: m["priority"] for m in second["keyword_matches"]} == {
+        m["keyword"]: m["priority"] for m in first["keyword_matches"]
+    }
+
+
+def test_a_report_without_priorities_gets_them_classified_once(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class ClassifyingGateway(KeywordGateway):
+        async def generate(self, *args: Any, **kwargs: Any) -> str:
+            self.generate_calls += 1
+            return json.dumps({"nice": ["REST APIs", "Algo que no está"]})
+
+    fake = ClassifyingGateway()
+    monkeypatch.setattr(
+        "app.services.ats_analyzer.keyword_matcher.AIGateway", lambda: fake
+    )
+    supabase = _world()
+    _serve(supabase)
+    supabase.tables["ats_reports"].append(
+        {
+            "job_id": "job-1",
+            "user_id": "user-1",
+            "cv_document_id": "old-doc",
+            "cv_fingerprint": "otra",
+            "report_version": 3,
+            "ats_score": 10,
+            "keyword_matches": [
+                {"keyword": "Python", "status": "missing", "matched_text": None},
+                {"keyword": "REST APIs", "status": "missing", "matched_text": None},
+            ],
+            "format_issues": [],
+        }
+    )
+
+    body = _open(client).json()
+
+    assert {m["keyword"]: m["priority"] for m in body["keyword_matches"]} == {
+        "Python": "required",
+        "REST APIs": "nice",
+    }
+    assert fake.generate_calls == 1
+    # Lo siguiente es una lectura: la prioridad ya quedó guardada.
+    _open(client)
+    assert fake.generate_calls == 1
 
 
 # --- unidades -------------------------------------------------------------------------
@@ -855,12 +971,18 @@ async def test_the_report_reuses_the_vectors_stored_with_the_profile_skills(
     supabase.tables["skills"].extend(
         [
             # PostgREST devuelve el vector como texto.
-            {"profile_id": "profile-1", "name": "Diseño de APIs",
-             "embedding": "[1.0,0.0,0.0]"},
+            {
+                "profile_id": "profile-1",
+                "name": "Diseño de APIs",
+                "embedding": "[1.0,0.0,0.0]",
+            },
             # Una skill cargada a mano no tiene vector: se pide como siempre.
             {"profile_id": "profile-1", "name": "Python", "embedding": None},
-            {"profile_id": "profile-2", "name": "Built services",
-             "embedding": "[0.0,0.0,1.0]"},
+            {
+                "profile_id": "profile-2",
+                "name": "Built services",
+                "embedding": "[0.0,0.0,1.0]",
+            },
         ]
     )
 

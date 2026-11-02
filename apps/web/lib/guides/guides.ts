@@ -1,6 +1,7 @@
 import {
   ATS_SCORE_WEIGHTS,
   ATS_KEYWORD_POINTS,
+  ATS_NICE_TO_HAVE_WEIGHT,
   CV_OPTIMIZATIONS_PER_MONTH,
   FREE_JOB_ANALYSES_PER_MONTH,
   FULL_RELEVANCE_PERCENT,
@@ -105,7 +106,7 @@ const queEsUnAts: Guide = {
         },
         {
           type: "paragraph",
-          text: `El primero son las palabras clave. Jobby toma las habilidades y tecnologías que pide el puesto y mira cuáles aparecen en tu CV. Una coincidencia exacta o una variante conocida, como «API REST» y «REST APIs», suma ${formatPoints(ATS_KEYWORD_POINTS.literal)}; una de significado parecido suma ${formatPoints(ATS_KEYWORD_POINTS.semantic)}.`
+          text: `El primero son las palabras clave. Jobby toma las habilidades y tecnologías que pide el puesto y mira cuáles aparecen en tu CV. Una coincidencia exacta o una variante conocida, como «API REST» y «REST APIs», suma ${formatPoints(ATS_KEYWORD_POINTS.literal)}; una de significado parecido suma ${formatPoints(ATS_KEYWORD_POINTS.semantic)}. Si el aviso presenta una habilidad como deseable («nice to have», «se valora»), ${ATS_NICE_TO_HAVE_WEIGHT === 0.5 ? "vale la mitad" : "pesa menos"} que una obligatoria, tanto si la tenés como si te falta.`
         },
         {
           type: "paragraph",

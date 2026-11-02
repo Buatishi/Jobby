@@ -32,8 +32,9 @@ logger = logging.getLogger(__name__)
 # 1 daba siempre «sin problemas de formato». La 3 busca por palabra completa y solo
 # mide habilidades, sin nivel, modalidad, ciudad ni título (Decisión 35). La 4 saca los
 # idiomas de las keywords (se evalúan como requisito) y busca también en las
-# certificaciones y el resumen del CV (Decisión 42).
-ATS_REPORT_VERSION = 4
+# certificaciones y el resumen del CV (Decisión 42). La 5 guarda de cada palabra si el
+# aviso la pide como obligatoria o como deseable.
+ATS_REPORT_VERSION = 5
 
 
 def cv_fingerprint(primary_cv: Mapping[str, Any]) -> str:
@@ -149,6 +150,27 @@ def keywords_from_row(row: Mapping[str, Any] | None) -> list[str] | None:
         and item["keyword"].strip()
     ]
     return keywords or None
+
+
+def priorities_from_row(row: Mapping[str, Any] | None) -> dict[str, str] | None:
+    """Qué palabras del último reporte son deseables, por palabra en minúsculas.
+
+    Un reporte guardado antes de que se guardara la prioridad no la trae: devuelve None
+    y quien llama decide si la pide a la IA o las toma a todas como obligatorias.
+    """
+    if row is None:
+        return None
+    matches = row.get("keyword_matches")
+    if not isinstance(matches, list):
+        return None
+    items = [item for item in matches if isinstance(item, dict)]
+    if not any("priority" in item for item in items):
+        return None
+    return {
+        str(item["keyword"]).strip().lower(): str(item.get("priority") or "required")
+        for item in items
+        if isinstance(item.get("keyword"), str)
+    }
 
 
 def skill_vector_loader(

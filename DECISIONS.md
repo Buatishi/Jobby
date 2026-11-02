@@ -2937,3 +2937,26 @@ Las palabras que más pesan en el aviso de JPMorgan («Software design», «Soft
 - **Se mantiene la regla de palabras en forma común** y el respaldo ahora **parte el resumen y las descripciones en oraciones** (por punto, punto y coma o salto de línea): una keyword se respalda dentro de una oración, no juntando palabras sueltas de un párrafo.
 
 **Límites que quedan abiertos.** Es un solo CV y ocho puestos: sirve para descartar un enfoque, no para calibrar umbrales. La regla no ve lo que no está en la tabla: «Docker» no respalda «Containers». Si un par común falta, se agrega a `skill_names` con su prueba.
+
+## Actualización — Decisión 42 (2026-11-02): palabras clave obligatorias y deseables
+
+**Estado:** Tercer paso de la etapa 2 del ATS, preparado a pedido del autor («Sí, prepararlo»). El peso de las deseables es una **propuesta del cambio, no aprobada ni medida**.
+
+**Problema.** Un aviso separa lo que pide de lo que «se valora» o es «nice to have», y el reporte contaba todas las palabras clave igual: un «Docker» deseable que falta pesaba como un «Python» obligatorio que falta, y uno que figura sumaba lo mismo.
+
+**Elegido.**
+- **Sin migración.** La prioridad (`required` o `nice`) vive dentro de cada palabra del reporte, que ya se guarda como JSON; un reporte guardado antes se lee como todas obligatorias. No hay columnas nuevas ni cambios en `job_descriptions`.
+- **La IA que extrae las palabras clave** devuelve cada una con su prioridad y marca `nice` solo si el aviso la presenta como deseable («nice to have», «plus», «preferred», «se valora», «deseable», «valorable»). Una respuesta con texto simple se sigue aceptando: todas obligatorias.
+- **Peso:** una deseable pesa la mitad que una obligatoria, tanto si el CV la tiene como si le falta (`NICE_TO_HAVE_WEIGHT = 0,5`). Sin deseables, el puntaje es el mismo de antes.
+- **Reportes guardados sin prioridad:** al rehacerse (`ATS_REPORT_VERSION` pasa de 4 a 5) se hace **una consulta barata a la IA** que dice cuáles de las palabras ya guardadas son deseables, sin cambiar las palabras del puesto. Si falla o devuelve algo inesperado, quedan todas obligatorias, como antes. Esa consulta cuenta una vez por puesto; después la prioridad queda guardada y abrir el reporte vuelve a ser una lectura.
+- **Pantalla y guías:** la tabla marca «Deseable» junto a esas palabras y las guías dicen que valen la mitad (un test las ata a `scoring.py`).
+
+**Alternativa descartada:** una columna nueva `nice_to_have_skills` en `job_descriptions`. Pedía una migración y no cambiaba las palabras del reporte, que salen de otra extracción distinta de la del puesto.
+
+**Límites que quedan abiertos.**
+- **No se probó con una respuesta real de la IA:** las pruebas usan respuestas falsas. Depende de que el aviso diga explícitamente qué es deseable; si no lo dice, todas son obligatorias.
+- El MatchScore (`s_skills`) sigue sin distinguir obligatorias de deseables.
+- Rehacer cada reporte guardado gasta una consulta del tope diario (10 en el plan gratuito, 50 en el premium) y una llamada barata a la IA.
+- El 0,5 es una convención: conviene medirlo con los 8 puestos antes de confiar en él.
+
+**Reversión.** Deshacer el merge: vuelve la versión 4 y la prioridad guardada se ignora.

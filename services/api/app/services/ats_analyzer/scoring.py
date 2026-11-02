@@ -24,13 +24,31 @@ WEIGHT_EDUCATION = 10
 WEIGHT_LANGUAGES = 10  # se reparte entre los idiomas que pide el aviso
 
 
+# Lo que suma una palabra clave según cómo aparece en el CV, y cuánto pesa si el aviso
+# la presenta como deseable («nice to have», «se valora») frente a una obligatoria.
+LITERAL_POINTS = 1.0
+SEMANTIC_POINTS = 0.5
+NICE_TO_HAVE_WEIGHT = 0.5
+
+
+def _weight(match: object) -> float:
+    return (
+        NICE_TO_HAVE_WEIGHT if getattr(match, "priority", "required") == "nice" else 1.0
+    )
+
+
 def keyword_coverage(matches: Sequence[_KeywordStatus]) -> float:
-    """Cuánto del puesto nombra el CV (0 a 1): literal vale 1 y semántica, la mitad."""
+    """Cuánto del puesto nombra el CV (0 a 1).
+
+    Literal vale 1 y semántica, la mitad. Una palabra que el aviso presenta como
+    deseable pesa la mitad que una obligatoria, tanto si la tiene como si le falta.
+    """
     if not matches:
         return 1.0
-    literal_hits = sum(1 for match in matches if match.status == "literal")
-    semantic_hits = sum(1 for match in matches if match.status == "semantic")
-    return (literal_hits * 1.0 + semantic_hits * 0.5) / len(matches)
+    points = {"literal": LITERAL_POINTS, "semantic": SEMANTIC_POINTS}
+    total = sum(_weight(match) for match in matches)
+    earned = sum(_weight(match) * points.get(match.status, 0.0) for match in matches)
+    return earned / total
 
 
 def compose_ats_score(
