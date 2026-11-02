@@ -72,6 +72,7 @@ def merge_structured_cv_data(
 ) -> dict[str, Any]:
     return {
         "contact": parsed_data.contact.model_dump(),
+        "summary": parsed_data.summary,
         "skills": merge_parsed_skills(parsed_data, existing_skills),
         "experiences": [
             experience.model_dump() for experience in parsed_data.experiences

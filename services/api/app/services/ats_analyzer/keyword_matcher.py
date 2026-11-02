@@ -6,10 +6,14 @@ from typing import Any, Literal
 
 from app.services.ai_gateway import AIGateway
 from app.services.match_engine.common import cosine_similarity, normalize_text
+from app.services.match_engine.s_languages import is_language_keyword
 from app.services.skill_filter import skill_keywords
 from app.services.skill_names import canonical_skill_key
 
 KeywordStatus = Literal["literal", "semantic", "missing"]
+
+# Caracteres de contexto a cada lado de una palabra hallada en el resumen del CV.
+SNIPPET_CONTEXT = 40
 
 # Los vectores que ya existen para algunos términos del CV (los de las skills del
 # perfil), por texto exacto. Se piden recién cuando hay que comparar por significado.
@@ -51,7 +55,32 @@ def _cv_terms(primary_cv: dict[str, Any]) -> list[str]:
         if isinstance(education, dict):
             terms.append(str(education.get("field_of_study") or ""))
             terms.append(str(education.get("degree_level") or ""))
+    for certification in parsed_data.get("certifications") or []:
+        if isinstance(certification, dict):
+            terms.append(str(certification.get("name") or ""))
     return [term for term in terms if term.strip()]
+
+
+def _cv_summary(primary_cv: dict[str, Any]) -> str:
+    """El resumen del CV, solo para buscar palabras literales (Decisión 42).
+
+    Es un párrafo: sirve para ver si una palabra clave está escrita, pero no para
+    comparar por significado (un vector del párrafo entero no se parece a una palabra).
+    """
+    parsed_data = primary_cv.get("parsed_data")
+    summary = parsed_data.get("summary") if isinstance(parsed_data, dict) else None
+    return summary.strip() if isinstance(summary, str) else ""
+
+
+def _snippet(text: str, keyword: str) -> str:
+    """El tramo del párrafo que rodea a la palabra, para mostrarlo en el reporte."""
+    pattern = rf"(?<![\w+#]){re.escape(keyword)}(?![\w+#])"
+    found = re.search(pattern, text, flags=re.IGNORECASE)
+    if found is None:
+        return keyword
+    start, end = max(0, found.start() - SNIPPET_CONTEXT), found.end() + SNIPPET_CONTEXT
+    cut = text[start:end].strip()
+    return f"{'…' if start > 0 else ''}{cut}{'…' if end < len(text) else ''}"
 
 
 def _job_text(job: dict[str, Any]) -> str:
@@ -94,10 +123,10 @@ async def extract_job_keywords(
             "Extraé las habilidades que pide este job para filtrar CVs con un ATS. "
             "Devolvé JSON estricto con forma "
             '{"keywords": ["Python", "React"]}. Incluí solo habilidades: lenguajes, '
-            "frameworks, librerías, herramientas, plataformas, metodologías, "
-            "certificaciones e idiomas, cada una con su nombre corto y común "
-            '("SQL", no "Escritura de consultas SQL"; "Inglés", no "Inglés nivel '
-            'intermedio"). No incluyas el título del puesto, el nivel o seniority, la '
+            "frameworks, librerías, herramientas, plataformas, metodologías y "
+            "certificaciones, cada una con su nombre corto y común "
+            '("SQL", no "Escritura de consultas SQL"). No incluyas idiomas (se '
+            "evalúan aparte), el título del puesto, el nivel o seniority, la "
             "modalidad (remoto, híbrido, presencial), el tipo de jornada, la ciudad o "
             "el país, la empresa, ni tareas o responsabilidades escritas como "
             f"frases.\n\n{_job_text(job)}"
@@ -183,7 +212,12 @@ async def analyze_keywords(
     if keywords is None:
         keywords = await extract_job_keywords(job, ai_gateway)
     keywords = skill_keywords(keywords, job)
+    # Los idiomas se evalúan como requisito del puesto: en la lista de palabras clave
+    # se contaban dos veces y se contradecían (Decisión 42).
+    keywords = [keyword for keyword in keywords if not is_language_keyword(keyword)]
     cv_terms = _cv_terms(primary_cv)
+    summary = _cv_summary(primary_cv)
+    normalized_summary = normalize_text(summary)
     normalized_cv = {normalize_text(term): term for term in cv_terms}
     # Un alias o una traducción también es literal: «Integración de APIs» es
     # «API Integrations». Se mira después de la búsqueda de siempre.
@@ -204,6 +238,10 @@ async def analyze_keywords(
             None,
         )
         literal = literal or cv_by_key.get(canonical_skill_key(keyword))
+        if literal is None and _contains_whole_word(
+            normalized_summary, normalized_keyword
+        ):
+            literal = _snippet(summary, keyword)
         if literal:
             literals[keyword] = literal
 
