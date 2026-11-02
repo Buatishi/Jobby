@@ -3,6 +3,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  ATS_CONTENT_POINTS,
+  ATS_CONTENT_WEIGHTS,
+  ATS_FORMAT_PENALTIES,
+  ATS_FORMAT_POINTS,
   ATS_KEYWORD_POINTS,
   ATS_NICE_TO_HAVE_WEIGHT,
   ATS_SCORE_WEIGHTS,
@@ -164,21 +168,50 @@ describe("guide figures match the backend code", () => {
     expect(Math.round(Number(match?.[1]) * 100)).toBe(FULL_RELEVANCE_PERCENT);
   });
 
-  it("uses the weights of each part of the ATS score", () => {
+  it("uses the weights of each part of the ATS content", () => {
     const source = readService("ats_analyzer/scoring.py");
     const weight = (name: string) =>
       Number(source.match(new RegExp(String.raw`WEIGHT_${name} = (\d+)`))?.[1]);
 
-    expect(weight("SKILLS")).toBe(ATS_SCORE_WEIGHTS.skills);
-    expect(weight("EXPERIENCE")).toBe(ATS_SCORE_WEIGHTS.experience);
-    expect(weight("EDUCATION")).toBe(ATS_SCORE_WEIGHTS.education);
-    expect(weight("LANGUAGES")).toBe(ATS_SCORE_WEIGHTS.languages);
+    expect(weight("SKILLS")).toBe(ATS_CONTENT_WEIGHTS.skills);
+    expect(weight("EXPERIENCE")).toBe(ATS_CONTENT_WEIGHTS.experience);
+    expect(weight("EDUCATION")).toBe(ATS_CONTENT_WEIGHTS.education);
+    expect(weight("LANGUAGES")).toBe(ATS_CONTENT_WEIGHTS.languages);
+    expect(
+      Object.values(ATS_CONTENT_WEIGHTS).reduce((sum, value) => sum + value, 0)
+    ).toBe(100);
+  });
+
+  it("gives the file format ten of the hundred ATS points", () => {
+    const source = readService("ats_analyzer/scoring.py");
+    const points = (name: string) =>
+      Number(source.match(new RegExp(String.raw`${name} = (\d+)`))?.[1]);
+
+    expect(points("FORMAT_POINTS")).toBe(ATS_FORMAT_POINTS);
+    expect(points("CONTENT_POINTS")).toBe(ATS_CONTENT_POINTS);
+    expect(ATS_FORMAT_POINTS + ATS_CONTENT_POINTS).toBe(100);
+    // Lo que vale cada parte cuando el puesto lo pide todo: 54, 18, 9, 9 y 10.
+    expect(Object.values(ATS_SCORE_WEIGHTS)).toEqual([54, 18, 9, 9, 10]);
     expect(Object.values(ATS_SCORE_WEIGHTS).reduce((sum, value) => sum + value, 0)).toBe(
       100
     );
   });
 
-  it("does not take points off for the file format", () => {
+  it("uses the points each format notice takes off", () => {
+    const source = readService("ats_analyzer/format_checker.py");
+    const penalty = (name: string) =>
+      Number(source.match(new RegExp(String.raw`PENALTY_${name} = (\d+)`))?.[1]);
+
+    expect(penalty("MULTI_COLUMN")).toBe(ATS_FORMAT_PENALTIES.columns);
+    expect(penalty("IMAGES")).toBe(ATS_FORMAT_PENALTIES.images);
+    expect(penalty("TABLES")).toBe(ATS_FORMAT_PENALTIES.tables);
+    expect(Object.values(ATS_FORMAT_PENALTIES).reduce((sum, value) => sum + value, 0)).toBe(
+      ATS_FORMAT_POINTS
+    );
+  });
+
+  it("keeps the per-notice penalties out of the score formula", () => {
+    // La fórmula recibe los puntos de formato ya hechos; cada aviso vive en el chequeo.
     const source = readService("ats_analyzer/scoring.py");
 
     expect(source).not.toMatch(/penalty/);
@@ -217,7 +250,8 @@ describe("guide figures match the backend code", () => {
 
   it("writes the figures the newer guides cite", () => {
     const checklist = guideText(getGuide("cv-compatible-con-ats")!);
-    expect(checklist).toContain("el formato no resta puntos");
+    expect(checklist).toContain(`el formato vale ${ATS_FORMAT_POINTS} de los 100 puntos`);
+    expect(checklist).toContain("no el puntaje de ningún ATS real");
     expect(checklist).toContain("los años, la formación y los idiomas");
 
     const analysis = guideText(getGuide("analizar-cv-con-ia")!);
@@ -249,7 +283,11 @@ describe("guide figures match the backend code", () => {
     expect(ats).toContain("«nice to have», «se valora»");
     expect(ats).toContain("vale la mitad");
     expect(ats).toContain(`los años (${ATS_SCORE_WEIGHTS.experience} %)`);
-    expect(ats).toContain("Es un aviso: no resta puntos.");
+    expect(ats).toContain(`el formato del archivo (${ATS_SCORE_WEIGHTS.format} %)`);
+    expect(ats).toContain(
+      `las columnas restan ${ATS_FORMAT_PENALTIES.columns}, las imágenes ${ATS_FORMAT_PENALTIES.images} y las tablas ${ATS_FORMAT_PENALTIES.tables}`
+    );
+    expect(ats).toContain("no el puntaje de ningún ATS real");
     expect(ats).toContain("suma 0,5");
   });
 

@@ -23,6 +23,7 @@ from app.services.ats_analyzer.cv_optimizer import (
 )
 from app.services.ats_analyzer.format_checker import (
     check_cv_format,
+    format_points,
     format_was_evaluated,
 )
 from app.services.ats_analyzer.keyword_matcher import (
@@ -39,7 +40,11 @@ from app.services.ats_analyzer.report_store import (
 )
 from app.services.ats_analyzer.requirement_inputs import fetch_requirement_inputs
 from app.services.ats_analyzer.requirements import evaluate_requirements
-from app.services.ats_analyzer.scoring import compose_ats_score, compute_ats_score
+from app.services.ats_analyzer.scoring import (
+    FORMAT_POINTS,
+    compose_ats_score,
+    compute_ats_score,
+)
 from app.services.rate_limits import (
     RateLimitExceededError,
     RateLimitKind,
@@ -114,8 +119,11 @@ async def _build_ats_report(
         saved_vectors=skill_vector_loader(supabase, primary_cv),
     )
     format_issues = check_cv_format(primary_cv)
+    evaluated = format_was_evaluated(primary_cv)
+    # Un CV cuyo formato no se miró no puntúa formato: ni suma ni resta (Decisión 42).
+    points = format_points(format_issues) if evaluated else None
     # Sin requisitos todavía: `_with_requirements` los suma y vuelve a puntuar.
-    ats_score = compute_ats_score(keyword_result.matches)
+    ats_score = compute_ats_score(keyword_result.matches, (), points)
 
     return ATSReport(
         job_id=job_id,
@@ -137,7 +145,8 @@ async def _build_ats_report(
             )
             for issue in format_issues
         ],
-        format_evaluated=format_was_evaluated(primary_cv),
+        format_evaluated=evaluated,
+        format_points=points,
     )
 
 
@@ -193,13 +202,17 @@ async def _with_requirements(
         return report.model_copy(
             update={
                 "requirements": [],
-                "ats_score": compose_ats_score(report.keyword_matches, []),
+                "ats_score": compose_ats_score(
+                    report.keyword_matches, [], report.format_points
+                ),
             }
         )
     return report.model_copy(
         update={
             "requirements": requirements,
-            "ats_score": compose_ats_score(report.keyword_matches, requirements),
+            "ats_score": compose_ats_score(
+                report.keyword_matches, requirements, report.format_points
+            ),
         }
     )
 
@@ -309,6 +322,12 @@ async def optimize_ats_cv(
                 "details": {},
             },
         ) from exc
+    # El CV descargable es de una columna, sin imágenes ni tablas (medido con el mismo
+    # detector de formato): el «después» cuenta el formato completo. Si el formato del
+    # archivo subido no se evaluó, el «después» tampoco lo cuenta.
+    format_points_after = (
+        FORMAT_POINTS if ats_report.format_points is not None else None
+    )
     return ATSOptimizeResponse(
         job_id=payload.job_id,
         sections=sections,
@@ -317,5 +336,7 @@ async def optimize_ats_cv(
             sections,
             ats_report.keyword_matches,
             ats_report.requirements,
+            format_points_after,
         ),
+        format_points_after=format_points_after,
     )

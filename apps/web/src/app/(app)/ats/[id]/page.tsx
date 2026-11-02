@@ -52,6 +52,8 @@ type ATSReport = {
   requirements?: ATSRequirement[];
   /** false: el CV se leyó antes del chequeo de formato; `format_issues` vacío no es «sin problemas». */
   format_evaluated?: boolean;
+  /** Puntos de formato (0 a 10) que entran en el puntaje; null si el formato no se evaluó. */
+  format_points?: number | null;
 };
 
 function statusLabel(status: KeywordStatus) {
@@ -174,8 +176,8 @@ export default function ATSReportPage() {
           <CardHeader>
             <CardTitle>ATS Score</CardTitle>
             <CardDescription>
-              Palabras clave, años, formación e idiomas. El formato no resta
-              puntos.
+              Palabras clave, años, formación, idiomas y formato (10 de los
+              100 puntos, una estimación propia del riesgo de lectura).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -254,6 +256,7 @@ export default function ATSReportPage() {
         <FormatIssuesCard
           evaluated={formatWasEvaluated(report)}
           issues={report.format_issues}
+          points={report.format_points}
         />
       </section>
 
@@ -301,7 +304,12 @@ export default function ATSReportPage() {
               </div>
             ) : null}
 
-            {optimized ? <OptimizedCVResult optimized={optimized} /> : null}
+            {optimized ? (
+              <OptimizedCVResult
+                formatPointsBefore={report.format_points}
+                optimized={optimized}
+              />
+            ) : null}
             {optimized && optimized.sections.length > 0 ? (
               <div className="mt-5">
                 <DownloadCVPanel sections={optimized.sections} />

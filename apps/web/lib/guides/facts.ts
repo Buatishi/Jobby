@@ -54,14 +54,37 @@ export const FULL_RELEVANCE_PERCENT = 25;
 // `formula.py` (`_gap_origin`): por debajo de este valor un componente se marca como brecha.
 export const GAP_THRESHOLD_PERCENT = 70;
 
-// `ats_analyzer/scoring.py` (`WEIGHT_*`): peso de cada parte del puntaje ATS. El formato del
-// archivo no entra: se muestra aparte y no resta puntos.
-export const ATS_SCORE_WEIGHTS = {
+// `ats_analyzer/scoring.py` (`WEIGHT_*`): proporción de cada parte del contenido del puntaje ATS.
+export const ATS_CONTENT_WEIGHTS = {
   skills: 60,
   experience: 20,
   education: 10,
   languages: 10
 } as const;
+
+// `ats_analyzer/scoring.py` (`FORMAT_POINTS` y `CONTENT_POINTS`): del total de 100, el formato del
+// archivo vale 10 y el contenido, 90. El formato es una estimación propia del riesgo de lectura,
+// una convención de Jobby y no el puntaje de ningún ATS real.
+export const ATS_FORMAT_POINTS = 10;
+export const ATS_CONTENT_POINTS = 90;
+
+// `ats_analyzer/format_checker.py` (`PENALTY_*`): cuántos de los 10 puntos de formato resta cada aviso.
+export const ATS_FORMAT_PENALTIES = {
+  columns: 4,
+  images: 3,
+  tables: 3
+} as const;
+
+const contentShare = (weight: number) => (weight * ATS_CONTENT_POINTS) / 100;
+
+// Lo que vale cada parte cuando el puesto pide todo: 54, 18, 9 y 9 del contenido y 10 del formato.
+export const ATS_SCORE_WEIGHTS = {
+  skills: contentShare(ATS_CONTENT_WEIGHTS.skills),
+  experience: contentShare(ATS_CONTENT_WEIGHTS.experience),
+  education: contentShare(ATS_CONTENT_WEIGHTS.education),
+  languages: contentShare(ATS_CONTENT_WEIGHTS.languages),
+  format: ATS_FORMAT_POINTS
+};
 
 // `ats_analyzer/scoring.py` (`LITERAL_POINTS` y `SEMANTIC_POINTS`): lo que suma cada palabra clave.
 export const ATS_KEYWORD_POINTS = { literal: 1, semantic: 0.5 } as const;

@@ -218,3 +218,18 @@ describe("DownloadCVPanel", () => {
     ).toEqual([true, false]);
   });
 });
+
+describe("the downloadable CV keeps the format the ATS score counts", () => {
+  // El «después» del optimizador cuenta 10 de 10 de formato porque el CV descargable es de
+  // una columna, sin imágenes ni tablas (Decisión 42). Se midió con el detector de formato
+  // sobre el PDF real; esto vigila que el documento no sume lo que lo rompería.
+  it("has no images, tables or multi-column layout", () => {
+    const html = renderToStaticMarkup(<PrintableCVDocument cv={fullCv} />);
+
+    for (const tag of ["<img", "<table", "<svg", "<picture", "<canvas", "<video"]) {
+      expect(html, tag).not.toContain(tag);
+    }
+    expect(html).not.toMatch(/column-count|columns-[2-9]|md:columns|lg:columns/);
+    expect(html).not.toMatch(/background-image/);
+  });
+});

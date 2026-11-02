@@ -2986,3 +2986,34 @@ Las palabras que más pesan en el aviso de JPMorgan («Software design», «Soft
 **Pruebas.** `tests/unit/test_cv_optimizer_declared.py` (18) y 2 casos de la ruta en `test_ats_report_cache.py`; en la web, `declare-keywords.test.tsx` y 4 casos de `optimized-cv-result.test.tsx`.
 
 **Reversión.** Deshacer el merge: el pedido vuelve a ser solo `job_id` y lo declarado se ignora.
+
+## Actualización — Decisión 42 (2026-11-02): el formato vuelve al puntaje, con 10 de los 100 puntos
+
+**Estado:** Decisión aprobada por el autor, que cambia lo que dejó la Decisión 42 (el formato se muestra y no suma ni resta). Pedido tras ver un «39 → 39» en el puesto de Globant y preguntar por qué armar mejor el CV (sacar la foto, una sola columna) no subía ni un punto. **Los valores (10 puntos y −4/−3/−3) son una convención de Jobby, una propuesta del autor: no los mide ni los publica ningún ATS.**
+
+**Por qué.**
+1. El producto existe para que la persona postule con un CV que pase mejor un ATS real. El formato es parte de ese objetivo: un ATS extrae el texto y lo ordena en campos, y columnas, tablas, cuadros de texto e imágenes pueden mezclar renglones o perder fechas y habilidades, y eso empeora cómo queda el CV en las búsquedas del reclutador.
+2. Hoy el puntaje no se mueve al mejorar el formato porque nuestro lector separa las columnas y encuentra las palabras igual. Eso no representa a un ATS real, y el autor lo vio como un 39 → 39 injusto.
+3. **Lo que no sabemos:** cuánto pierde cada ATS real por cada problema, ni cómo lee cada uno (Workday, Greenhouse, Taleo…). La investigación del 2026-10-31 (un subagente, fuentes no verificadas una por una) no encontró ningún ATS que publique puntos por formato. Por eso los números son una convención nuestra y la pantalla y las guías lo dicen.
+4. **Descartado:** penalizar solo si hay pérdida real de lectura (es más justo con nuestro lector, pero no mide el riesgo en un ATS real) y un indicador aparte sin puntos (el autor prefirió que el formato mueva el número).
+5. **Descartado:** volver a la regla vieja (−10 por columnas, imágenes y tablas, #116): no tenía respaldo y restaba aunque no se perdiera nada.
+
+**Elegido.**
+- **Reparto:** el formato vale **10 puntos fijos** y el contenido (palabras clave, años, formación e idiomas, en la proporción de siempre 60/20/10/10) los otros **90**. Con el puesto pidiéndolo todo: palabras clave 54, años 18, formación 9, idiomas 9 y formato 10. El total es `90 × contenido + 10 × formato` (`CONTENT_POINTS` y `FORMAT_POINTS` en `scoring.py`).
+- **Por qué 10 fijos y no una parte más:** hoy lo que el puesto no pide no entra y los pesos se reparten entre el resto. Si el formato fuera una parte más, en un puesto que pide solo palabras clave pesaría cerca del 16 %. Así vale 10 de 100 siempre.
+- **Cuánto resta cada aviso** del archivo subido (constantes `PENALTY_*` en `format_checker.py`, fáciles de cambiar): varias columnas −4, imágenes −3, tablas −3; piso en 0 (los tres avisos dejan 0 de 10). Sin avisos, 10 de 10. Los títulos de sección poco habituales se avisan pero no restan: no estaban entre los avisos con puntos.
+- **Formato no evaluado** (el CV se leyó antes de que existiera el chequeo, o no tiene datos): el formato **no entra**, ni suma ni resta. El puntaje es el del contenido sobre 100 y la tarjeta dice que no cuenta. Se eligió así antes que darle 10 (premiaría algo que no se miró) o 0 (penalizaría lo mismo).
+- **«Antes → después» del optimizador:** el «después» usa el formato del **CV descargable de la app**, que es de una columna, sin imágenes ni tablas: 10 de 10. Si el formato del archivo subido no se evaluó, el «después» tampoco lo cuenta, para que el antes y el después se puedan comparar. La pantalla lo dice en lugar de asumirlo: «El “después” cuenta el formato del CV descargable de Jobby: una columna, sin imágenes ni tablas», y cuántos puntos suma si el archivo subido tenía menos.
+- **API:** el reporte trae `format_points` (0 a 10, o nulo si no se evaluó) y la respuesta de optimizar, `format_points_after`. `ATS_REPORT_VERSION` pasa a 6: los reportes guardados se rehacen al abrirlos. La tarjeta de formato muestra los puntos y dice que es una estimación propia del riesgo de lectura y no el puntaje de ningún ATS real.
+
+**Medido** (2026-11-02, local, datos reales del autor): su archivo subido «CV Bautista Giraud.pdf» tiene una imagen de 207×315 pt y dos columnas (el detector acierta); el PDF que descarga la app, medido con el mismo detector (`pdfplumber`, `read_layout`), da sin tablas, sin columnas y sin imágenes. Con −4/−3/−3: su archivo 3 de 10 y el descargable 10 de 10, unos 7 puntos de diferencia en el total. En sus reportes guardados el puntaje cambia así (aproximado): Globant 39 → 38 y «después» 45; otro puesto 30 → 30 y «después» 37; el de tablas, columnas e imágenes 0 → 0 y «después» 10.
+
+**Límites que quedan abiertos.**
+- El «después» depende de un solo PDF medido. Un test de la web comprueba que el documento imprimible no tenga imágenes, tablas ni columnas, pero la CI no puede medir el PDF final.
+- Cambia el puntaje de todos los reportes: se rehacen al abrirlos y cada uno gasta una consulta del tope diario (10 en el plan gratuito, 50 en el premium).
+- Un CV sin ninguna palabra clave cubierta igual suma sus 10 puntos de formato (un reporte con 0 de contenido y formato limpio da 10): es lo que implica la regla.
+- La regla del 4/3/3 no distingue una columna lateral con datos de contacto de una columna con experiencia: avisa igual.
+
+**Pruebas.** `tests/unit/test_ats_format_score.py` (fórmula, las partes 54/18/9/9 y 10, el formato fijo en 10 pida lo que pida el aviso, formato no evaluado, topes y el «después»), `test_format_checker.py` (avisos y puntos), `test_ats_report_cache.py` (reporte con `format_points`, versión 5 rehecha, «después» con y sin formato) y, en la web, la tarjeta de formato, el panel del optimizador, las guías atadas a `scoring.py` y `format_checker.py` y el documento imprimible.
+
+**Reversión.** Deshacer el merge: vuelve la versión 5 y el formato se muestra sin sumar ni restar.
