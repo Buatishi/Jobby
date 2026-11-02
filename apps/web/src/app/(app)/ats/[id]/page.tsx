@@ -19,6 +19,11 @@ import { apiClient } from "@/lib/api/client";
 import { getScoreColor, getScoreLabel } from "@/lib/utils/score-colors";
 
 import {
+  DeclareKeywords,
+  optimizeRequestBody,
+  type MissingKeyword
+} from "./declare-keywords";
+import {
   FormatIssuesCard,
   formatWasEvaluated,
   type FormatIssue
@@ -68,6 +73,8 @@ export default function ATSReportPage() {
   const [optimized, setOptimized] = useState<ATSOptimizeResponse | null>(null);
   const [optimizerError, setOptimizerError] = useState<string | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  // Las palabras que la persona marcó como «sí las sé» aunque su CV no las muestre.
+  const [declared, setDeclared] = useState<string[]>([]);
 
   useEffect(() => {
     async function loadReport() {
@@ -87,12 +94,22 @@ export default function ATSReportPage() {
 
   const scoreColor = getScoreColor(report?.ats_score ?? 0);
   const scoreLabel = getScoreLabel(report?.ats_score ?? 0);
-  const missingCount = useMemo(
+  const missingKeywords = useMemo<MissingKeyword[]>(
     () =>
-      report?.keyword_matches.filter((match) => match.status === "missing")
-        .length ?? 0,
+      (report?.keyword_matches ?? [])
+        .filter((match) => match.status === "missing")
+        .map(({ keyword, priority }) => ({ keyword, priority })),
     [report?.keyword_matches]
   );
+  const missingCount = missingKeywords.length;
+
+  function toggleDeclared(keyword: string) {
+    setDeclared((current) =>
+      current.includes(keyword)
+        ? current.filter((item) => item !== keyword)
+        : [...current, keyword]
+    );
+  }
 
   async function handleOptimize() {
     setIsOptimizing(true);
@@ -101,7 +118,9 @@ export default function ATSReportPage() {
       setOptimized(
         await apiClient<ATSOptimizeResponse>("/api/v1/ats/optimize", {
           method: "POST",
-          body: JSON.stringify({ job_id: params.id })
+          body: JSON.stringify(
+            optimizeRequestBody(params.id, declared, missingKeywords)
+          )
         })
       );
     } catch (requestError) {
@@ -254,6 +273,12 @@ export default function ATSReportPage() {
             <Badge variant="outline">3 por mes gratis · 30 en Premium</Badge>
           </summary>
           <div className="border-t border-border p-6">
+            <DeclareKeywords
+              disabled={isOptimizing}
+              missing={missingKeywords}
+              onToggle={toggleDeclared}
+              selected={declared}
+            />
             <Button
               disabled={isOptimizing}
               onClick={() => void handleOptimize()}

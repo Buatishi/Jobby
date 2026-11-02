@@ -2961,6 +2961,32 @@ Las palabras que más pesan en el aviso de JPMorgan («Software design», «Soft
 
 **Reversión.** Deshacer el merge: vuelve la versión 4 y la prioridad guardada se ignora.
 
+## Actualización — Decisión 24 (2026-11-02): la persona puede declarar las palabras que sabe y su CV no muestra
+
+**Estado:** Pedido del autor al ver un «39 → 39» en el puesto de Globant: que el reporte aclare qué falta para que el puntaje suba y por qué no se agregó, y que pueda confirmar que sabe esas cosas para que el optimizador las agregue y el puntaje suba. **Lo que se declara es de la persona: ni el CV ni el LinkedIn lo respaldan, y el sistema no lo verifica.**
+
+**Medido antes de cambiar** (2026-11-02, solo lectura, con el CV y el reporte reales del autor): de las 7 palabras del puesto, 5 faltaban (AI, CI/CD, Django, Flask, Google Cloud Platform) y ninguna aparecía en el CV, ni literal ni con otras palabras. El «39 → 39» era correcto: reescribir no puede subir el puntaje sin inventar.
+
+**Elegido.**
+- **Qué falta y por qué:** en la tarjeta «CV Optimizado», un bloque «Qué falta para que el puntaje suba» lista las palabras que el reporte da por faltantes y dice que no se escribieron porque no hay con qué saber que la persona las conoce.
+- **Confirmar:** cada una tiene una casilla. Las marcadas viajan en el pedido de optimizar (`confirmed_keywords`). Sin migración: no se guardan, valen para esa optimización.
+- **El servidor solo acepta nombres que el reporte marca ausentes** (`declared_keywords`), con la grafía del reporte: lo que llega del navegador no mete texto propio en el pedido a la IA ni en el CV. El pedido admite hasta 30 palabras de hasta 80 caracteres.
+- **Dónde se escriben:** solo en la lista de habilidades (y, si queda natural, en el resumen). Nunca dentro de una experiencia: no hay cargo, empresa ni logro que las respalde. Si la IA las omite, el servidor las suma a su sección `skills` o crea una con las habilidades del CV, una vez cada una.
+- **Cuentan:** el puntaje «después» las cuenta como presentes, con el peso que les toca (una deseable vale la mitad, Decisión 42). Se muestran aparte de las que el CV respalda con otras palabras: «Incluye N palabras que declaraste saber… las contamos porque lo confirmaste».
+- **Sin declarar nada, todo queda igual:** el pedido a la IA, la verificación y el puntaje son los de antes.
+
+**Alternativa descartada:** contar las palabras que el texto nuevo menciona sin que nadie las declare. Eso sí sería inventar experiencia: sigue valiendo que las que nadie respalda ni declara no se cuentan.
+
+**Límites que quedan abiertos.**
+- El puntaje con lo declarado sube porque la persona lo afirma; un ATS real lee el CV, y en una entrevista le pueden preguntar por eso. El bloque lo dice y pide marcar solo lo que se puede defender.
+- Cada reoptimización con otras palabras cuenta en el cupo mensual (3 gratis, 30 en premium).
+- **No se probó con una respuesta real de la IA** (las pruebas usan respuestas falsas); la red de seguridad del servidor escribe lo declarado aunque la IA lo omita.
+- El formato del CV no suma puntos (Decisión 42): una pregunta aparte.
+
+**Pruebas.** `tests/unit/test_cv_optimizer_declared.py` (18) y 2 casos de la ruta en `test_ats_report_cache.py`; en la web, `declare-keywords.test.tsx` y 4 casos de `optimized-cv-result.test.tsx`.
+
+**Reversión.** Deshacer el merge: el pedido vuelve a ser solo `job_id` y lo declarado se ignora.
+
 ## Actualización — Decisión 42 (2026-11-02): el formato vuelve al puntaje, con 10 de los 100 puntos
 
 **Estado:** Decisión aprobada por el autor, que cambia lo que dejó la Decisión 42 (el formato se muestra y no suma ni resta). Pedido tras ver un «39 → 39» en el puesto de Globant y preguntar por qué armar mejor el CV (sacar la foto, una sola columna) no subía ni un punto. **Los valores (10 puntos y −4/−3/−3) son una convención de Jobby, una propuesta del autor: no los mide ni los publica ningún ATS.**

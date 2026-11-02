@@ -445,6 +445,58 @@ def test_the_optimizer_reads_the_saved_report_and_the_report_it_leaves_is_free(
     assert _queries_spent(fake_redis) == spent
 
 
+def test_only_keywords_the_report_marks_missing_reach_the_optimizer_as_declared(
+    client: TestClient,
+    gateway: KeywordGateway,
+    fake_redis: FakeRedis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: dict[str, Any] = {}
+
+    async def fake_optimize(*_args: object, **kwargs: object) -> list[object]:
+        received.update(kwargs)
+        return []
+
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
+    _serve(_world())
+    _open(client)
+
+    # «Python» ya figura en el CV y «Kubernetes» no es del puesto: solo «GraphQL»,
+    # que el reporte da por faltante, llega como declarada.
+    response = client.post(
+        "/api/v1/ats/optimize",
+        json={
+            "job_id": "job-1",
+            "confirmed_keywords": ["graphql", "Python", "Kubernetes"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert received["declared"] == ["GraphQL"]
+
+
+def test_optimizing_without_declaring_anything_sends_no_declared_keywords(
+    client: TestClient,
+    gateway: KeywordGateway,
+    fake_redis: FakeRedis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: dict[str, Any] = {}
+
+    async def fake_optimize(*_args: object, **kwargs: object) -> list[object]:
+        received.update(kwargs)
+        return []
+
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
+    _serve(_world())
+    _open(client)
+
+    response = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"})
+
+    assert response.status_code == 200
+    assert received["declared"] == []
+
+
 def test_the_score_after_counts_the_format_of_the_downloadable_cv(
     client: TestClient,
     gateway: KeywordGateway,

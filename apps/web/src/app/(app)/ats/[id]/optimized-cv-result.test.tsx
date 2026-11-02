@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
+  declaredKeywordsOf,
   OptimizedCVResult,
   type ATSOptimizeResponse
 } from "@/src/app/(app)/ats/[id]/optimized-cv-result";
@@ -137,6 +138,66 @@ describe("OptimizedCVResult", () => {
     );
 
     expect(html).not.toContain("formato del CV descargable");
+  });
+
+  it("shows the keywords the person declared apart from the ones the CV backs", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [
+        { ...section, declared_keywords: ["CI/CD", "Django"] },
+        { ...section, declared_keywords: ["Django"] }
+      ],
+      ats_score_before: 39,
+      ats_score_after: 62
+    };
+
+    const html = renderToStaticMarkup(<OptimizedCVResult optimized={optimized} />);
+
+    expect(html).toContain("Incluye 2 palabras que declaraste saber: CI/CD, Django.");
+    expect(html).toContain("las contamos porque lo confirmaste");
+    expect(html).toContain("Escritas porque dijiste que las sabés");
+    expect(declaredKeywordsOf(optimized)).toEqual(["CI/CD", "Django"]);
+  });
+
+  it("says one word in the singular", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [{ ...section, declared_keywords: ["CI/CD"] }],
+      ats_score_before: 39,
+      ats_score_after: 45
+    };
+
+    expect(renderToStaticMarkup(<OptimizedCVResult optimized={optimized} />)).toContain(
+      "Incluye una palabra que declaraste saber: CI/CD."
+    );
+  });
+
+  it("does not mention declared keywords when there are none", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [section],
+      ats_score_before: 39,
+      ats_score_after: 45
+    };
+
+    const html = renderToStaticMarkup(<OptimizedCVResult optimized={optimized} />);
+
+    expect(html).not.toContain("declaraste");
+    expect(declaredKeywordsOf(optimized)).toEqual([]);
+  });
+
+  it("points to the confirmation when the score stays the same", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [section],
+      ats_score_before: 39,
+      ats_score_after: 39
+    };
+
+    const html = renderToStaticMarkup(<OptimizedCVResult optimized={optimized} />);
+
+    expect(html).toContain("ni en tu LinkedIn");
+    expect(html).toContain("Qué falta para que el puntaje suba");
   });
 
   it("keeps working with answers from before the verification", () => {

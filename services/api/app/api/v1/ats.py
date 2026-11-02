@@ -17,6 +17,7 @@ from app.models.ats import (
 from app.models.auth import CurrentUser
 from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ats_analyzer.cv_optimizer import (
+    declared_keywords,
     optimize_cv_sections,
     score_after_optimization,
 )
@@ -307,6 +308,9 @@ async def optimize_ats_cv(
             job,
             ats_report.keyword_matches,
             "premium" if user_tier == "premium" else "free",
+            declared=declared_keywords(
+                ats_report.keyword_matches, payload.confirmed_keywords
+            ),
         )
     except ProviderUnavailableError as exc:
         # Ningún plan de IA respondió: el detalle queda en los logs, no en la respuesta.

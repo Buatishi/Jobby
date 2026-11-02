@@ -734,7 +734,7 @@ const optimizarCvConIa: Guide = {
         },
         {
           type: "paragraph",
-          text: "Después cruza el texto nuevo con el análisis ATS de tu CV. Si el texto menciona una palabra clave que tu CV no respalda, la muestra como «Sin respaldo en tu CV», con el aviso de usarla solo si de verdad tenés esa experiencia. El puntaje ATS que muestra, antes y después, cuenta solo lo que tu CV respalda."
+          text: "Después cruza el texto nuevo con el análisis ATS de tu CV. Si el texto menciona una palabra clave que tu CV no respalda, la muestra como «Sin respaldo en tu CV», con el aviso de usarla solo si de verdad tenés esa experiencia. El puntaje ATS que muestra, antes y después, cuenta solo lo que tu CV respalda. Si sabés algo que tu CV no dice, podés marcarlo en «Qué falta para que el puntaje suba»: lo escribe solo en tus habilidades, nunca como experiencia, y lo cuenta aparte, como declarado por vos."
         },
         {
           type: "paragraph",

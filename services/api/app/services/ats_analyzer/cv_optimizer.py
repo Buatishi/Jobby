@@ -67,10 +67,40 @@ def _low_coverage_keywords(matches: list[ATSKeywordMatch]) -> list[str]:
     ]
 
 
+def declared_keywords(
+    matches: Sequence[ATSKeywordMatch], confirmed: Sequence[str]
+) -> list[str]:
+    """Las keywords que la persona declaró saber y el reporte da por faltantes.
+
+    Se devuelve el nombre tal como figura en el reporte, y solo las que el reporte
+    marca ausentes: lo que llega del navegador no puede meter texto propio en el
+    pedido a la IA ni en el CV.
+    """
+    wanted = {normalize_text(keyword) for keyword in confirmed}
+    return [
+        match.keyword
+        for match in matches
+        if match.status == "missing" and normalize_text(match.keyword) in wanted
+    ]
+
+
+def _declared_block(declared: Sequence[str]) -> str:
+    if not declared:
+        return ""
+    return (
+        "DECLARED_KEYWORDS (el candidato declaro que las sabe aunque su CV no lo "
+        "muestre: escribilas como habilidades en la seccion skills, sumandolas a la "
+        "lista, y si queda natural nombralas en summary. No las pongas dentro de una "
+        "experiencia ni inventes cargos, empresas, fechas, proyectos o logros con "
+        f"ellas):\n{json.dumps(list(declared), ensure_ascii=False)}\n\n"
+    )
+
+
 def _prompt(
     primary_cv: dict[str, Any],
     job: dict[str, Any],
     matches: list[ATSKeywordMatch],
+    declared: Sequence[str] = (),
 ) -> str:
     low_coverage = _low_coverage_keywords(matches)
     # La fila del puesto se lee con select("*") y trae su vector (`embedding`):
@@ -96,6 +126,7 @@ def _prompt(
         '"added_keywords":["string"],"rationale":"string"}]}\n\n'
         f"JOB:\n{json.dumps(prompt_job, ensure_ascii=False)}\n\n"
         f"LOW_COVERAGE_KEYWORDS:\n{json.dumps(low_coverage, ensure_ascii=False)}\n\n"
+        f"{_declared_block(declared)}"
         f"CV_SECTIONS:\n{json.dumps(_cv_sections(primary_cv), ensure_ascii=False)}"
     )
 
@@ -230,23 +261,78 @@ def _target_index(
     return top[0] if len(top) == 1 else None
 
 
+def _distinct_skill_names(primary_cv: dict[str, Any]) -> list[str]:
+    """Los nombres de las habilidades del CV, una vez cada uno y en su orden."""
+    names: dict[str, str] = {}
+    for skill in _cv_sections(primary_cv).get("skills") or []:
+        name = str(skill.get("name") or "") if isinstance(skill, dict) else str(skill)
+        key = normalize_text(name)
+        if key and key not in names:
+            names[key] = name.strip()
+    return list(names.values())
+
+
+def ensure_declared_written(
+    sections: list[OptimizedCVSection],
+    declared: Sequence[str],
+    primary_cv: dict[str, Any],
+) -> list[OptimizedCVSection]:
+    """Cada keyword declarada queda escrita en el texto nuevo, aunque la IA la omita.
+
+    Las que ningún texto nombra se suman a la lista de habilidades: a la sección
+    `skills` que devolvió la IA o, si no hubo, a una propia con las habilidades del CV.
+    Nunca van a una experiencia: no hay un cargo ni un logro que las respalde.
+    """
+    written = "\n".join(section.rewritten_text for section in sections)
+    pending = [keyword for keyword in declared if not _mentions(written, keyword)]
+    if not pending:
+        return sections
+
+    result = list(sections)
+    for index, section in enumerate(result):
+        if section.section_name == "skills":
+            result[index] = section.model_copy(
+                update={"rewritten_text": _with_items(section.rewritten_text, pending)}
+            )
+            return result
+
+    current = ", ".join(_distinct_skill_names(primary_cv))
+    result.append(
+        OptimizedCVSection(
+            section_name="skills",
+            original_excerpt=current,
+            rewritten_text=_with_items(current, pending),
+            added_keywords=[],
+            rationale="Habilidades que declaraste saber y tu CV no menciona.",
+        )
+    )
+    return result
+
+
+def _with_items(text: str, items: Sequence[str]) -> str:
+    return ", ".join([part for part in (text.strip().rstrip(",;"),) if part] + [*items])
+
+
 def verify_sections(
     sections: list[OptimizedCVSection],
     matches: list[ATSKeywordMatch],
     cv_text: str,
     evidence: Sequence[str] = (),
+    declared: Sequence[str] = (),
 ) -> list[OptimizedCVSection]:
     """Separa las keywords con respaldo en el CV de las que la IA agregó sin él.
 
     Usa el reporte ATS ya calculado (literal y semántico tienen evidencia en el CV;
     ausente no) y, para las ausentes, los textos del CV (`evidence`): una keyword que el
-    CV dice con otras palabras tiene respaldo. No hace llamadas a la IA ni pide
-    vectores.
+    CV dice con otras palabras tiene respaldo. Las que la persona declaró saber
+    (`declared`) no son «sin respaldo»: se anotan aparte en cada sección que las
+    escribe. No hace llamadas a la IA ni pide vectores.
     """
     status_by_keyword = {
         normalize_text(match.keyword): match.status for match in matches
     }
     missing = [match.keyword for match in matches if match.status == "missing"]
+    declared_keys = {normalize_text(keyword) for keyword in declared}
 
     verified: list[OptimizedCVSection] = []
     backed = {keyword for keyword in missing if _supported_by_cv(keyword, evidence)}
@@ -255,13 +341,20 @@ def verify_sections(
         unverified = {
             normalize_text(keyword): keyword
             for keyword in missing
-            if _mentions(text, keyword) and keyword not in backed
+            if _mentions(text, keyword)
+            and keyword not in backed
+            and normalize_text(keyword) not in declared_keys
         }
         added: list[str] = []
         for keyword in section.added_keywords:
             key = normalize_text(keyword)
-            if key in unverified or not _mentions(text, keyword):
-                # Ya marcada sin respaldo, o la IA la declaró pero no la escribió.
+            if (
+                key in unverified
+                or key in declared_keys
+                or not _mentions(text, keyword)
+            ):
+                # Ya marcada sin respaldo, declarada por la persona (se anota aparte)
+                # o la IA la declaró pero no la escribió.
                 continue
             status = status_by_keyword.get(key)
             backed_by_cv = _mentions(cv_text, keyword)
@@ -283,12 +376,18 @@ def verify_sections(
             for keyword in missing
             if keyword in backed and _mentions(text, keyword)
         ]
+        stated = [
+            keyword
+            for keyword in declared
+            if keyword not in backed and _mentions(text, keyword)
+        ]
         verified.append(
             section.model_copy(
                 update={
                     "added_keywords": added,
                     "unverified_keywords": list(unverified.values()),
                     "backed_keywords": confirmed,
+                    "declared_keywords": stated,
                 }
             )
         )
@@ -304,16 +403,17 @@ def score_after_optimization(
     """Puntaje ATS si se usan las secciones nuevas, contando solo lo verificado.
 
     Una keyword semántica que el texto nuevo nombra pasa a literal. Una ausente solo
-    pasa si el CV la respalda con otras palabras (`backed_keywords`); las demás siguen
-    ausentes aunque el texto las mencione: no tienen respaldo en el CV. Los requisitos
-    (años, formación, idiomas) no cambian: reescribir texto no los cambia. El formato es
-    el del CV descargable (`format_points`), no el del archivo subido.
+    pasa si el CV la respalda con otras palabras (`backed_keywords`) o si la persona
+    la declaró y el texto la escribe (`declared_keywords`); las demás siguen ausentes
+    aunque el texto las mencione: nadie responde por ellas. Los requisitos (años,
+    formación, idiomas) no cambian: reescribir texto no los cambia. El formato es el
+    del CV descargable (`format_points`), no el del archivo subido.
     """
     rewritten = "\n".join(section.rewritten_text for section in sections)
     backed = {
         normalize_text(keyword)
         for section in sections
-        for keyword in section.backed_keywords
+        for keyword in (*section.backed_keywords, *section.declared_keywords)
     }
     updated = [
         match.model_copy(update={"status": "literal"})
@@ -331,6 +431,7 @@ async def optimize_cv_sections(
     matches: list[ATSKeywordMatch],
     user_tier: UserTier,
     gateway: AIGateway | None = None,
+    declared: Sequence[str] = (),
 ) -> list[OptimizedCVSection]:
     missing_or_semantic = _low_coverage_keywords(matches)
     if not missing_or_semantic:
@@ -338,10 +439,13 @@ async def optimize_cv_sections(
 
     ai_gateway = gateway or AIGateway()
     sections = await _rewrite_sections(
-        ai_gateway, user_tier, _prompt(primary_cv, job, matches)
+        ai_gateway, user_tier, _prompt(primary_cv, job, matches, declared)
     )
+    sections = ensure_declared_written(sections, declared, primary_cv)
     cv_text = json.dumps(_cv_sections(primary_cv), ensure_ascii=False)
-    verified = verify_sections(sections, matches, cv_text, evidence_texts(primary_cv))
+    verified = verify_sections(
+        sections, matches, cv_text, evidence_texts(primary_cv), declared
+    )
     return attach_targets(verified, primary_cv)
 
 

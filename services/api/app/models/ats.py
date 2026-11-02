@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class ATSKeywordMatch(BaseModel):
@@ -58,6 +58,11 @@ class ATSReport(BaseModel):
 
 class ATSOptimizeRequest(BaseModel):
     job_id: str
+    # Palabras del reporte que la persona declara saber aunque ni su CV ni su LinkedIn
+    # lo muestren (Decisión 24). Solo valen las que el reporte da por faltantes.
+    confirmed_keywords: list[Annotated[str, StringConstraints(max_length=80)]] = Field(
+        default_factory=list, max_length=30
+    )
 
 
 class OptimizedCVSection(BaseModel):
@@ -72,6 +77,9 @@ class OptimizedCVSection(BaseModel):
     # Keywords que el reporte daba por faltantes pero el CV respalda con otras palabras
     # («casos de prueba» para «testing»): el texto nuevo las escribe y cuentan.
     backed_keywords: list[str] = Field(default_factory=list)
+    # Keywords que la persona declaró saber sin que el CV las respalde: el texto nuevo
+    # las escribe y cuentan, pero se muestran aparte porque las responde ella.
+    declared_keywords: list[str] = Field(default_factory=list)
     # A qué experiencia del CV corresponde una sección `experiences` (Decisión 24).
     # La IA devuelve el fragmento como un registro («cargo | empresa | fechas…») y no
     # como el texto de una viñeta, así que no se puede ubicar por el texto.
