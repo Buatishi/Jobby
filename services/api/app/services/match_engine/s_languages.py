@@ -141,6 +141,21 @@ def _profile_levels(profile_languages: list[dict[str, Any]]) -> dict[str, int]:
     return levels
 
 
+def is_language_keyword(text: Any) -> bool:
+    """¿El texto es solo un idioma, con o sin nivel («English», «Inglés avanzado»)?
+
+    Los idiomas se evalúan como requisito del puesto, no como palabra clave: «English
+    communication» no es solo un idioma y se conserva.
+    """
+    tokens = _tokens(text)
+    if not any(token in _LANGUAGE_NAMES for token in tokens):
+        return False
+    return all(
+        token in _LANGUAGE_NAMES or token in _LEVEL_WORDS or token in _NOISE
+        for token in tokens
+    )
+
+
 def required_languages(job: dict[str, Any]) -> list[dict[str, str]]:
     """Los idiomas que pide el puesto, cada uno con su nombre canónico y su nivel."""
     return _required_languages(job)

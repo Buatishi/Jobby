@@ -724,6 +724,42 @@ def test_a_saved_report_whose_requirements_fail_shows_the_score_of_the_skills(
     assert body["ats_score"] == 50
 
 
+def test_a_report_saved_before_the_change_is_recomputed_without_the_language(
+    client: TestClient, fake_redis: FakeRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = KeywordGateway([["Rust"]])
+    monkeypatch.setattr(
+        "app.services.ats_analyzer.keyword_matcher.AIGateway", lambda: fake
+    )
+    supabase = _world()
+    _serve(supabase)
+    # Un reporte de la versión anterior, con «English» entre las palabras clave.
+    supabase.tables["ats_reports"].append(
+        {
+            "job_id": "job-1",
+            "user_id": "user-1",
+            "cv_document_id": "doc-1",
+            "cv_fingerprint": cv_fingerprint(supabase.tables["uploaded_documents"][0]),
+            "report_version": ATS_REPORT_VERSION - 1,
+            "ats_score": 33,
+            "keyword_matches": [
+                {"keyword": "Python", "status": "literal", "matched_text": "Python"},
+                {"keyword": "English", "status": "missing", "matched_text": None},
+            ],
+            "format_issues": [],
+            "computed_at": "2026-10-31T00:00:00+00:00",
+        }
+    )
+
+    body = _open(client).json()
+
+    assert [item["keyword"] for item in body["keyword_matches"]] == ["Python"]
+    # Se recalcula con las keywords guardadas, sin pedirle otras a la IA.
+    assert fake.generate_calls == 0
+    assert _queries_spent(fake_redis) == 1
+    assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
+
+
 # --- unidades -------------------------------------------------------------------------
 
 

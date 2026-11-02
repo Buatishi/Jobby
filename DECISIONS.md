@@ -2862,3 +2862,29 @@ Con los precios de lista de `deepseek-chat` que usé como cota (USD 0,28 por mil
 - Los PDF de `docs/pdf` no se regeneraron con el cambio del `docs/03-dfd-nivel-2.md`.
 
 **Reversión.** Deshacer el merge: vuelve la fórmula anterior. Nada guardado cambia.
+
+## Actualización — Decisión 42 (2026-11-02): idiomas fuera de las palabras clave y búsqueda en certificaciones y resumen
+
+**Estado:** Primer paso de la etapa 2 del ATS, que el autor aprobó («Sí, etapa 2») después de que quedaran dos límites a la vista: el reporte de su puesto de JPMorgan marcaba «English» como palabra clave faltante mientras la tarjeta de requisitos decía que el inglés se cumple. Es lo más chico y seguro de la etapa; separar obligatorias de deseables, el veredicto con IA, la banda y la calibración de pesos siguen pendientes.
+
+**Problema (medido en producción el 2026-10-31).**
+- El idioma se evaluaba dos veces y se contradecía: la IA que extrae las palabras clave tenía la orden de incluir «certificaciones e idiomas», y el requisito de idiomas ya lo cubre.
+- La búsqueda miraba solo las skills, las experiencias y los estudios del CV: no las certificaciones ni el resumen.
+- El lector de CV no guardaba el resumen. El optimizador ya lo pedía (`parsed_data.get("summary")` en `_cv_sections`) y siempre recibía `None`.
+
+**Elegido.**
+- **Idiomas fuera de las palabras clave:** se le pide a la IA que no los incluya y, además, un filtro (`is_language_keyword`) descarta lo que es solo un idioma, con o sin nivel («English», «Inglés avanzado», «Spanish and English»), tanto en las palabras nuevas como en las que un reporte viejo dejó guardadas. «English communication» no es solo un idioma y se conserva. El MatchScore no cambia: `skill_keywords` no se toca.
+- **Búsqueda:** el nombre de cada certificación entra como término del CV (literal y por significado). El resumen del CV entra **solo para la palabra literal** (con palabra completa): un vector del párrafo entero no se parece a una palabra y costaría tokens. El reporte muestra el tramo que rodea a la palabra (40 caracteres a cada lado) y no el párrafo entero. Una skill, experiencia o estudio que la nombra sigue ganando sobre el resumen.
+- **El lector guarda el `summary` de un CV** (una cadena en una línea, hasta 1500 caracteres; un valor que no es texto se ignora). No lo guarda el PDF de LinkedIn. El pedido a DeepSeek crece unos 160 caracteres (unos 40 tokens): el presupuesto del prompt de la Decisión 41 pasa de 1900 a 2100 caracteres.
+- **`ATS_REPORT_VERSION` pasa de 3 a 4:** cada reporte guardado se rehace una vez al abrirlo, con las palabras clave que ya tenía (sin IA nueva). Cuenta para el tope diario (10 en el plan gratuito, 50 en el premium).
+- Sin migración ni dependencias nuevas.
+
+**Medido con los datos reales del autor** (corrido en local, nada escrito en producción): las palabras clave del puesto pasan de 8 a 7 (sin «English») y el puntaje de 27 a 28. La búsqueda en el resumen **no suma nada para este puesto**: el resumen del autor está en español y las palabras clave del aviso, en inglés («Object-oriented programming» contra «programación orientada a objetos»).
+
+**Límites que quedan abiertos.**
+- **El español contra el inglés sigue sin resolverse.** Comparar por significado las frases del resumen y las viñetas con las palabras clave puede ayudar, pero hay que medirlo con vectores reales (la clave de OpenAI del `.env`, menos de USD 0,01) y eso necesita el OK del autor.
+- Las cuentas existentes no tienen el resumen guardado: aparece al volver a subir el CV.
+- Un idioma que el aviso pide solo en el texto, sin figurar en sus idiomas requeridos, deja de contar de los dos lados.
+- La búsqueda literal en prosa puede dar un acierto por una palabra suelta dentro de una frase que no habla de esa habilidad.
+
+**Reversión.** Deshacer el merge: vuelve la versión 3 y cada reporte se rehace una vez.
