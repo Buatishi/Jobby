@@ -143,6 +143,14 @@ def _structured_sections(structured_data: Any) -> dict[str, Any]:
     }
 
 
+def _extracted_skills(structured_data: Any) -> list[dict[str, Any]]:
+    """Las skills que nombró un documento, tal como las leyó el lector."""
+    return [
+        {"name": skill.name, "category": skill.category, "level": skill.level}
+        for skill in structured_data.skills
+    ]
+
+
 async def _mark_skills_in_linkedin(
     supabase: Any,
     structured_data: Any,
@@ -165,10 +173,7 @@ async def _mark_skills_in_linkedin(
         )
     )
     return {
-        "skills": [
-            {"name": skill.name, "category": skill.category, "level": skill.level}
-            for skill in structured_data.skills
-        ],
+        "skills": _extracted_skills(structured_data),
         "matched_skills": len(skill_ids),
         **_structured_sections(structured_data),
     }
@@ -240,6 +245,9 @@ async def run_parse_cv(
                 "contact": structured_data.contact.model_dump(),
                 "summary": structured_data.summary,
                 "skills": strip_embeddings(merged_skills),
+                # `skills` es la suma de todas las guardadas; esto es lo que nombró
+                # este CV, que es lo que compara Reality Gap (Decisión 43).
+                "extracted_skills": _extracted_skills(structured_data),
                 **_structured_sections(structured_data),
             }
             # Lo que lee el chequeo de formato del ATS. Sin banderas (el análisis del

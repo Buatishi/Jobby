@@ -8,6 +8,7 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.models.auth import CurrentUser
 from app.models.dashboard import DashboardMatch, DashboardSummary
+from app.services.profile_completeness import WEIGHTS
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 logger = logging.getLogger(__name__)
@@ -49,8 +50,27 @@ async def _missing_tip(
     if not (isinstance(documents, list) and documents):
         return "Subí tu CV para empezar a recibir análisis."
 
+    # Reality Gap compara con el PDF de LinkedIn; el enlace solo suma al porcentaje del
+    # perfil. Los puntos son los de ese porcentaje, no un puntaje del Reality Gap.
+    linkedin_pdf = await _execute(
+        supabase.table("uploaded_documents")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("type", "linkedin")
+        .eq("status", "done")
+        .limit(1)
+    )
+    if not (isinstance(linkedin_pdf, list) and linkedin_pdf):
+        return (
+            "Subí el PDF de tu LinkedIn para ver tu Reality Gap "
+            f"(+{WEIGHTS['linkedin_document']} pts en tu perfil)."
+        )
+
     if not profile.get("linkedin_url"):
-        return "Conectá tu LinkedIn para mejorar tu Reality Gap (+18 pts)."
+        return (
+            "Sumá el enlace a tu LinkedIn "
+            f"(+{WEIGHTS['linkedin_url']} pts en tu perfil)."
+        )
 
     experiences = await _execute(
         supabase.table("experiences")
