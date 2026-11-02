@@ -2911,3 +2911,29 @@ Con los precios de lista de `deepseek-chat` que usé como cota (USD 0,28 por mil
 - Si la IA no devuelve `target_id` ni un fragmento con el cargo, la sección sigue sin ubicarse y se ofrece el texto para copiarlo a mano.
 - El puntaje «después» solo sube con palabras que el CV respalda: para un puesto cuyo tema el CV no cubre, el ATS casi no se mueve, y eso es lo que se quiere mostrar.
 - Un CV leído antes de que el lector guardara el resumen no lo trae: el optimizador redacta uno sin texto original.
+
+## Actualización — Decisión 24 (2026-11-02, medición): comparar por significado entre idiomas no sirve; el respaldo parte el resumen en oraciones
+
+**Estado:** El autor autorizó usar una clave de OpenAI para medir si comparar por significado el CV en español con las palabras clave en inglés mejoraba el respaldo. La clave del `.env` no tenía saldo (dos intentos con `429 credit_balance_exhausted`, sin reintentar a ciegas): se creó una clave de prueba en la cuenta con saldo, que el autor borra después de la medición.
+
+**Medido** (2026-11-02, `text-embedding-3-small`, 1536 dimensiones, 131 textos cortos, menos de USD 0,001; local y de solo lectura). Las **76 palabras clave** que los 8 reportes guardados de la cuenta del autor daban por faltantes (sin idiomas) contra los textos de su CV: skills, cargos, viñetas, estudios y las cuatro oraciones de su resumen.
+
+| Umbral | Aciertos | Cuáles |
+|---|---|---|
+| 0,75 (el de hoy) | **0** | — |
+| 0,70 | 2 | «Integraciones» ≈ «Integración de APIs» (acierto); «Sistemas distribuidos» ≈ «Sistemas y Redes», 0,723 (error) |
+| 0,65 | 3 | suma «MySQL» ≈ «SQL», 0,659: el proyecto decidió que no son lo mismo (Decisión 31) |
+| 0,60 | 7 | suma «Automatización de procesos internos» ≈ «Automatización (n8n, Zapier)» (acierto) y tres dudosos: «Desarrollo backend», «Testing y mantenimiento de software» y «API design» |
+
+Las palabras que más pesan en el aviso de JPMorgan («Software design», «Software architecture», «Software development», «Software maintenance», «Object-oriented programming», «Business analysis») no llegan a 0,44 contra ningún texto del CV: una oración larga y una palabra corta no se parecen en el espacio de vectores. «Testing» contra «casos de prueba documentados» ni siquiera figura entre las 30 mejores (0,457 contra «Pytest»).
+
+**La regla de equivalencias de producción sobre las mismas 76** (la del #136, sin IA ni costo):
+- Sin el resumen: 2 aciertos, ambos correctos («Integraciones» y «Testing»).
+- Con el resumen como un solo texto: 10, uno falso: «API design» juntaba «APIs» de una oración con «diseño» de otra.
+- Con el resumen **partido en oraciones: 9, todos plausibles** («Business analysis», «Business requirements analysis», «Object-oriented programming», «Software development», «Software maintenance», «Testing», «Testing y mantenimiento de software», «Integraciones» y «Software design», el más flojo: «desarrollo de software end-to-end, diseño de soluciones»).
+
+**Elegido.**
+- **No se compara por significado entre idiomas.** El umbral de 0,75 no se toca y tampoco se baja: con estos vectores no hay umbral que separe los aciertos de los errores (a 0,72 ya hay un error). Los vectores siguen sirviendo dentro del mismo idioma, como hasta ahora.
+- **Se mantiene la regla de palabras en forma común** y el respaldo ahora **parte el resumen y las descripciones en oraciones** (por punto, punto y coma o salto de línea): una keyword se respalda dentro de una oración, no juntando palabras sueltas de un párrafo.
+
+**Límites que quedan abiertos.** Es un solo CV y ocho puestos: sirve para descartar un enfoque, no para calibrar umbrales. La regla no ve lo que no está en la tabla: «Docker» no respalda «Containers». Si un par común falta, se agrega a `skill_names` con su prueba.

@@ -32,6 +32,7 @@ class _OptimizedPayload(BaseModel):
 # equivalentes: coincidiría con cualquier texto.
 MIN_EQUIVALENCE_LENGTH = 5
 _EXPERIENCE_ID = re.compile(r"^exp-(\d+)$")
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?;])\s+|\n+")
 
 
 def _cv_sections(primary_cv: dict[str, Any]) -> dict[str, Any]:
@@ -139,10 +140,16 @@ def _supported_by_cv(keyword: str, evidence: Sequence[str]) -> bool:
     return any(words <= set(canonical_skill_key(text).split()) for text in evidence)
 
 
+def _sentences(text: str) -> list[str]:
+    """Un párrafo en oraciones: una keyword se respalda dentro de una oración, no
+    juntando palabras sueltas de un párrafo entero («API» de una y «diseño» de otra)."""
+    return [part.strip() for part in _SENTENCE_BREAK.split(text) if part.strip()]
+
+
 def evidence_texts(primary_cv: dict[str, Any]) -> list[str]:
     """Los textos del CV con los que se comprueba una keyword (sin claves ni JSON)."""
     sections = _cv_sections(primary_cv)
-    texts: list[str] = [str(sections.get("summary") or "")]
+    texts: list[str] = _sentences(str(sections.get("summary") or ""))
     for skill in sections.get("skills") or []:
         texts.append(
             str(skill.get("name") or "") if isinstance(skill, dict) else str(skill)
@@ -150,7 +157,7 @@ def evidence_texts(primary_cv: dict[str, Any]) -> list[str]:
     for experience in sections.get("experiences") or []:
         if isinstance(experience, dict):
             texts.append(str(experience.get("title") or ""))
-            texts.append(str(experience.get("description") or ""))
+            texts.extend(_sentences(str(experience.get("description") or "")))
             achievements = experience.get("achievements") or []
             if isinstance(achievements, list):
                 texts.extend(str(item) for item in achievements)

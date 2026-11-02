@@ -230,6 +230,68 @@ def test_all_the_words_of_the_keyword_must_be_in_the_same_text() -> None:
     )
 
 
+SUMMARY = (
+    "Desarrollador Python con experiencia en desarrollo de software end-to-end, "
+    "diseño de soluciones y análisis de requerimientos de negocio. "
+    "Especializado en programación orientada a objetos, integración de APIs REST y "
+    "automatización de procesos con Python, FastAPI y SQL."
+)
+
+
+def _cv_with(summary: str = "", description: str = "") -> dict[str, Any]:
+    return {
+        "id": "doc-s",
+        "parsed_data": {
+            "summary": summary,
+            "experiences": [
+                {"title": "Analista", "description": description, "achievements": []}
+            ],
+        },
+    }
+
+
+def test_a_summary_backs_a_keyword_only_within_one_sentence() -> None:
+    evidence = evidence_texts(_cv_with(summary=SUMMARY))
+
+    # Las dos palabras están en la misma oración.
+    assert _supported_by_cv("Software development", evidence) is True
+    assert _supported_by_cv("Business analysis", evidence) is True
+    assert _supported_by_cv("Object-oriented programming", evidence) is True
+    # «API» está en una oración y «diseño» en otra: no respalda «API design».
+    assert _supported_by_cv("API design", evidence) is False
+
+
+def test_the_description_of_an_old_cv_is_split_into_sentences_too() -> None:
+    description = "Armé tableros de ventas. Diseño de APIs internas para la tienda."
+
+    evidence = evidence_texts(_cv_with(description=description))
+
+    assert "Armé tableros de ventas." in evidence
+    assert _supported_by_cv("API design", evidence) is True
+    assert _supported_by_cv("Sales reporting", evidence) is False
+
+
+def test_sentences_are_split_on_periods_semicolons_and_line_breaks() -> None:
+    evidence = evidence_texts(
+        _cv_with(
+            summary="Una oración. Otra oración; y una tercera\ncon salto de línea."
+        )
+    )
+
+    assert [text for text in evidence if text != "Analista"] == [
+        "Una oración.",
+        "Otra oración;",
+        "y una tercera",
+        "con salto de línea.",
+    ]
+
+
+def test_a_summary_without_text_adds_no_evidence() -> None:
+    evidence = evidence_texts(_cv_with(summary="   \n  "))
+
+    assert evidence == ["Analista"]
+
+
 def test_the_new_generic_words_equate_the_same_name_in_both_languages() -> None:
     assert same_skill("Mantenimiento de software", "Software maintenance")
     assert same_skill("Análisis de negocio", "Business analysis")
