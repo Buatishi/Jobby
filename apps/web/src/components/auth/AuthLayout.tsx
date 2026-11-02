@@ -81,7 +81,7 @@ export function AuthLayout({ children, headline }: AuthLayoutProps) {
         </DarkPanel>
       </div>
 
-      <section className="flex min-h-[calc(100vh-140px)] flex-col bg-white px-6 py-8 md:min-h-screen md:px-10 lg:px-14">
+      <section className="flex min-h-[calc(100dvh-140px)] flex-col bg-white px-6 py-8 md:min-h-screen md:px-10 lg:px-14">
         <div className="mb-10 flex items-center justify-between gap-4">
           <Link
             className="inline-flex w-fit items-center gap-2 text-xl font-bold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green"
