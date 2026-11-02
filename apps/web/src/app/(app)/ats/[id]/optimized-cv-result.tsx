@@ -12,6 +12,8 @@ export type ATSOptimizeResponse = {
     unverified_keywords?: string[];
     /** Keywords que el CV ya dice con otras palabras y el texto nuevo escribe: cuentan. */
     backed_keywords?: string[];
+    /** Las que la persona dijo saber sin que su CV las respalde: cuentan y se muestran aparte. */
+    declared_keywords?: string[];
     target_company?: string;
     target_title?: string;
   }>;
@@ -19,11 +21,22 @@ export type ATSOptimizeResponse = {
   ats_score_after?: number | null;
 };
 
+/** Las palabras declaradas de todas las secciones, una vez cada una. */
+export function declaredKeywordsOf(optimized: ATSOptimizeResponse): string[] {
+  return [
+    ...new Set(
+      optimized.sections.flatMap((section) => section.declared_keywords ?? [])
+    )
+  ];
+}
+
 export function OptimizedCVResult({
   optimized
 }: {
   optimized: ATSOptimizeResponse;
 }) {
+  const declared = declaredKeywordsOf(optimized);
+
   return (
     <div className="mt-5 space-y-4">
       {typeof optimized.ats_score_before === "number" &&
@@ -48,11 +61,19 @@ export function OptimizedCVResult({
           <p className="mt-1 text-xs text-muted-foreground">
             Solo cuenta lo que tu CV respalda.
           </p>
+          {declared.length > 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Incluye {declared.length === 1 ? "una palabra" : `${declared.length} palabras`}{" "}
+              que declaraste saber: {declared.join(", ")}. Tu CV no las
+              respalda; las contamos porque lo confirmaste.
+            </p>
+          ) : null}
           {optimized.ats_score_after === optimized.ats_score_before ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              No cambia: las palabras que faltan no figuran en tu CV y no se
-              cuentan, y reescribir texto no cambia tus años, tu formación ni
-              tus idiomas.
+              No cambia: las palabras que faltan no figuran en tu CV ni en tu
+              LinkedIn y no se cuentan, y reescribir texto no cambia tus años,
+              tu formación ni tus idiomas. Si tenés esa experiencia, marcala en
+              «Qué falta para que el puntaje suba» y volvé a optimizar.
             </p>
           ) : null}
         </div>
@@ -89,6 +110,12 @@ export function OptimizedCVResult({
                 {section.backed_keywords.join(", ")}.
               </p>
             ) : null}
+            {section.declared_keywords && section.declared_keywords.length > 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Escritas porque dijiste que las sabés (tu CV no las respalda):{" "}
+                {section.declared_keywords.join(", ")}.
+              </p>
+            ) : null}
             {section.unverified_keywords &&
             section.unverified_keywords.length > 0 ? (
               <div
@@ -100,7 +127,9 @@ export function OptimizedCVResult({
                   {section.unverified_keywords.join(", ")}
                 </p>
                 <p className="mt-1 text-muted-foreground">
-                  Usalas solo si de verdad tenés esa experiencia.
+                  Usalas solo si de verdad tenés esa experiencia; si la tenés,
+                  marcala en «Qué falta para que el puntaje suba» y volvé a
+                  optimizar.
                 </p>
               </div>
             ) : null}
