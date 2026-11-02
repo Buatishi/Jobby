@@ -630,10 +630,11 @@ def test_the_prompt_asks_for_booleans_and_still_forbids_null_text() -> None:
 
 
 def test_the_prompt_stays_inside_the_token_budget_of_the_decision() -> None:
-    """Antes eran 1326 caracteres (~330 tokens). La Decisión 41 acepta hasta ~1900."""
+    """Antes eran 1326 caracteres (~330 tokens). La Decisión 41 aceptó hasta ~1900 y la
+    actualización de la 42 suma el resumen del CV: hasta ~2100 (unos 40 tokens más)."""
     size = len(ai_structurer._system_prompt()) + len(ai_structurer._user_prompt(""))
 
-    assert size <= 1_900
+    assert size <= 2_100
 
 
 # --- los datos llegan a donde se guardan y se leen ------------------------------------

@@ -16,6 +16,8 @@ DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions"
 # Mismo tope que `SkillCreate.name`: una skill más larga no se podría confirmar en el
 # paso 3 del asistente (la API respondería 400) y solo ensuciaría el perfil.
 MAX_SKILL_NAME_LENGTH = 200
+# Un resumen más largo que esto no es un resumen: se recorta.
+MAX_SUMMARY_LENGTH = 1500
 _LIST_SEPARATORS = "·•|;,\n"
 _NAME_KEYS = ("name", "skill", "skill_name", "technology")
 # Nombres con los que la IA suele escribir cada fecha (Decisión 41).
@@ -93,6 +95,8 @@ class CVStructuredData(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     contact: ParsedContact = Field(default_factory=ParsedContact)
+    # El párrafo de perfil o resumen del CV, tal como está escrito (Decisión 42).
+    summary: str = ""
     skills: list[ParsedSkill] = Field(default_factory=list)
     experiences: list[ParsedExperience] = Field(default_factory=list)
     educations: list[ParsedEducation] = Field(default_factory=list)
@@ -108,8 +112,10 @@ def _system_prompt() -> str:
     return (
         "You are a bilingual CV parser for Spanish and English resumes. "
         "Extract only facts explicitly present in the CV. Return strict JSON "
-        "with this shape: contact, skills, experiences, educations, languages, "
-        "certifications. Do not include markdown, comments, or extra keys. "
+        "with this shape: contact, summary, skills, experiences, educations, "
+        "languages, certifications. Do not include markdown, comments, or extra "
+        "keys. summary is the professional profile or summary paragraph exactly as "
+        "the CV writes it, or an empty string when it has none. "
         "Each skill, experience, education, language and certification is an "
         "object: skills {name, category, level}; experiences {company, title, "
         "started_at, ended_at, is_current, description, achievements}; educations "
@@ -141,7 +147,8 @@ def _user_prompt(cv_text: str, correction_hint: str | None = None) -> str:
         "The CV may be in Spanish, English, or both.\n\n"
         "Rules: return only one JSON object. contact must be an object with "
         "full_name, email, phone, location and linkedin_url, copied exactly as "
-        "they appear in the CV. Every other top-level key must be an array. "
+        "they appear in the CV. summary must be a string and every other top-level "
+        "key must be an array. "
         "Use empty strings for unknown text values, never null. "
         "achievements must always be an array of strings. "
         "is_current and is_ongoing must be true or false.\n\n"
@@ -323,6 +330,13 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
         "linkedin_url": _pick(contact_item, "linkedin_url", "linkedin"),
     }
 
+    raw_summary = parsed.get("summary")
+    summary = (
+        " ".join(raw_summary.split())[:MAX_SUMMARY_LENGTH]
+        if isinstance(raw_summary, str)
+        else ""
+    )
+
     skills: list[dict[str, str]] = []
     seen_skills: set[str] = set()
     for entry in _skill_entries(parsed.get("skills")):
@@ -413,6 +427,7 @@ def _normalize_structured_payload(parsed: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "contact": contact,
+        "summary": summary,
         "skills": skills,
         "experiences": experiences,
         "educations": educations,
