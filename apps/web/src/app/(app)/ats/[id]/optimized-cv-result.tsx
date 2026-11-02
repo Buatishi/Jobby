@@ -17,13 +17,23 @@ export type ATSOptimizeResponse = {
   }>;
   ats_score_before?: number | null;
   ats_score_after?: number | null;
+  /** Los puntos de formato que cuenta el «después» (el CV descargable); null si no se evaluó. */
+  format_points_after?: number | null;
 };
 
+/** Los puntos máximos de formato; los fija `FORMAT_POINTS` en `scoring.py`. */
+const FORMAT_POINTS = 10;
+
 export function OptimizedCVResult({
-  optimized
+  optimized,
+  formatPointsBefore
 }: {
   optimized: ATSOptimizeResponse;
+  /** Los puntos de formato del archivo subido, del reporte; para decir cuánto sube el formato. */
+  formatPointsBefore?: number | null;
 }) {
+  const formatAfter = optimized.format_points_after;
+
   return (
     <div className="mt-5 space-y-4">
       {typeof optimized.ats_score_before === "number" &&
@@ -48,6 +58,17 @@ export function OptimizedCVResult({
           <p className="mt-1 text-xs text-muted-foreground">
             Solo cuenta lo que tu CV respalda.
           </p>
+          {typeof formatAfter === "number" ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              El «después» cuenta el formato del CV descargable de Jobby: una
+              columna, sin imágenes ni tablas ({formatAfter} de {FORMAT_POINTS}{" "}
+              puntos).
+              {typeof formatPointsBefore === "number" &&
+              formatAfter > formatPointsBefore
+                ? ` Tu archivo subido tiene ${formatPointsBefore} de ${FORMAT_POINTS}: por eso suma ${formatAfter - formatPointsBefore} puntos.`
+                : ""}
+            </p>
+          ) : null}
           {optimized.ats_score_after === optimized.ats_score_before ? (
             <p className="mt-1 text-xs text-muted-foreground">
               No cambia: las palabras que faltan no figuran en tu CV y no se

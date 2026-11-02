@@ -1,7 +1,21 @@
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
+
+from app.services.ats_analyzer.scoring import FORMAT_POINTS
+
+# Cuántos de los FORMAT_POINTS (10) resta cada aviso detectado en el archivo subido.
+# Son una convención de Jobby, fácil de cambiar y no un dato de ningún ATS real: nadie
+# publica cuánto pierde un CV por cada problema (Decisión 42). Suman justo 10: un
+# archivo con los tres avisos queda en 0 de 10. Los títulos poco habituales se muestran
+# pero no restan: no estaban entre los avisos con puntos.
+PENALTY_MULTI_COLUMN = 4
+PENALTY_IMAGES = 3
+PENALTY_TABLES = 3
+PENALTY_UNUSUAL_HEADERS = 0
+PENALTY_NO_DATA = 0
 
 
 @dataclass(frozen=True)
@@ -9,6 +23,16 @@ class FormatIssue:
     code: str
     message: str
     penalty: int
+
+
+class _Penalized(Protocol):
+    @property
+    def penalty(self) -> int: ...
+
+
+def format_points(issues: Iterable[_Penalized]) -> int:
+    """Los puntos de formato (0 a FORMAT_POINTS) de un archivo con estos avisos."""
+    return max(0, FORMAT_POINTS - sum(issue.penalty for issue in issues))
 
 
 # Palabras de los títulos de sección que un ATS reconoce. Un título las lleva enteras:
@@ -59,21 +83,33 @@ def format_was_evaluated(primary_cv: dict[str, Any]) -> bool:
 def check_cv_format(primary_cv: dict[str, Any]) -> list[FormatIssue]:
     parsed_data = primary_cv.get("parsed_data")
     if not isinstance(parsed_data, dict):
-        return [FormatIssue("NO_PARSED_DATA", "El CV no tiene datos parseados.", 20)]
+        return [
+            FormatIssue(
+                "NO_PARSED_DATA", "El CV no tiene datos parseados.", PENALTY_NO_DATA
+            )
+        ]
 
     flags = parsed_data.get("format_flags") or {}
     issues: list[FormatIssue] = []
     if isinstance(flags, dict):
         if flags.get("has_tables"):
-            issues.append(FormatIssue("TABLES", "El CV contiene tablas.", 10))
+            issues.append(
+                FormatIssue("TABLES", "El CV contiene tablas.", PENALTY_TABLES)
+            )
         if flags.get("multi_column"):
             issues.append(
-                FormatIssue("MULTI_COLUMN", "El CV usa múltiples columnas.", 10)
+                FormatIssue(
+                    "MULTI_COLUMN",
+                    "El CV usa múltiples columnas.",
+                    PENALTY_MULTI_COLUMN,
+                )
             )
         if flags.get("has_images"):
-            issues.append(FormatIssue("IMAGES", "El CV contiene imágenes.", 10))
+            issues.append(
+                FormatIssue("IMAGES", "El CV contiene imágenes.", PENALTY_IMAGES)
+            )
 
-        # Se resta solo si ningún título es de los habituales: el ATS no encontraría las
+        # Se avisa solo si ningún título es de los habituales: el ATS no encontraría las
         # secciones. Uno raro entre los habituales no cuesta nada, y el lector del PDF a
         # veces toma por título un nombre de empresa en mayúsculas (Decisión 34).
         headers = flags.get("headers") or []
@@ -86,7 +122,7 @@ def check_cv_format(primary_cv: dict[str, Any]) -> list[FormatIssue]:
                 FormatIssue(
                     "NON_STANDARD_HEADERS",
                     "Ningún título de sección del CV es de los habituales.",
-                    5,
+                    PENALTY_UNUSUAL_HEADERS,
                 )
             )
 

@@ -148,8 +148,10 @@ def test_the_first_opening_calculates_and_saves_the_report(
 
     assert response.status_code == 200
     body = response.json()
-    # Python literal (1) + REST APIs por significado (0,5) + GraphQL faltante, de 3.
-    assert body["ats_score"] == 50
+    # Python literal (1) + REST APIs por significado (0,5) + GraphQL faltante, de 3:
+    # 50 de contenido, que valen 45 sobre 90, y el formato sin avisos suma 10.
+    assert body["ats_score"] == 55
+    assert body["format_points"] == 10
     assert {m["keyword"]: m["status"] for m in body["keyword_matches"]} == {
         "GraphQL": "missing",
         "Python": "literal",
@@ -162,7 +164,7 @@ def test_the_first_opening_calculates_and_saves_the_report(
     assert saved["job_id"] == "job-1"
     assert saved["user_id"] == "user-1"
     assert saved["cv_document_id"] == "doc-1"
-    assert saved["ats_score"] == 50
+    assert saved["ats_score"] == 55
     assert saved["keyword_matches"] == body["keyword_matches"]
     # El puesto no se toca: el reporte vive en su propia tabla.
     assert "ats_keywords" not in supabase.tables["job_descriptions"][0]
@@ -263,7 +265,7 @@ def test_a_corrupt_saved_report_is_recalculated_instead_of_failing(
     response = _open(client)
 
     assert response.status_code == 200
-    assert response.json()["ats_score"] == 50
+    assert response.json()["ats_score"] == 55
 
 
 def test_a_job_that_already_existed_gets_its_keywords_the_first_time_it_is_opened(
@@ -409,7 +411,7 @@ def test_before_the_migration_is_applied_the_report_works_as_it_always_did(
 
     assert first.status_code == 200
     assert second.status_code == 200
-    assert first.json()["ats_score"] == 50
+    assert first.json()["ats_score"] == 55
     # Sin dónde guardar nada se calcula cada vez y se gasta una consulta, como antes.
     assert gateway.generate_calls == 2
     assert _queries_spent(fake_redis) == 2
@@ -441,6 +443,77 @@ def test_the_optimizer_reads_the_saved_report_and_the_report_it_leaves_is_free(
     client.post("/api/v1/ats/optimize", json={"job_id": "job-2"})
     _open(client, "job-2")
     assert _queries_spent(fake_redis) == spent
+
+
+def test_the_score_after_counts_the_format_of_the_downloadable_cv(
+    client: TestClient,
+    gateway: KeywordGateway,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_optimize(*_args: object, **_kwargs: object) -> list[object]:
+        return []
+
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
+    supabase = _world()
+    supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"] = {
+        **NO_FORMAT_PROBLEMS,
+        "multi_column": True,
+        "has_images": True,
+    }
+    _serve(supabase)
+    seen = _open(client).json()
+
+    body = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"}).json()
+
+    # El archivo subido deja 3 de los 10 puntos de formato (columnas e imágenes):
+    # 45 + 3. El descargable es de una columna, sin imágenes ni tablas: 45 + 10. El
+    # contenido no cambió, así que la diferencia es solo el formato.
+    assert seen["format_points"] == 3
+    assert body["ats_score_before"] == seen["ats_score"] == 48
+    assert body["format_points_after"] == 10
+    assert body["ats_score_after"] == 55
+
+
+def test_when_the_format_was_not_evaluated_the_score_after_leaves_it_out_too(
+    client: TestClient,
+    gateway: KeywordGateway,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_optimize(*_args: object, **_kwargs: object) -> list[object]:
+        return []
+
+    monkeypatch.setattr("app.api.v1.ats.optimize_cv_sections", fake_optimize)
+    supabase = _world()
+    del supabase.tables["uploaded_documents"][0]["parsed_data"]["format_flags"]
+    _serve(supabase)
+    seen = _open(client).json()
+
+    body = client.post("/api/v1/ats/optimize", json={"job_id": "job-1"}).json()
+
+    # Antes y después se comparan sin formato: si no, el «después» ganaría 10 puntos que
+    # el «antes» nunca tuvo.
+    assert seen["format_points"] is None
+    assert body["format_points_after"] is None
+    assert body["ats_score_before"] == body["ats_score_after"] == 50
+
+
+def test_a_report_saved_before_the_format_counted_is_recalculated(
+    client: TestClient, gateway: KeywordGateway, fake_redis: FakeRedis
+) -> None:
+    """La versión 5 puntuaba sin formato: su número ya no es el de hoy (Decisión 42)."""
+    supabase = _world()
+    _serve(supabase)
+    _open(client)
+
+    supabase.tables["ats_reports"][0]["report_version"] = 5
+    supabase.tables["ats_reports"][0]["ats_score"] = 50
+    response = _open(client)
+
+    assert ATS_REPORT_VERSION >= 6
+    assert response.json()["ats_score"] == 55
+    assert supabase.tables["ats_reports"][0]["report_version"] == ATS_REPORT_VERSION
+    # Rehacerlo cuenta una consulta del tope diario, como cualquier cambio de versión.
+    assert _queries_spent(fake_redis) == 2
 
 
 def test_a_report_saved_before_the_format_check_existed_is_recalculated(
@@ -490,7 +563,7 @@ def test_a_report_saved_with_non_skill_keywords_is_recalculated_without_them(
     assert gateway.generate_calls == 2
 
 
-def test_the_format_problems_are_listed_but_do_not_lower_the_score(
+def test_the_format_problems_are_listed_and_take_their_points_off_the_ten(
     client: TestClient, gateway: KeywordGateway
 ) -> None:
     supabase = _world()
@@ -508,13 +581,18 @@ def test_the_format_problems_are_listed_but_do_not_lower_the_score(
     assert clean["format_issues"] == []
     assert clean["format_evaluated"] is True
     assert {issue["code"]: issue["penalty"] for issue in flagged["format_issues"]} == {
-        "MULTI_COLUMN": 10,
-        "IMAGES": 10,
-        "NON_STANDARD_HEADERS": 5,
+        "MULTI_COLUMN": 4,
+        "IMAGES": 3,
+        "NON_STANDARD_HEADERS": 0,
     }
     assert flagged["format_evaluated"] is True
-    # El formato se muestra como lectura del CV y no resta puntos (Decisión 42).
-    assert flagged["ats_score"] == clean["ats_score"]
+    # Columnas −4 e imágenes −3 dejan 3 de los 10 puntos de formato (Decisión 42); los
+    # títulos poco habituales se avisan sin restar. Contenido 50: 45 + 10 sin avisos
+    # contra 45 + 3 con ellos.
+    assert clean["format_points"] == 10
+    assert flagged["format_points"] == 3
+    assert clean["ats_score"] == 55
+    assert flagged["ats_score"] == 48
 
 
 def test_a_cv_read_before_the_format_check_is_reported_as_not_evaluated(
@@ -528,8 +606,10 @@ def test_a_cv_read_before_the_format_check_is_reported_as_not_evaluated(
 
     body = response.json()
     assert body["format_evaluated"] is False
-    # Sin banderas no hay con qué restar: el puntaje es el de las keywords solas.
+    # Sin banderas no hay qué puntuar: el formato no entra, ni suma ni resta, y el
+    # contenido vale los 100 (Decisión 42).
     assert body["format_issues"] == []
+    assert body["format_points"] is None
     assert body["ats_score"] == 50
 
 
@@ -565,7 +645,12 @@ def test_reading_the_same_cv_again_with_the_format_check_recalculates_the_report
     assert before["format_evaluated"] is False
     assert after["format_evaluated"] is True
     assert [issue["code"] for issue in after["format_issues"]] == ["TABLES"]
-    assert after["ats_score"] == before["ats_score"]
+    # Antes el formato no contaba (50 de contenido sobre 100); ahora las tablas dejan 7
+    # de los 10 puntos: 45 + 7.
+    assert before["format_points"] is None
+    assert after["format_points"] == 7
+    assert before["ats_score"] == 50
+    assert after["ats_score"] == 52
     assert _queries_spent(fake_redis) == 2
 
 
@@ -613,10 +698,11 @@ def test_the_report_carries_the_requirements_and_scores_with_them(
     assert by_key["experience"]["ratio"] == pytest.approx(0.1)
     assert by_key["education"]["status"] == "met"
     assert by_key["language:english"]["status"] == "met"
-    # Skills 60 × 0,5 + años 20 × 0,1 + formación 10 + idioma 10 = 52.
-    assert body["ats_score"] == 52
+    # Contenido: skills 60 × 0,5 + años 20 × 0,1 + formación 10 + idioma 10 = 52 de
+    # 100, que valen 46,8 sobre 90, más 10 de formato sin avisos = 57.
+    assert body["ats_score"] == 57
     [saved] = supabase.tables["ats_reports"]
-    assert saved["ats_score"] == 52
+    assert saved["ats_score"] == 57
     # Los requisitos no se guardan: salen del perfil de cada vez.
     assert "requirements" not in saved
 
@@ -629,7 +715,7 @@ def test_a_report_for_a_posting_that_asks_nothing_has_no_requirements(
     body = _open(client).json()
 
     assert body["requirements"] == []
-    assert body["ats_score"] == 50
+    assert body["ats_score"] == 55
 
 
 def test_a_saved_report_reads_the_profile_again_without_spending_a_query(
@@ -702,7 +788,7 @@ def test_a_failure_evaluating_the_requirements_keeps_the_report_with_the_skills_
 
     assert response.status_code == 200
     assert response.json()["requirements"] == []
-    assert response.json()["ats_score"] == 50
+    assert response.json()["ats_score"] == 55
 
 
 def test_a_saved_report_whose_requirements_fail_shows_the_score_of_the_skills(
@@ -722,7 +808,7 @@ def test_a_saved_report_whose_requirements_fail_shows_the_score_of_the_skills(
     body = _open(client).json()
 
     assert body["requirements"] == []
-    assert body["ats_score"] == 50
+    assert body["ats_score"] == 55
 
 
 def test_a_report_saved_before_the_change_is_recomputed_without_the_language(
@@ -810,8 +896,8 @@ def test_a_nice_to_have_keyword_weighs_half_in_the_score(
     body = _open(client).json()
 
     # Python literal (1) y REST APIs por significado (0,5, deseable: peso 0,5) contra
-    # GraphQL faltante (1): (1 + 0,5 × 0,5) / (1 + 1 + 0,5) = 0,5 -> 50.
-    assert body["ats_score"] == 50
+    # GraphQL faltante (1): (1 + 0,5 × 0,5) / (1 + 1 + 0,5) = 0,5 -> 45 + 10 de formato.
+    assert body["ats_score"] == 55
 
 
 def test_a_report_saved_with_priorities_is_read_without_asking_the_ai_again(
@@ -990,7 +1076,7 @@ async def test_the_report_reuses_the_vectors_stored_with_the_profile_skills(
         "job-1", supabase.tables["job_descriptions"][0], _cv_document(), supabase
     )
 
-    assert report.ats_score == 50
+    assert report.ats_score == 55
     assert all("Diseño de APIs" not in batch for batch in gateway.embed_batches)
     # Los vectores de otro perfil no se usan.
     assert "Built services" in gateway.embed_batches[1]

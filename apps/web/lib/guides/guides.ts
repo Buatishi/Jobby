@@ -1,4 +1,6 @@
 import {
+  ATS_FORMAT_PENALTIES,
+  ATS_FORMAT_POINTS,
   ATS_SCORE_WEIGHTS,
   ATS_KEYWORD_POINTS,
   ATS_NICE_TO_HAVE_WEIGHT,
@@ -114,11 +116,11 @@ const queEsUnAts: Guide = {
         },
         {
           type: "paragraph",
-          text: `El puntaje combina las palabras clave (${ATS_SCORE_WEIGHTS.skills} %), los años (${ATS_SCORE_WEIGHTS.experience} %), la formación (${ATS_SCORE_WEIGHTS.education} %) y los idiomas (${ATS_SCORE_WEIGHTS.languages} %). Lo que el puesto no pide no entra, y su peso se reparte entre el resto.`
+          text: `Cuando el puesto lo pide todo, el puntaje combina las palabras clave (${ATS_SCORE_WEIGHTS.skills} %), los años (${ATS_SCORE_WEIGHTS.experience} %), la formación (${ATS_SCORE_WEIGHTS.education} %), los idiomas (${ATS_SCORE_WEIGHTS.languages} %) y el formato del archivo (${ATS_SCORE_WEIGHTS.format} %). Lo que el puesto no pide no entra, y su peso se reparte entre las otras partes del contenido; el formato vale siempre ${ATS_SCORE_WEIGHTS.format} %.`
         },
         {
           type: "paragraph",
-          text: "El tercero es la lectura del archivo. Jobby te avisa si el CV tiene tablas, varias columnas, imágenes o títulos de sección poco habituales, porque no todos los sistemas leen igual esos recursos. Es un aviso: no resta puntos."
+          text: `El tercero es la lectura del archivo. Jobby te avisa si el CV tiene tablas, varias columnas, imágenes o títulos de sección poco habituales, porque no todos los sistemas leen igual esos recursos, y le pone una nota de formato de ${ATS_FORMAT_POINTS} puntos: las columnas restan ${ATS_FORMAT_PENALTIES.columns}, las imágenes ${ATS_FORMAT_PENALTIES.images} y las tablas ${ATS_FORMAT_PENALTIES.tables}. Los títulos poco habituales solo se avisan. Es una estimación propia del riesgo de que un sistema lea mal el archivo, no el puntaje de ningún ATS real.`
         },
         {
           type: "paragraph",
@@ -536,7 +538,7 @@ const cvCompatibleConAts: Guide = {
       blocks: [
         {
           type: "paragraph",
-          text: `En el análisis ATS de Jobby, el formato no resta puntos: el reporte te avisa si el CV tiene tablas, varias columnas, imágenes o títulos de sección poco habituales, para que decidas si conviene cambiarlo. También te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no, y si cumplís los años, la formación y los idiomas que pide.`
+          text: `En el análisis ATS de Jobby, el formato vale ${ATS_FORMAT_POINTS} de los 100 puntos: el reporte te avisa si el CV tiene tablas, varias columnas, imágenes o títulos de sección poco habituales y descuenta ${ATS_FORMAT_PENALTIES.columns} puntos por las columnas, ${ATS_FORMAT_PENALTIES.images} por las imágenes y ${ATS_FORMAT_PENALTIES.tables} por las tablas. Es una estimación propia del riesgo de lectura, no el puntaje de ningún ATS real. También te muestra qué palabras clave del puesto aparecen en tu CV y cuáles no, y si cumplís los años, la formación y los idiomas que pide.`
         },
         {
           type: "paragraph",

@@ -340,11 +340,12 @@ export const dictionaries: Record<Language, TranslationTree> = {
       atsLoadError: "No se pudieron cargar los jobs.",
       atsFormatTitle: "Issues de formato",
       atsFormatClean: "No detectamos problemas de formato.",
-      atsFormatNoPenalty:
-        "Es una lectura del archivo: no resta puntos al puntaje.",
+      atsFormatPointsLabel: "Puntos de formato",
+      atsFormatEstimate:
+        "Es una estimación propia del riesgo de que un ATS lea mal el archivo, no el puntaje de ningún ATS real. Suma hasta 10 puntos al total: las columnas restan 4, las imágenes 3 y las tablas 3; los títulos poco habituales solo se avisan.",
       atsFormatNotEvaluatedTitle: "No pudimos evaluar el formato de este CV.",
       atsFormatNotEvaluatedHint:
-        "Se leyó antes de que Jobby revisara tablas, columnas e imágenes, así que no hay nada para mostrar sobre el formato. Volvé a subir tu CV (Mi perfil → Mejorar perfil) para evaluarlo.",
+        "Se leyó antes de que Jobby revisara tablas, columnas e imágenes, así que no hay nada para mostrar sobre el formato. Volvé a subir tu CV (Mi perfil → Mejorar perfil) para evaluarlo. Mientras tanto el formato no cuenta en el puntaje de este reporte.",
       ratingThanks: "Gracias por tu feedback.",
       ratingSaveError: "No pudimos guardar tu calificación. Probá de nuevo.",
       cvCardTitle: "Tu CV",
@@ -773,11 +774,12 @@ export const dictionaries: Record<Language, TranslationTree> = {
       atsLoadError: "Could not load the jobs.",
       atsFormatTitle: "Format issues",
       atsFormatClean: "We found no format problems.",
-      atsFormatNoPenalty:
-        "This is a reading of the file: it does not take points off the score.",
+      atsFormatPointsLabel: "Format points",
+      atsFormatEstimate:
+        "This is our own estimate of the risk that an ATS reads the file badly, not the score of any real ATS. It adds up to 10 points to the total: columns take off 4, images 3 and tables 3; unusual section titles are only flagged.",
       atsFormatNotEvaluatedTitle: "We could not evaluate the format of this CV.",
       atsFormatNotEvaluatedHint:
-        "It was read before Jobby checked tables, columns and images, so there is nothing to show about the format. Upload your CV again (My profile → Mejorar perfil) to evaluate it.",
+        "It was read before Jobby checked tables, columns and images, so there is nothing to show about the format. Upload your CV again (My profile → Mejorar perfil) to evaluate it. Meanwhile the format does not count in this report's score.",
       ratingThanks: "Thanks for your feedback.",
       ratingSaveError: "We could not save your rating. Please try again.",
       cvCardTitle: "Your CV",

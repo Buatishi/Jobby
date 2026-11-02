@@ -50,6 +50,10 @@ class ATSReport(BaseModel):
     # existieran): `format_issues` vacío significa entonces «no se miró», no «sin
     # problemas».
     format_evaluated: bool = True
+    # Puntos de formato (0 a 10) que entran en `ats_score`; None si el formato no se
+    # evaluó y por eso no cuenta (Decisión 42). Es una estimación propia del riesgo de
+    # lectura, no el puntaje de ningún ATS real.
+    format_points: int | None = None
 
 
 class ATSOptimizeRequest(BaseModel):
@@ -81,3 +85,7 @@ class ATSOptimizeResponse(BaseModel):
     sections: list[OptimizedCVSection]
     ats_score_before: int | None = None
     ats_score_after: int | None = None
+    # Los puntos de formato que cuenta el «después»: el CV descargable es de una
+    # columna, sin imágenes ni tablas. None si el reporte no evaluó el formato: entonces
+    # el «después» tampoco lo cuenta, para que el antes y el después se puedan comparar.
+    format_points_after: int | None = None

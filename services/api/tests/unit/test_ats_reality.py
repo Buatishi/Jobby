@@ -323,9 +323,12 @@ def test_ats_optimize_returns_rewritten_sections(
     assert response.status_code == 200
     body = response.json()
     assert body["sections"][0]["rewritten_text"] == "Python, FastAPI"
-    # FastAPI estaba ausente en el CV: mencionarlo no sube el puntaje verificado.
-    assert body["ats_score_before"] == 0
-    assert body["ats_score_after"] == 0
+    # FastAPI estaba ausente en el CV: mencionarlo no sube el puntaje verificado. El
+    # contenido vale 0 y el único punto que cuenta es el del formato sin avisos (10), el
+    # mismo antes y después.
+    assert body["ats_score_before"] == 10
+    assert body["ats_score_after"] == 10
+    assert body["format_points_after"] == 10
 
 
 def test_ats_optimize_says_the_ai_is_unavailable_instead_of_failing_with_a_500(

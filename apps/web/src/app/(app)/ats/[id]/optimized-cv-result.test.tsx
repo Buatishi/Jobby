@@ -86,6 +86,59 @@ describe("OptimizedCVResult", () => {
     expect(html).toContain("Testing, Observability");
   });
 
+  it("says the score after uses the format of the downloadable CV", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [section],
+      ats_score_before: 38,
+      ats_score_after: 45,
+      format_points_after: 10
+    };
+
+    const html = renderToStaticMarkup(
+      <OptimizedCVResult formatPointsBefore={3} optimized={optimized} />
+    );
+
+    expect(html).toContain("formato del CV descargable de Jobby");
+    expect(html).toContain("una columna, sin imágenes ni tablas");
+    expect(html).toMatch(/10 de(<!-- -->| )+10/);
+    expect(html).toContain("Tu archivo subido tiene 3 de 10");
+    expect(html).toContain("suma 7 puntos");
+  });
+
+  it("does not claim a format gain when the uploaded file was already clean", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [section],
+      ats_score_before: 55,
+      ats_score_after: 55,
+      format_points_after: 10
+    };
+
+    const html = renderToStaticMarkup(
+      <OptimizedCVResult formatPointsBefore={10} optimized={optimized} />
+    );
+
+    expect(html).toContain("formato del CV descargable de Jobby");
+    expect(html).not.toContain("por eso suma");
+  });
+
+  it("says nothing about the format when it was not evaluated", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [section],
+      ats_score_before: 50,
+      ats_score_after: 50,
+      format_points_after: null
+    };
+
+    const html = renderToStaticMarkup(
+      <OptimizedCVResult formatPointsBefore={null} optimized={optimized} />
+    );
+
+    expect(html).not.toContain("formato del CV descargable");
+  });
+
   it("keeps working with answers from before the verification", () => {
     const optimized: ATSOptimizeResponse = { job_id: "job-1", sections: [section] };
 

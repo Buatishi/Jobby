@@ -20,7 +20,10 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.models.ats import ATSFormatIssue, ATSKeywordMatch, ATSReport
-from app.services.ats_analyzer.format_checker import format_was_evaluated
+from app.services.ats_analyzer.format_checker import (
+    format_points,
+    format_was_evaluated,
+)
 from app.services.ats_analyzer.keyword_matcher import VectorLoader
 from app.services.match_engine.common import parse_embedding
 
@@ -33,8 +36,9 @@ logger = logging.getLogger(__name__)
 # mide habilidades, sin nivel, modalidad, ciudad ni título (Decisión 35). La 4 saca los
 # idiomas de las keywords (se evalúan como requisito) y busca también en las
 # certificaciones y el resumen del CV (Decisión 42). La 5 guarda de cada palabra si el
-# aviso la pide como obligatoria o como deseable.
-ATS_REPORT_VERSION = 5
+# aviso la pide como obligatoria o como deseable. La 6 suma el formato del archivo como
+# parte del puntaje (10 de 100) y guarda en cada aviso de formato cuántos puntos resta.
+ATS_REPORT_VERSION = 6
 
 
 def cv_fingerprint(primary_cv: Mapping[str, Any]) -> str:
@@ -92,14 +96,17 @@ def report_from_row(
     if not isinstance(matches, list) or not isinstance(issues, list):
         return None
     try:
+        format_issues = [ATSFormatIssue.model_validate(item) for item in issues]
+        # No se guarda: sale del CV principal, que la huella ya comprobó que es el
+        # mismo.
+        evaluated = format_was_evaluated(dict(primary_cv))
         return ATSReport(
             job_id=job_id,
             ats_score=int(row["ats_score"]),
             keyword_matches=[ATSKeywordMatch.model_validate(item) for item in matches],
-            format_issues=[ATSFormatIssue.model_validate(item) for item in issues],
-            # No se guarda: sale del CV principal, que la huella ya comprobó que es el
-            # mismo.
-            format_evaluated=format_was_evaluated(dict(primary_cv)),
+            format_issues=format_issues,
+            format_evaluated=evaluated,
+            format_points=format_points(format_issues) if evaluated else None,
         )
     except (KeyError, TypeError, ValueError, ValidationError):
         # Una fila dañada no debe romper el reporte: se recalcula y se reemplaza.

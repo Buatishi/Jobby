@@ -299,13 +299,15 @@ def score_after_optimization(
     sections: list[OptimizedCVSection],
     matches: list[ATSKeywordMatch],
     requirements: list[ATSRequirement],
+    format_points: int | None = None,
 ) -> int:
     """Puntaje ATS si se usan las secciones nuevas, contando solo lo verificado.
 
     Una keyword semántica que el texto nuevo nombra pasa a literal. Una ausente solo
     pasa si el CV la respalda con otras palabras (`backed_keywords`); las demás siguen
     ausentes aunque el texto las mencione: no tienen respaldo en el CV. Los requisitos
-    (años, formación, idiomas) no cambian: reescribir texto no los cambia.
+    (años, formación, idiomas) no cambian: reescribir texto no los cambia. El formato es
+    el del CV descargable (`format_points`), no el del archivo subido.
     """
     rewritten = "\n".join(section.rewritten_text for section in sections)
     backed = {
@@ -320,7 +322,7 @@ def score_after_optimization(
         else match
         for match in matches
     ]
-    return compose_ats_score(updated, requirements)
+    return compose_ats_score(updated, requirements, format_points)
 
 
 async def optimize_cv_sections(
