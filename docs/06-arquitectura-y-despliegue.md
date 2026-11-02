@@ -6,6 +6,12 @@ Estado: Etapa 1. Verificado del 2026-09-21 al 2026-09-24 contra `apps/web` (`nex
 lectura sobre producción. De los paneles de Vercel, Render y Supabase se documentan solo los
 **nombres** de las variables, nunca sus valores. La etapa 5e se verificó el 2026-10-12.
 
+**Actualización del 2026-11-02**, contra `origin/main` (PR #138) y comprobaciones de solo lectura
+sobre producción: cantidad de endpoints (OpenAPI de la API), de tablas (migraciones y catálogo de
+Supabase), trabajos de `pg_cron`, `Dockerfile` (ahora instala Chromium), workflows, nombres de los
+secretos del repositorio y de las variables del proyecto de Vercel (cinco, todas `NEXT_PUBLIC_*`, sin
+la de Sentry), medición de las pruebas unitarias y estado del servicio heredado de Render.
+
 ## 1. Componentes y dónde corre cada uno
 
 ![Arquitectura de Jobby](diagramas/arquitectura.svg)
@@ -18,16 +24,22 @@ Para imprimir: láminas A3 en [pdf/laminas/](pdf/laminas/) (`arquitectura.pdf`,
 | Web (cliente) | Next.js 15, React 19, TypeScript | Vercel; las funciones del servidor corren en São Paulo (`gru1`), la región de Supabase | <https://jobbyweb.vercel.app> |
 | API | FastAPI, Python 3.13, imagen Docker | Render, plan gratuito, región Oregón | <https://jobmatch-api-9xel.onrender.com> |
 | Tareas en segundo plano | Hilos dentro del proceso de la API (`TASK_EXECUTION_MODE=local`) | Render, el mismo servicio de la API | — |
-| Base de datos, identidad y archivos | Supabase: PostgreSQL 17 con pgvector, Auth y Storage (bucket privado `cv-documents`) | Supabase, región sa-east-1 | La URL del proyecto se carga como variable |
+| Base de datos, identidad y archivos | Supabase: PostgreSQL 17 con pgvector, Auth y Storage (bucket privado `cv-documents`); 16 tablas, todas con RLS. Además `pg_cron` y `pg_net`, que consultan `/health` de la API | Supabase, región sa-east-1 | La URL del proyecto se carga como variable |
 | Redis | Redis administrado | Upstash | `rediss://…:6379` dentro de `REDIS_URL` |
 | IA de terceros | DeepSeek (texto), OpenAI (vectores), Anthropic Claude (premium) | Servicios externos | `api.deepseek.com`, `api.openai.com`, `api.anthropic.com` |
 | Cobros | LemonSqueezy | Servicio externo | Envía eventos a `POST /api/v1/webhooks/lemonsqueezy` |
 | Emails y errores | Resend y Sentry | Servicios externos | — |
 
 Además: `render.yaml` declara dos workers de Celery que nunca se crearon (Render no tiene plan
-gratuito para ese tipo de servicio), y en Render existe un servicio heredado con el mismo código
-(`jobby-fp0r.onrender.com`) que se reconstruye en cada push pero ya no usa nadie: desde el
-2026-09-23 la web, si le faltan las variables, apunta a la API local de desarrollo y no a él.
+gratuito para ese tipo de servicio). En Render existió un servicio heredado con el mismo código
+(`jobby-fp0r.onrender.com`): hoy está **suspendido** (el 2026-11-02 respondió 503 con
+`x-render-routing: suspend-by-user`) y desde el 2026-09-23 la web, si le faltan las variables,
+apunta a la API local de desarrollo y no a él.
+
+Como Render duerme la API gratuita a los 15 minutos sin tráfico, se la consulta cada 10 minutos de
+8 a 24 h (hora de Buenos Aires) con dos mecanismos: `pg_cron` en Supabase (migración 029, tres
+trabajos activos el 2026-11-02: conexión 13) y el workflow programado `keep-alive.yml`, que GitHub
+ejecuta con retrasos (Decisión 14, `docs/operacion/arranque-en-frio.md`).
 
 ## 2. Comunicaciones: protocolo, puerto y si cruzan Internet
 
@@ -48,6 +60,7 @@ Numeradas como en el diagrama.
 | 10 | LemonSqueezy → API | HTTPS 443 | Sí | Eventos de suscripción firmados con HMAC-SHA256. |
 | 11 | API → Resend | HTTPS 443 | Sí | Avisos por email. |
 | 12 | API y web → Sentry | HTTPS 443 | Sí | Eventos de error (solo si hay DSN configurado). |
+| 13 | Supabase (`pg_cron` con `pg_net`) → API | HTTPS 443 | Sí | `GET /health` cada 10 minutos de 8 a 24 h para que Render no duerma la API (migración 029). No lleva datos ni credenciales. |
 
 No hay red privada, VPN ni túneles entre componentes: todo lo que cruza Internet va cifrado con
 TLS y se protege con tokens de sesión y con secretos guardados en cada plataforma.
@@ -61,7 +74,7 @@ TLS y se protege con tokens de sesión y con secretos guardados en cada platafor
 | Panel de Vercel | `NEXT_PUBLIC_API_URL`, URL y clave anon de Supabase, precios mensual y anual | La web. Las `NEXT_PUBLIC_*` se incrustan en el JavaScript del navegador: son públicas por diseño. La clave anon no es secreta: con ella no se puede leer ni escribir ninguna tabla (migración 025) y las políticas RLS son una segunda barrera. `NEXT_PUBLIC_SENTRY_DSN` no está cargada: Sentry queda sin activar en la web. |
 | Panel de Render (declaradas en `render.yaml` con `sync: false`, sin valor) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `REDIS_URL`, `RESEND_API_KEY`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_PREMIUM_VARIANT_ID` | Solo la API. La clave de servicio de Supabase no pasa por RLS: es la más sensible y nunca llega al navegador. |
 | Panel de Render (configuración no secreta) | `ENVIRONMENT=production`, `PORT`, `FRONTEND_URL`, `TASK_EXECUTION_MODE=local` | `ENVIRONMENT=production` cierra `/docs` y agrega HSTS y CSP; `FRONTEND_URL` alimenta CORS. |
-| Secretos de GitHub Actions | `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`; `TEST_SUPABASE_URL` y `TEST_SUPABASE_SERVICE_ROLE_KEY`; además `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_PROJECT_REF` | Los deploy hooks los usa el trabajo de despliegue de `ci.yml` (paso 5d del recorrido). Los `TEST_*` son del proyecto de Supabase de pruebas, no del de producción: los usan las pruebas de integración del trabajo de la API (paso 5a). Los otros de Supabase no los usa ningún workflow. |
+| Secretos de GitHub Actions | `RENDER_DEPLOY_HOOK_URL` y `VERCEL_DEPLOY_HOOK_URL`; `TEST_SUPABASE_URL` y `TEST_SUPABASE_SERVICE_ROLE_KEY`; además `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_PROJECT_REF` | Los deploy hooks los usa el trabajo de despliegue de `ci.yml` (paso 5d del recorrido). Los `TEST_*` son del proyecto de Supabase de pruebas, no del de producción: los usan las pruebas de integración del trabajo de la API (paso 5a). Los otros de Supabase no los usa ningún workflow. El trabajo de la web de `ci.yml` también pasa al build cinco variables `NEXT_PUBLIC_*` tomadas de secretos con ese nombre, pero el repositorio no los tiene cargados (el 2026-11-02 solo figuraban los siete de esta fila): en el CI se resuelven vacíos y los valores reales los usa Vercel en su propio build. |
 | Equipo local | `.env` y `.env.local` a partir de `.env.example` | Ignorados por Git: el repositorio solo versiona `.env.example`, sin valores. |
 
 **Recorrido de un secreto** (ejemplo: la clave de servicio de Supabase):
@@ -89,8 +102,8 @@ y llegan al navegador; por eso nunca contienen secretos.
 | 2. Pull request hacia `main` | `pull_request` | Dispara el workflow «CI». | Funciona desde el 2026-09-22: hasta ese día la cuenta de GitHub estaba bloqueada por facturación y ninguna ejecución llegaba a correr un paso |
 | 3. Protección de `main` | — | Pull request obligatorio también para administradores, sin force-push ni borrado, y los tres trabajos del CI en verde. | Funciona. Comprobado con un error deliberado: el CI quedó en rojo y GitHub bloqueó el merge |
 | 4. Merge a `main` | `push` a `main` | Dispara el CI; el despliegue sale solo del paso 5d. | Funciona |
-| 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint, tests y build. API: mypy, ruff, tests unitarios y de integración (estos contra el proyecto de Supabase de pruebas), en un orden distinto en cada corrida, y cobertura con corte del 65 %. Tipos compartidos: build. | Funciona; cobertura de las unitarias: 81,53 % (2026-09-24) |
-| 5b. Render | Deploy hook del paso 5d | Construye la imagen y despliega `jobmatch-api`. El servicio heredado sigue desplegando en cada push hasta que se suspenda. | Funciona desde el 2026-09-24: el despliegue automático está apagado y cada deploy figura como disparado por el hook |
+| 5a. CI (`ci.yml`) | `push` y `pull_request` | Web: typecheck, lint, tests y build. API: mypy, ruff, tests unitarios y de integración (estos contra el proyecto de Supabase de pruebas), en un orden distinto en cada corrida, y cobertura con corte del 65 %. Tipos compartidos: build. | Funciona; el 2026-11-02, sobre `origin/main`: 1.837 pruebas unitarias de la API y 92 % de cobertura de líneas (no incluye las de integración, que exigen los secretos del proyecto de pruebas) |
+| 5b. Render | Deploy hook del paso 5d | Construye la imagen y despliega `jobmatch-api`. El servicio heredado está suspendido. | Funciona desde el 2026-09-24: el despliegue automático está apagado y cada deploy figura como disparado por el hook |
 | 5c. Vercel | Deploy hook del paso 5d | Construye `main` como producción y lo publica en `jobbyweb.vercel.app`. `apps/web/vercel.json` apaga los builds automáticos de `main`; las otras ramas siguen generando vistas previas. | Funciona desde el 2026-09-24, con `main` como rama de producción |
 | 5d. Despliegue (`ci.yml`) | `push` a `main`, con `needs` sobre los tres trabajos | Llama a los deploy hooks de Render y Vercel. | Funciona: el 2026-09-24 (PR #21) llamó a los dos después de los tres trabajos en verde |
 | 5e. Seguridad (`security.yml`) | `pull_request` y `push` a `main`, y los lunes (`schedule`) | Tres trabajos en paralelo: gitleaks (secretos en todo el historial), Semgrep (análisis estático del código de la API y de la web) y Trivy (vulnerabilidades altas y críticas con corrección en `poetry.lock` y `pnpm-lock.yaml`). Es un workflow aparte del CI: no usa secretos (`contents: read`), no llama a los deploy hooks y no frena un despliegue. | Funciona desde el 2026-10-08 (PR #63); la ejecución programada corrió el 2026-10-12. No es un chequeo obligatorio de la protección de `main`, que exige solo los tres trabajos del CI |
