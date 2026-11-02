@@ -11,6 +11,12 @@ from app.services.skill_filter import skill_keywords
 from app.services.skill_names import canonical_skill_key
 
 KeywordStatus = Literal["literal", "semantic", "missing"]
+Priority = Literal["required", "nice"]
+
+# Cómo escribe la IA una palabra que el aviso presenta como deseable.
+_NICE_WORDS = frozenset(
+    {"nice", "nice_to_have", "preferred", "optional", "plus", "deseable"}
+)
 
 # Caracteres de contexto a cada lado de una palabra hallada en el resumen del CV.
 SNIPPET_CONTEXT = 40
@@ -25,6 +31,7 @@ class KeywordMatch:
     keyword: str
     status: KeywordStatus
     matched_text: str | None = None
+    priority: Priority = "required"
 
 
 @dataclass(frozen=True)
@@ -93,18 +100,45 @@ def _job_text(job: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def _parse_keywords(content: str, job: dict[str, Any]) -> list[str]:
+def _item_name(item: Any) -> str:
+    """El nombre de una palabra clave que la IA devolvió como texto o como objeto."""
+    if isinstance(item, dict):
+        return str(item.get("name") or item.get("keyword") or "").strip()
+    return str(item).strip()
+
+
+def _item_priority(item: Any) -> Priority:
+    if isinstance(item, dict):
+        value = str(item.get("priority") or "").strip().lower()
+        if value in _NICE_WORDS:
+            return "nice"
+    return "required"
+
+
+def _keyword_items(content: str) -> list[Any] | None:
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
-        parsed = None
-
+        return None
     if isinstance(parsed, dict):
         values = parsed.get("keywords")
-        if isinstance(values, list):
-            return sorted({str(item).strip() for item in values if str(item).strip()})
-    if isinstance(parsed, list):
-        return sorted({str(item).strip() for item in parsed if str(item).strip()})
+        return values if isinstance(values, list) else None
+    return parsed if isinstance(parsed, list) else None
+
+
+def _parse_priorities(content: str) -> dict[str, Priority]:
+    """Las palabras que la IA marcó como deseables, por palabra en minúsculas."""
+    return {
+        name.lower(): "nice"
+        for item in _keyword_items(content) or []
+        if (name := _item_name(item)) and _item_priority(item) == "nice"
+    }
+
+
+def _parse_keywords(content: str, job: dict[str, Any]) -> list[str]:
+    items = _keyword_items(content)
+    if items is not None:
+        return sorted({name for item in items if (name := _item_name(item))})
 
     fallback = [str(item) for item in job.get("required_skills") or []]
     fallback.extend(str(item) for item in job.get("tech_stack") or [])
@@ -115,6 +149,15 @@ async def extract_job_keywords(
     job: dict[str, Any],
     gateway: AIGateway | None = None,
 ) -> list[str]:
+    keywords, _priorities = await extract_job_keyword_priorities(job, gateway)
+    return keywords
+
+
+async def extract_job_keyword_priorities(
+    job: dict[str, Any],
+    gateway: AIGateway | None = None,
+) -> tuple[list[str], dict[str, Priority]]:
+    """Las palabras clave del puesto y cuáles el aviso presenta como deseables."""
     ai_gateway = gateway or AIGateway()
     content = await ai_gateway.generate(
         "match_reasoning",
@@ -122,7 +165,11 @@ async def extract_job_keywords(
         (
             "Extraé las habilidades que pide este job para filtrar CVs con un ATS. "
             "Devolvé JSON estricto con forma "
-            '{"keywords": ["Python", "React"]}. Incluí solo habilidades: lenguajes, '
+            '{"keywords": [{"name": "Python", "priority": "required"}, '
+            '{"name": "Docker", "priority": "nice"}]}. priority es "required" salvo '
+            'que el aviso presente la habilidad como deseable ("nice to have", "plus", '
+            '"preferred", "se valora", "deseable", "valorable"): ahí es "nice". '
+            "Incluí solo habilidades: lenguajes, "
             "frameworks, librerías, herramientas, plataformas, metodologías y "
             "certificaciones, cada una con su nombre corto y común "
             '("SQL", no "Escritura de consultas SQL"). No incluyas idiomas (se '
@@ -134,7 +181,48 @@ async def extract_job_keywords(
         system="Sos un extractor ATS. Respondé solo JSON válido.",
         json_mode=True,
     )
-    return _parse_keywords(content, job)
+    return _parse_keywords(content, job), _parse_priorities(content)
+
+
+async def classify_keyword_priorities(
+    job: dict[str, Any],
+    keywords: list[str],
+    gateway: AIGateway | None = None,
+) -> dict[str, str]:
+    """De unas palabras ya extraídas, cuáles el aviso presenta como deseables.
+
+    Sirve para un reporte guardado antes de que se guardara la prioridad. Cualquier
+    falla deja a todas como obligatorias: es el comportamiento de antes.
+    """
+    if not keywords:
+        return {}
+    try:
+        content = await (gateway or AIGateway()).generate(
+            "match_reasoning",
+            "free",
+            (
+                "De estas habilidades de un aviso, indicá cuáles el aviso presenta "
+                "como "
+                'deseables ("nice to have", "plus", "preferred", "se valora", '
+                '"deseable", "valorable") y no como requisito. Devolvé JSON estricto '
+                'con forma {"nice": ["Docker"]}, con los nombres tal como figuran en '
+                f'la lista; si ninguna es deseable, {{"nice": []}}.\n\n'
+                f"HABILIDADES: {json.dumps(keywords, ensure_ascii=False)}\n\n"
+                f"AVISO:\n{_job_text(job)}"
+            ),
+            system="Sos un extractor ATS. Respondé solo JSON válido.",
+            json_mode=True,
+        )
+        parsed = json.loads(content)
+    except Exception:
+        return {}
+    names = parsed.get("nice") if isinstance(parsed, dict) else None
+    known = {keyword.strip().lower() for keyword in keywords}
+    return {
+        name.strip().lower(): "nice"
+        for name in names or []
+        if isinstance(name, str) and name.strip().lower() in known
+    }
 
 
 async def _semantic_matches(
@@ -203,14 +291,17 @@ async def analyze_keywords(
     semantic_threshold: float = 0.75,
     *,
     keywords: list[str] | None = None,
+    priorities: Mapping[str, str] | None = None,
     saved_vectors: VectorLoader | None = None,
 ) -> ATSKeywordResult:
     """`keywords` son las que el puesto ya tiene guardadas: con ellas no se consulta a
     la IA, que daría otras cada vez. Las de la IA y las guardadas pasan por el mismo
-    filtro: solo cuentan las habilidades (`skill_filter`)."""
+    filtro: solo cuentan las habilidades (`skill_filter`). `priorities` dice cuáles son
+    deseables (por palabra en minúsculas); sin ellas, todas son obligatorias."""
     ai_gateway = gateway or AIGateway()
     if keywords is None:
-        keywords = await extract_job_keywords(job, ai_gateway)
+        keywords, priorities = await extract_job_keyword_priorities(job, ai_gateway)
+    nice = {key for key, value in (priorities or {}).items() if value == "nice"}
     keywords = skill_keywords(keywords, job)
     # Los idiomas se evalúan como requisito del puesto: en la lista de palabras clave
     # se contaban dos veces y se contradecían (Decisión 42).
@@ -256,11 +347,16 @@ async def analyze_keywords(
 
     matches: list[KeywordMatch] = []
     for keyword in keywords:
+        priority: Priority = "nice" if keyword.strip().lower() in nice else "required"
         if keyword in literals:
-            matches.append(KeywordMatch(keyword, "literal", literals[keyword]))
+            matches.append(
+                KeywordMatch(keyword, "literal", literals[keyword], priority)
+            )
         elif keyword in semantic:
-            matches.append(KeywordMatch(keyword, "semantic", semantic[keyword]))
+            matches.append(
+                KeywordMatch(keyword, "semantic", semantic[keyword], priority)
+            )
         else:
-            matches.append(KeywordMatch(keyword, "missing"))
+            matches.append(KeywordMatch(keyword, "missing", None, priority))
 
     return ATSKeywordResult(keywords=keywords, matches=matches)

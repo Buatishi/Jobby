@@ -7,6 +7,9 @@ class ATSKeywordMatch(BaseModel):
     keyword: str
     status: Literal["literal", "semantic", "missing"]
     matched_text: str | None = None
+    # «nice»: el aviso la presenta como deseable y vale la mitad (Decisión 42). Un
+    # reporte guardado antes de esto no lo trae y se lee como obligatoria.
+    priority: Literal["required", "nice"] = "required"
 
 
 class ATSFormatIssue(BaseModel):

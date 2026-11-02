@@ -63,8 +63,12 @@ export const ATS_SCORE_WEIGHTS = {
   languages: 10
 } as const;
 
-// `ats_analyzer/scoring.py` (`keyword_coverage`): lo que suma cada palabra clave.
+// `ats_analyzer/scoring.py` (`LITERAL_POINTS` y `SEMANTIC_POINTS`): lo que suma cada palabra clave.
 export const ATS_KEYWORD_POINTS = { literal: 1, semantic: 0.5 } as const;
+
+// `ats_analyzer/scoring.py` (`NICE_TO_HAVE_WEIGHT`): cuánto pesa, frente a una obligatoria,
+// una palabra clave que el aviso presenta como deseable.
+export const ATS_NICE_TO_HAVE_WEIGHT = 0.5;
 
 // `services/api/app/services/rate_limits.py` (`_rule`): análisis de puestos del plan gratis por
 // mes y optimizaciones de CV por mes de cada plan.

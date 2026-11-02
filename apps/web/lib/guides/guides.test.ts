@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ATS_KEYWORD_POINTS,
+  ATS_NICE_TO_HAVE_WEIGHT,
   ATS_SCORE_WEIGHTS,
   CV_OPTIMIZATIONS_PER_MONTH,
   FREE_JOB_ANALYSES_PER_MONTH,
@@ -186,12 +187,18 @@ describe("guide figures match the backend code", () => {
 
   it("uses the points of each keyword match", () => {
     const source = readService("ats_analyzer/scoring.py");
-    const match = source.match(
-      /literal_hits \* ([\d.]+) \+ semantic_hits \* ([\d.]+)/
-    );
+    const literal = source.match(/LITERAL_POINTS = ([\d.]+)/);
+    const semantic = source.match(/SEMANTIC_POINTS = ([\d.]+)/);
 
-    expect(Number(match?.[1])).toBe(ATS_KEYWORD_POINTS.literal);
-    expect(Number(match?.[2])).toBe(ATS_KEYWORD_POINTS.semantic);
+    expect(Number(literal?.[1])).toBe(ATS_KEYWORD_POINTS.literal);
+    expect(Number(semantic?.[1])).toBe(ATS_KEYWORD_POINTS.semantic);
+  });
+
+  it("uses the weight of a keyword the posting calls nice to have", () => {
+    const source = readService("ats_analyzer/scoring.py");
+    const match = source.match(/NICE_TO_HAVE_WEIGHT = ([\d.]+)/);
+
+    expect(Number(match?.[1])).toBe(ATS_NICE_TO_HAVE_WEIGHT);
   });
 
   it("uses the monthly limits of each plan", () => {
@@ -239,6 +246,8 @@ describe("guide figures match the backend code", () => {
 
     const ats = guideText(getGuide("que-es-un-ats")!);
     expect(ats).toContain(`las palabras clave (${ATS_SCORE_WEIGHTS.skills} %)`);
+    expect(ats).toContain("«nice to have», «se valora»");
+    expect(ats).toContain("vale la mitad");
     expect(ats).toContain(`los años (${ATS_SCORE_WEIGHTS.experience} %)`);
     expect(ats).toContain("Es un aviso: no resta puntos.");
     expect(ats).toContain("suma 0,5");

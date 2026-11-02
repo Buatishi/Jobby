@@ -27,6 +27,7 @@ import {
   OptimizedCVResult,
   type ATSOptimizeResponse
 } from "./optimized-cv-result";
+import { KeywordName } from "./keyword-name";
 import { RequirementsCard, type ATSRequirement } from "./requirements-card";
 
 type KeywordStatus = "literal" | "semantic" | "missing";
@@ -38,6 +39,8 @@ type ATSReport = {
     keyword: string;
     status: KeywordStatus;
     matched_text: string | null;
+    /** «nice»: el aviso la presenta como deseable y vale la mitad; una API anterior no lo manda. */
+    priority?: "required" | "nice";
   }>;
   format_issues: FormatIssue[];
   /** Años, formación e idiomas que pide el puesto; una API anterior no lo manda. */
@@ -191,7 +194,12 @@ export default function ATSReportPage() {
                 <tbody>
                   {report.keyword_matches.map((match) => (
                     <tr className="border-t border-border" key={match.keyword}>
-                      <td className="px-4 py-3 font-medium">{match.keyword}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <KeywordName
+                          keyword={match.keyword}
+                          priority={match.priority}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className="text-lg font-semibold"

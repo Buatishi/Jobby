@@ -24,10 +24,14 @@ from app.services.ats_analyzer.format_checker import (
     check_cv_format,
     format_was_evaluated,
 )
-from app.services.ats_analyzer.keyword_matcher import analyze_keywords
+from app.services.ats_analyzer.keyword_matcher import (
+    analyze_keywords,
+    classify_keyword_priorities,
+)
 from app.services.ats_analyzer.report_store import (
     fetch_report_row,
     keywords_from_row,
+    priorities_from_row,
     report_from_row,
     save_report,
     skill_vector_loader,
@@ -97,13 +101,15 @@ async def _build_ats_report(
     primary_cv: dict[str, Any],
     supabase: Any,
     keywords: list[str] | None = None,
+    priorities: dict[str, str] | None = None,
 ) -> ATSReport:
     # `keywords` son las que el puesto ya tenía: sin ellas se consulta a la IA, que
-    # daría otras cada vez.
+    # daría otras cada vez. `priorities` dice cuáles de ellas son deseables.
     keyword_result = await analyze_keywords(
         job,
         primary_cv,
         keywords=keywords,
+        priorities=priorities,
         saved_vectors=skill_vector_loader(supabase, primary_cv),
     )
     format_issues = check_cv_format(primary_cv)
@@ -118,6 +124,7 @@ async def _build_ats_report(
                 keyword=match.keyword,
                 status=match.status,
                 matched_text=match.matched_text,
+                priority=match.priority,
             )
             for match in keyword_result.matches
         ],
@@ -141,8 +148,16 @@ async def _calculate_and_save_report(
     primary_cv: dict[str, Any],
     saved_row: dict[str, Any] | None,
 ) -> ATSReport:
+    keywords = keywords_from_row(saved_row)
+    priorities: dict[str, str] | None = (
+        priorities_from_row(saved_row) if keywords else None
+    )
+    if keywords and priorities is None:
+        # Un reporte de antes de guardar la prioridad: una consulta barata a la IA dice
+        # cuáles son deseables sin cambiar las palabras del puesto.
+        priorities = await classify_keyword_priorities(job, keywords)
     report = await _build_ats_report(
-        job_id, job, primary_cv, supabase, keywords_from_row(saved_row)
+        job_id, job, primary_cv, supabase, keywords, priorities
     )
     report = await _with_requirements(supabase, user_id, job, primary_cv, report)
     await save_report(supabase, user_id, primary_cv, report)
