@@ -10,6 +10,10 @@ export type ATSOptimizeResponse = {
     added_keywords: string[];
     rationale: string;
     unverified_keywords?: string[];
+    /** Keywords que el CV ya dice con otras palabras y el texto nuevo escribe: cuentan. */
+    backed_keywords?: string[];
+    target_company?: string;
+    target_title?: string;
   }>;
   ats_score_before?: number | null;
   ats_score_after?: number | null;
@@ -79,6 +83,12 @@ export function OptimizedCVResult({
                 ))}
               </div>
             </div>
+            {section.backed_keywords && section.backed_keywords.length > 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Tu CV ya lo dice con otras palabras y ahora figura escrito:{" "}
+                {section.backed_keywords.join(", ")}.
+              </p>
+            ) : null}
             {section.unverified_keywords &&
             section.unverified_keywords.length > 0 ? (
               <div

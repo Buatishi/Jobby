@@ -74,6 +74,18 @@ describe("OptimizedCVResult", () => {
     expect(html).toContain("Texto B nuevo");
   });
 
+  it("tells which keywords the CV already says in other words", () => {
+    const optimized: ATSOptimizeResponse = {
+      job_id: "job-1",
+      sections: [{ ...section, backed_keywords: ["Testing", "Observability"] }]
+    };
+
+    const html = renderToStaticMarkup(<OptimizedCVResult optimized={optimized} />);
+
+    expect(html).toContain("Tu CV ya lo dice con otras palabras");
+    expect(html).toContain("Testing, Observability");
+  });
+
   it("keeps working with answers from before the verification", () => {
     const optimized: ATSOptimizeResponse = { job_id: "job-1", sections: [section] };
 

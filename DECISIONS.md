@@ -2862,3 +2862,26 @@ Con los precios de lista de `deepseek-chat` que usé como cota (USD 0,28 por mil
 - Los PDF de `docs/pdf` no se regeneraron con el cambio del `docs/03-dfd-nivel-2.md`.
 
 **Reversión.** Deshacer el merge: vuelve la fórmula anterior. Nada guardado cambia.
+
+## Actualización — Decisión 24 (2026-11-02): las experiencias se ubican por su id y el respaldo mira español e inglés
+
+**Estado:** Corrección pedida por el autor tras optimizar su CV para un puesto de Accusys (agentes con LLM): «sigue sin encontrar las experiencias para reemplazar en el CV; el ATS no se mueve del valor inicial» (29 → 29). Dos causas medidas con sus capturas y su base.
+
+**Problema.**
+- **Experiencias sin ubicar.** La IA devolvía el fragmento de una experiencia como un registro («Desarrollador Freelance — Python & Salesforce | Pyme | 2026-03 a…»), copiando el JSON que se le manda, y no como el texto de una viñeta. La web solo reemplazaba un fragmento que estuviera entero en el CV, así que nunca lo encontraba. El arreglo anterior (Decisión 26, 2026-10-31) cubría fragmentos de varias viñetas, no registros: se probó con el caso ideal y no con la respuesta real.
+- **Puntaje sin movimiento.** El verificador marcaba «Testing» como «sin respaldo» porque el reporte la daba por faltante, aunque el CV dice «casos de prueba documentados»: el respaldo salía solo del reporte, que busca la palabra literal o muy parecida por significado, y no mira español contra inglés. Lo que el CV no respalda sigue sin contar, y eso es correcto: para ese puesto, LangChain, LangGraph, las API de OpenAI y Anthropic o Hugging Face no figuran en el CV.
+
+**Elegido.**
+- **Cada experiencia lleva un id** («exp-1»…) en lo que se le manda a la IA, y se le pide `target_id`, el fragmento como las viñetas sin cargo, empresa ni fechas, y el texto nuevo igual. La API resuelve a qué experiencia se refiere cada sección: primero por el id y, si falta o no existe, por el cargo (y la empresa) que aparecen en el fragmento; sin una única candidata no adivina. Devuelve `target_company` y `target_title`.
+- **La web ubica por ese cargo y esa empresa** (con tolerancia: «Pyme» y «Freelance (pyme local)» son la misma), saca el encabezado «cargo | empresa | fechas» del texto nuevo y deja las viñetas, una por renglón o separadas por «;». Si hay dos candidatas no elige. Si la sección no dice a qué experiencia se refiere, sigue la lógica de siempre.
+- **Respaldo por otras palabras:** una keyword ausente tiene respaldo si todas sus palabras, llevadas a su forma común (`canonical_skill_key`: «prueba» y «testing», «diseño» y «design»), están en un mismo texto del CV, en cualquier orden. Una keyword de menos de 5 letras no se busca así. Esas keywords, si el texto nuevo las escribe, pasan a `backed_keywords`, no se marcan «sin respaldo» y **cuentan en el puntaje «después»**. El reporte «antes» no cambia: sigue siendo la búsqueda literal que haría un ATS.
+- La tabla de palabras genéricas suma «mantenimiento», «negocio», «calidad», «código», «caso», «observabilidad», «requerimiento» y «evaluación» con sus traducciones; tiene sus pares en `test_cv_optimizer_targets.py`.
+- La pantalla dice qué palabras «tu CV ya lo dice con otras palabras» y rotula cada sección de experiencia con su empresa y cargo.
+
+**Medido con los datos reales del autor** (local, solo lectura): de las 17 palabras que ese reporte daba por faltantes, solo «Testing» tiene respaldo en su CV por este camino; el puntaje «después» sube unos 3 puntos y las demás siguen «sin respaldo». No se vio la respuesta real de la IA con el pedido nuevo: la prueba es la que se armó con el formato de registro que mostró el autor.
+
+**Límites que quedan abiertos.**
+- Es una regla sin IA y conservadora: «Docker» no respalda «Containers» ni «OOP» a «Python»; hacerlo sería una inferencia.
+- Si la IA no devuelve `target_id` ni un fragmento con el cargo, la sección sigue sin ubicarse y se ofrece el texto para copiarlo a mano.
+- El puntaje «después» solo sube con palabras que el CV respalda: para un puesto cuyo tema el CV no cubre, el ATS casi no se mueve, y eso es lo que se quiere mostrar.
+- Un CV leído antes de que el lector guardara el resumen no lo trae: el optimizador redacta uno sin texto original.

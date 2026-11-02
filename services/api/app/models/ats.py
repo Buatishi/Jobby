@@ -62,6 +62,15 @@ class OptimizedCVSection(BaseModel):
     # Keywords que el texto nuevo menciona sin respaldo en el CV:
     # la persona las confirma antes de usarlas.
     unverified_keywords: list[str] = Field(default_factory=list)
+    # Keywords que el reporte daba por faltantes pero el CV respalda con otras palabras
+    # («casos de prueba» para «testing»): el texto nuevo las escribe y cuentan.
+    backed_keywords: list[str] = Field(default_factory=list)
+    # A qué experiencia del CV corresponde una sección `experiences` (Decisión 24).
+    # La IA devuelve el fragmento como un registro («cargo | empresa | fechas…») y no
+    # como el texto de una viñeta, así que no se puede ubicar por el texto.
+    target_id: str = ""
+    target_company: str = ""
+    target_title: str = ""
 
 
 class ATSOptimizeResponse(BaseModel):

@@ -283,6 +283,201 @@ describe("describeSection", () => {
   });
 });
 
+describe("applyOptimizedSections by the experience it refers to", () => {
+  const real: PrintableCV = {
+    ...cv,
+    experiences: [
+      {
+        company: "Pyme",
+        title: "Desarrollador Freelance — Python & Salesforce",
+        started_at: "2026-03",
+        ended_at: "2026-05",
+        is_current: false,
+        description: null,
+        achievements: [
+          "Pipeline end-to-end de automatización de facturas",
+          "Manejo de errores, logging y casos de prueba documentados"
+        ]
+      },
+      {
+        company: "Independiente",
+        title: "Operador y Analista Digital",
+        started_at: "2024-01",
+        ended_at: "2024-10",
+        is_current: false,
+        description: null,
+        achievements: ["Venta de Productos Online", "Análisis de mercado"]
+      }
+    ]
+  };
+
+  const target = {
+    target_company: "Pyme",
+    target_title: "Desarrollador Freelance — Python & Salesforce"
+  };
+
+  it("places the new bullets of a record-style answer on the experience it names", () => {
+    const { cv: result, unplaced } = applyOptimizedSections(real, [
+      {
+        section_name: "experiences",
+        // Lo que devolvió la IA: ni el fragmento ni el texto nuevo son una viñeta.
+        original_excerpt:
+          "Desarrollador Freelance — Python & Salesforce | Pyme | 2026-03 a 2026-05 | Pipeline end-to-end de automatización de facturas",
+        rewritten_text:
+          "Desarrollador Freelance — Python & Salesforce | Pyme | 2026-03 a 2026-05 | Diseñé un pipeline end-to-end en Python; Redujo un 70% el tiempo de procesamiento; Testing automatizado con pytest",
+        ...target
+      }
+    ]);
+
+    expect(unplaced).toEqual([]);
+    expect(result.experiences[0].achievements).toEqual([
+      "Diseñé un pipeline end-to-end en Python",
+      "Redujo un 70% el tiempo de procesamiento",
+      "Testing automatizado con pytest"
+    ]);
+    expect(result.experiences[0].description).toBeNull();
+    // La otra experiencia no se toca.
+    expect(result.experiences[1]).toEqual(real.experiences[1]);
+  });
+
+  it("places plain bullets, one per line, as they are", () => {
+    const { cv: result, unplaced } = applyOptimizedSections(real, [
+      {
+        section_name: "experiences",
+        original_excerpt: "no coincide con nada",
+        rewritten_text: "• Automaticé facturas con Python\n• Agregué testing con pytest",
+        ...target
+      }
+    ]);
+
+    expect(unplaced).toEqual([]);
+    expect(result.experiences[0].achievements).toEqual([
+      "Automaticé facturas con Python",
+      "Agregué testing con pytest"
+    ]);
+  });
+
+  it("drops the header in any order: company first, dates last", () => {
+    const { cv: result } = applyOptimizedSections(real, [
+      {
+        section_name: "experiences",
+        original_excerpt: "",
+        rewritten_text:
+          "Pyme | Desarrollador Freelance — Python & Salesforce | Marzo 2026 | Presente | Una viñeta nueva sobre testing",
+        ...target
+      }
+    ]);
+
+    expect(result.experiences[0].achievements).toEqual([
+      "Una viñeta nueva sobre testing"
+    ]);
+  });
+
+  it("keeps a bullet that merely mentions the company", () => {
+    const { cv: result } = applyOptimizedSections(real, [
+      {
+        section_name: "experiences",
+        original_excerpt: "",
+        rewritten_text:
+          "Desarrollador Freelance — Python & Salesforce | Pyme | 2026-03 | Automaticé la facturación de una pyme local con Python",
+        ...target
+      }
+    ]);
+
+    expect(result.experiences[0].achievements).toEqual([
+      "Automaticé la facturación de una pyme local con Python"
+    ]);
+  });
+
+  it("finds the experience even when the profile spells the company differently", () => {
+    const profile: PrintableCV = {
+      ...real,
+      experiences: [
+        {
+          ...real.experiences[0],
+          company: "Freelance (pyme local)",
+          title: "Desarrollador Freelance Python & Salesforce"
+        },
+        real.experiences[1]
+      ]
+    };
+
+    const { cv: result, unplaced } = applyOptimizedSections(profile, [
+      {
+        section_name: "experiences",
+        original_excerpt: "",
+        rewritten_text: "• Una viñeta nueva",
+        ...target
+      }
+    ]);
+
+    expect(unplaced).toEqual([]);
+    expect(result.experiences[0].achievements).toEqual(["Una viñeta nueva"]);
+  });
+
+  it("does not guess when two experiences match the target", () => {
+    const twins: PrintableCV = {
+      ...real,
+      experiences: [
+        { ...real.experiences[0], company: "Pyme norte" },
+        { ...real.experiences[0], company: "Pyme sur" }
+      ]
+    };
+    const section = {
+      section_name: "experiences",
+      original_excerpt: "texto que no está",
+      rewritten_text: "• Una viñeta nueva",
+      target_company: "Pyme",
+      target_title: "Desarrollador Freelance — Python & Salesforce"
+    };
+
+    const { cv: result, unplaced } = applyOptimizedSections(twins, [section]);
+
+    expect(result.experiences).toEqual(twins.experiences);
+    expect(unplaced).toEqual([section]);
+  });
+
+  it("leaves everything alone when the target has nothing to put", () => {
+    const section = {
+      section_name: "experiences",
+      original_excerpt: "",
+      rewritten_text: "Desarrollador Freelance — Python & Salesforce | Pyme | 2026-03",
+      ...target
+    };
+
+    const { cv: result, unplaced } = applyOptimizedSections(real, [section]);
+
+    expect(result.experiences).toEqual(real.experiences);
+    expect(unplaced).toEqual([section]);
+  });
+
+  it("falls back to the excerpt when the section names no experience", () => {
+    const { cv: result } = applyOptimizedSections(real, [
+      {
+        section_name: "experiences",
+        original_excerpt: "Venta de Productos Online",
+        rewritten_text: "Venta online de productos digitales"
+      }
+    ]);
+
+    expect(result.experiences[1].achievements).toEqual([
+      "Venta online de productos digitales",
+      "Análisis de mercado"
+    ]);
+  });
+
+  it("labels an experience section with its company and title", () => {
+    expect(
+      describeSection({
+        section_name: "experiences",
+        original_excerpt: "x | y",
+        rewritten_text: "z",
+        ...target
+      })
+    ).toBe("experiences «Pyme — Desarrollador Freelance — Python & Salesforce»");
+  });
+});
+
 describe("splitSkills", () => {
   it("splits on the usual separators and drops empty items", () => {
     expect(splitSkills("Python, SQL;\nPower BI • Excel.")).toEqual([
