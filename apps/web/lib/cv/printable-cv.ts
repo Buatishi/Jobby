@@ -44,6 +44,9 @@ export type OptimizedSection = {
   original_excerpt: string;
   rewritten_text: string;
   unverified_keywords?: string[];
+  /** La experiencia del CV a la que se refiere una sección `experiences` (la API la resuelve). */
+  target_company?: string;
+  target_title?: string;
 };
 
 function squash(value: string): string {
@@ -157,7 +160,11 @@ export function describeSection(section: OptimizedSection): string {
   if (section.section_name === "summary" || section.section_name === "skills") {
     return section.section_name;
   }
-  const preview = squash(section.original_excerpt || section.rewritten_text);
+  const target = [section.target_company, section.target_title]
+    .map((part) => squash(part ?? ""))
+    .filter(Boolean)
+    .join(" — ");
+  const preview = target || squash(section.original_excerpt || section.rewritten_text);
   if (!preview) {
     return section.section_name;
   }
@@ -165,8 +172,108 @@ export function describeSection(section: OptimizedSection): string {
   return `${section.section_name} «${short}»`;
 }
 
+type Experience = PrintableCV["experiences"][number];
+
+// «Marzo 2026», «Jan 2024»: una fecha escrita con el mes.
+const MONTH_START =
+  /^(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|january|february|march|april|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|ene|abr|ago|dic)( \d{4})?$/;
+
+// Una parte de «cargo | empresa | fechas | viñetas» que es el encabezado y no una viñeta.
+function isHeaderPart(part: string, experience: Experience): boolean {
+  const key = looseKey(part);
+  if (!key || /^\d{4}([-/]\d{1,2})?(\s|$)/.test(part.trim())) {
+    return true;
+  }
+  if (MONTH_START.test(key)) {
+    return true;
+  }
+  if (/\b(presente|actual|actualidad|present)\b/i.test(part)) {
+    return true;
+  }
+  const words = key.split(" ").length;
+  return [experience.title, experience.company].some((reference) => {
+    const referenceKey = looseKey(reference);
+    if (!referenceKey) {
+      return false;
+    }
+    // Un tramo del cargo o la empresa, o ellos con poco más (el año, «a»): no una viñeta.
+    return (
+      key === referenceKey ||
+      (key.length >= 3 && referenceKey.includes(key)) ||
+      (key.includes(referenceKey) && words <= referenceKey.split(" ").length + 2)
+    );
+  });
+}
+
+// La IA suele devolver el texto nuevo como un registro: «cargo | empresa | fechas |
+// viñeta; viñeta». Se saca el encabezado y quedan las viñetas, una por renglón.
+function experienceBulletsFrom(text: string, experience: Experience): string[] {
+  let body = text;
+  if (text.includes("|")) {
+    const parts = text.split("|").map((part) => part.trim());
+    let start = 0;
+    while (start < parts.length && isHeaderPart(parts[start], experience)) {
+      start += 1;
+    }
+    body = parts.slice(start).join("\n");
+    // Con el encabezado afuera, «a; b; c» son tres viñetas.
+    const pieces = body.split(/;\s+/).filter((piece) => piece.trim().length >= 15);
+    if (!body.includes("\n") && pieces.length >= 2) {
+      body = pieces.join("\n");
+    }
+  }
+  return rewrittenBullets(body);
+}
+
+function findTarget(cv: PrintableCV, section: OptimizedSection): Experience | null {
+  const titleKey = looseKey(section.target_title ?? "");
+  const companyKey = looseKey(section.target_company ?? "");
+  if (!titleKey && !companyKey) {
+    return null;
+  }
+  const related = (key: string, other: string) =>
+    Boolean(key) && Boolean(other) && (other.includes(key) || key.includes(other));
+  const candidates = cv.experiences.filter((experience) => {
+    const title = looseKey(experience.title);
+    const company = looseKey(experience.company);
+    const sameTitle = titleKey ? related(titleKey, title) : true;
+    const sameCompany = companyKey && company ? related(companyKey, company) : true;
+    return sameTitle && sameCompany && (Boolean(titleKey && title) || Boolean(companyKey && company));
+  });
+  const exact = candidates.filter(
+    (experience) =>
+      looseKey(experience.title) === titleKey &&
+      looseKey(experience.company) === companyKey
+  );
+  const pool = exact.length > 0 ? exact : candidates;
+  return pool.length === 1 ? pool[0] : null;
+}
+
+// null: la sección no dice a qué experiencia se refiere; false: se refiere a una pero
+// no hay viñetas que poner (no se toca nada).
+function placeByTarget(cv: PrintableCV, section: OptimizedSection): boolean | null {
+  const target = findTarget(cv, section);
+  if (target === null) {
+    return null;
+  }
+  const bullets = experienceBulletsFrom(section.rewritten_text, target);
+  if (bullets.length === 0) {
+    return false;
+  }
+  target.achievements = bullets;
+  target.description = null;
+  return true;
+}
+
 function placeSection(cv: PrintableCV, section: OptimizedSection): boolean {
   const { original_excerpt: excerpt, rewritten_text: rewritten } = section;
+
+  if (section.section_name === "experiences") {
+    const byTarget = placeByTarget(cv, section);
+    if (byTarget !== null) {
+      return byTarget;
+    }
+  }
 
   const summary = replaceExcerpt(cv.summary, excerpt, rewritten);
   if (summary !== null) {

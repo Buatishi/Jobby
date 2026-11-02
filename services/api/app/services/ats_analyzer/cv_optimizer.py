@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -12,6 +13,8 @@ from app.services.ai_gateway.prompts.untrusted import UNTRUSTED_DATA_NOTICE_ES
 from app.services.ats_analyzer.scoring import compose_ats_score
 from app.services.cv_parser import strip_embeddings
 from app.services.match_engine.common import normalize_text
+from app.services.skill_names import canonical_skill_key
+from app.services.text_quality import fold
 
 logger = logging.getLogger("jobmatch.ats")
 
@@ -25,6 +28,12 @@ class _OptimizedPayload(BaseModel):
     sections: list[OptimizedCVSection] = Field(default_factory=list)
 
 
+# Una keyword de menos letras que esto («Go», «R», «AI») no se busca por palabras
+# equivalentes: coincidiría con cualquier texto.
+MIN_EQUIVALENCE_LENGTH = 5
+_EXPERIENCE_ID = re.compile(r"^exp-(\d+)$")
+
+
 def _cv_sections(primary_cv: dict[str, Any]) -> dict[str, Any]:
     parsed_data = primary_cv.get("parsed_data")
     if isinstance(parsed_data, dict):
@@ -34,11 +43,21 @@ def _cv_sections(primary_cv: dict[str, Any]) -> dict[str, Any]:
             # Los CV guardados antes de cortar la fuga traen el vector de 1536
             # números en cada skill: no va al prompt ni al texto de verificación.
             "skills": strip_embeddings(skills) if isinstance(skills, list) else skills,
-            "experiences": parsed_data.get("experiences", []),
+            "experiences": _with_ids(parsed_data.get("experiences", [])),
             "educations": parsed_data.get("educations", []),
             "certifications": parsed_data.get("certifications", []),
         }
     return {"raw_text": primary_cv.get("raw_text") or primary_cv.get("text") or ""}
+
+
+def _with_ids(experiences: Any) -> Any:
+    """Cada experiencia con un id («exp-1»…) para que la IA diga a cuál se refiere."""
+    if not isinstance(experiences, list):
+        return experiences
+    return [
+        {"id": f"exp-{index}", **item} if isinstance(item, dict) else item
+        for index, item in enumerate(experiences, start=1)
+    ]
 
 
 def _low_coverage_keywords(matches: list[ATSKeywordMatch]) -> list[str]:
@@ -64,11 +83,16 @@ def _prompt(
         "defendibles por la experiencia del candidato. "
         "section_name tiene que ser una de estas claves: summary, skills, "
         "experiences, educations o certifications. original_excerpt copia "
-        "textual el fragmento del CV que se reemplaza.\n\n"
+        "textual el fragmento del CV que se reemplaza. Cada experiencia de "
+        "CV_SECTIONS tiene un id: en una seccion experiences, target_id es el id "
+        "de esa experiencia, original_excerpt copia solo sus vinetas (una por "
+        "renglon, sin cargo, empresa ni fechas) y rewritten_text son las vinetas "
+        "nuevas (una por renglon, sin cargo, empresa ni fechas). En las demas "
+        "secciones target_id va vacio.\n\n"
         "Devolve JSON valido con esta forma exacta:\n"
-        '{"sections":[{"section_name":"string","original_excerpt":"string",'
-        '"rewritten_text":"string","added_keywords":["string"],'
-        '"rationale":"string"}]}\n\n'
+        '{"sections":[{"section_name":"string","target_id":"string",'
+        '"original_excerpt":"string","rewritten_text":"string",'
+        '"added_keywords":["string"],"rationale":"string"}]}\n\n'
         f"JOB:\n{json.dumps(prompt_job, ensure_ascii=False)}\n\n"
         f"LOW_COVERAGE_KEYWORDS:\n{json.dumps(low_coverage, ensure_ascii=False)}\n\n"
         f"CV_SECTIONS:\n{json.dumps(_cv_sections(primary_cv), ensure_ascii=False)}"
@@ -95,15 +119,122 @@ def _mentions(text: str, keyword: str) -> bool:
     return re.search(pattern, normalize_text(text)) is not None
 
 
+def _words(text: str) -> str:
+    """Las palabras de un texto sin acentos, mayúsculas ni signos, entre espacios."""
+    return f" {' '.join(re.findall(r'[^\W_]+', fold(text)))} "
+
+
+def _supported_by_cv(keyword: str, evidence: Sequence[str]) -> bool:
+    """¿Algún texto del CV dice lo mismo que la keyword con otras palabras?
+
+    Compara las palabras ya llevadas a su forma común (`canonical_skill_key`: «prueba» y
+    «testing», «diseño» y «design», «desarrollo» y «development»): todas las de la
+    keyword tienen que estar en el mismo texto del CV, en cualquier orden. «Testing»
+    está respaldada por «casos de prueba documentados»; «LangChain» no lo está por
+    nada. Una keyword muy corta no se busca así: coincidiría con cualquier cosa.
+    """
+    words = set(canonical_skill_key(keyword).split())
+    if not words or sum(len(word) for word in words) < MIN_EQUIVALENCE_LENGTH:
+        return False
+    return any(words <= set(canonical_skill_key(text).split()) for text in evidence)
+
+
+def evidence_texts(primary_cv: dict[str, Any]) -> list[str]:
+    """Los textos del CV con los que se comprueba una keyword (sin claves ni JSON)."""
+    sections = _cv_sections(primary_cv)
+    texts: list[str] = [str(sections.get("summary") or "")]
+    for skill in sections.get("skills") or []:
+        texts.append(
+            str(skill.get("name") or "") if isinstance(skill, dict) else str(skill)
+        )
+    for experience in sections.get("experiences") or []:
+        if isinstance(experience, dict):
+            texts.append(str(experience.get("title") or ""))
+            texts.append(str(experience.get("description") or ""))
+            achievements = experience.get("achievements") or []
+            if isinstance(achievements, list):
+                texts.extend(str(item) for item in achievements)
+    for education in sections.get("educations") or []:
+        if isinstance(education, dict):
+            texts.append(str(education.get("field_of_study") or ""))
+    for certification in sections.get("certifications") or []:
+        if isinstance(certification, dict):
+            texts.append(str(certification.get("name") or ""))
+    return [text for text in texts if text.strip()]
+
+
+def attach_targets(
+    sections: list[OptimizedCVSection], primary_cv: dict[str, Any]
+) -> list[OptimizedCVSection]:
+    """A cada sección `experiences`, la experiencia del CV a la que se refiere.
+
+    Se toma el `target_id` que devolvió la IA; si falta o no existe, se busca la
+    experiencia cuyo cargo (y empresa) aparecen en el fragmento: la IA suele copiarlo
+    como «Cargo | Empresa | fechas…». Sin una única candidata no se adivina.
+    """
+    experiences = [
+        item
+        for item in _cv_sections(primary_cv).get("experiences") or []
+        if isinstance(item, dict)
+    ]
+    resolved: list[OptimizedCVSection] = []
+    for section in sections:
+        index = (
+            _target_index(section, experiences)
+            if section.section_name == "experiences"
+            else None
+        )
+        if index is None:
+            resolved.append(section)
+            continue
+        experience = experiences[index]
+        resolved.append(
+            section.model_copy(
+                update={
+                    "target_id": str(experience.get("id") or ""),
+                    "target_company": str(experience.get("company") or ""),
+                    "target_title": str(experience.get("title") or ""),
+                }
+            )
+        )
+    return resolved
+
+
+def _target_index(
+    section: OptimizedCVSection, experiences: list[dict[str, Any]]
+) -> int | None:
+    found = _EXPERIENCE_ID.match(section.target_id.strip().lower())
+    if found and 1 <= int(found.group(1)) <= len(experiences):
+        return int(found.group(1)) - 1
+
+    head = _words(f"{section.original_excerpt} {section.rewritten_text[:200]}")
+    candidates: list[tuple[int, int]] = []
+    for index, experience in enumerate(experiences):
+        title = _words(str(experience.get("title") or ""))
+        company = _words(str(experience.get("company") or ""))
+        if title.strip() and title in head:
+            candidates.append(
+                (index, 1 + int(bool(company.strip()) and company in head))
+            )
+    if not candidates:
+        return None
+    best = max(score for _, score in candidates)
+    top = [index for index, score in candidates if score == best]
+    return top[0] if len(top) == 1 else None
+
+
 def verify_sections(
     sections: list[OptimizedCVSection],
     matches: list[ATSKeywordMatch],
     cv_text: str,
+    evidence: Sequence[str] = (),
 ) -> list[OptimizedCVSection]:
     """Separa las keywords con respaldo en el CV de las que la IA agregó sin él.
 
     Usa el reporte ATS ya calculado (literal y semántico tienen evidencia en el CV;
-    ausente no), así que no hace llamadas a la IA ni pide vectores.
+    ausente no) y, para las ausentes, los textos del CV (`evidence`): una keyword que el
+    CV dice con otras palabras tiene respaldo. No hace llamadas a la IA ni pide
+    vectores.
     """
     status_by_keyword = {
         normalize_text(match.keyword): match.status for match in matches
@@ -111,12 +242,13 @@ def verify_sections(
     missing = [match.keyword for match in matches if match.status == "missing"]
 
     verified: list[OptimizedCVSection] = []
+    backed = {keyword for keyword in missing if _supported_by_cv(keyword, evidence)}
     for section in sections:
         text = section.rewritten_text
         unverified = {
             normalize_text(keyword): keyword
             for keyword in missing
-            if _mentions(text, keyword)
+            if _mentions(text, keyword) and keyword not in backed
         }
         added: list[str] = []
         for keyword in section.added_keywords:
@@ -126,15 +258,30 @@ def verify_sections(
                 continue
             status = status_by_keyword.get(key)
             backed_by_cv = _mentions(cv_text, keyword)
-            if status == "missing" or (status is None and not backed_by_cv):
+            if status == "missing" and keyword not in backed:
+                unverified[key] = keyword
+                continue
+            if (
+                status is None
+                and not backed_by_cv
+                and not _supported_by_cv(keyword, evidence)
+            ):
                 unverified[key] = keyword
                 continue
             added.append(keyword)
+        # Las que el texto nuevo escribe y el CV respalda cuentan aunque la IA no las
+        # haya declarado.
+        confirmed = [
+            keyword
+            for keyword in missing
+            if keyword in backed and _mentions(text, keyword)
+        ]
         verified.append(
             section.model_copy(
                 update={
                     "added_keywords": added,
                     "unverified_keywords": list(unverified.values()),
+                    "backed_keywords": confirmed,
                 }
             )
         )
@@ -148,14 +295,21 @@ def score_after_optimization(
 ) -> int:
     """Puntaje ATS si se usan las secciones nuevas, contando solo lo verificado.
 
-    Una keyword semántica que el texto nuevo nombra pasa a literal. Las ausentes
-    siguen ausentes aunque el texto las mencione: no tienen respaldo en el CV. Los
-    requisitos (años, formación, idiomas) no cambian: reescribir texto no los cambia.
+    Una keyword semántica que el texto nuevo nombra pasa a literal. Una ausente solo
+    pasa si el CV la respalda con otras palabras (`backed_keywords`); las demás siguen
+    ausentes aunque el texto las mencione: no tienen respaldo en el CV. Los requisitos
+    (años, formación, idiomas) no cambian: reescribir texto no los cambia.
     """
     rewritten = "\n".join(section.rewritten_text for section in sections)
+    backed = {
+        normalize_text(keyword)
+        for section in sections
+        for keyword in section.backed_keywords
+    }
     updated = [
         match.model_copy(update={"status": "literal"})
-        if match.status == "semantic" and _mentions(rewritten, match.keyword)
+        if (match.status == "semantic" and _mentions(rewritten, match.keyword))
+        or (match.status == "missing" and normalize_text(match.keyword) in backed)
         else match
         for match in matches
     ]
@@ -178,7 +332,8 @@ async def optimize_cv_sections(
         ai_gateway, user_tier, _prompt(primary_cv, job, matches)
     )
     cv_text = json.dumps(_cv_sections(primary_cv), ensure_ascii=False)
-    return verify_sections(sections, matches, cv_text)
+    verified = verify_sections(sections, matches, cv_text, evidence_texts(primary_cv))
+    return attach_targets(verified, primary_cv)
 
 
 async def _rewrite_sections(
