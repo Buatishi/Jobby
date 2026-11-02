@@ -3017,3 +3017,42 @@ Las palabras que más pesan en el aviso de JPMorgan («Software design», «Soft
 **Pruebas.** `tests/unit/test_ats_format_score.py` (fórmula, las partes 54/18/9/9 y 10, el formato fijo en 10 pida lo que pida el aviso, formato no evaluado, topes y el «después»), `test_format_checker.py` (avisos y puntos), `test_ats_report_cache.py` (reporte con `format_points`, versión 5 rehecha, «después» con y sin formato) y, en la web, la tarjeta de formato, el panel del optimizador, las guías atadas a `scoring.py` y `format_checker.py` y el documento imprimible.
 
 **Reversión.** Deshacer el merge: vuelve la versión 5 y el formato se muestra sin sumar ni restar.
+
+## Decisión 43 — Reality Gap compara lo que dice cada documento, skill por skill
+
+**Estado:** Decisión aprobada por el autor (2026-11-02): primero los puntos 1 y 2 de la propuesta y, después, hacer todos los pasos y abrir un solo PR. **No está aprobado** unir nombres parecidos por significado (embeddings): queda como propuesta aparte.
+
+**Por qué.**
+1. Reality Gap solo leía las skills confirmadas. Medido en la cuenta del autor: 59 filas guardadas (39 nombres distintos), 4 confirmadas, y la pantalla mostraba esas 4. Las brechas reales (Docker, Linux, HTML/CSS, Excel…) no aparecían, y el perfil decía «24 skills figuran en tu LinkedIn» mientras Reality Gap mostraba una con LinkedIn.
+2. Las marcas `in_cv` e `in_linkedin` de cada fila solo se ponen en verdadero y nunca se apagan: una skill sacada del CV o de LinkedIn seguía contando.
+3. La misma skill se guarda varias veces (el parseo del CV la crea con otra categoría cada vez: Python cuatro filas, Docker tres), y cada copia contaba como una skill más.
+4. Python y «Técnicas de corte» salían «rechazadas» por una revisión de junio del asistente aunque se confirmaron en octubre: 20 puntos menos y el consejo «Revisá si Python debe volver al perfil».
+5. Lo que solo nombra LinkedIn no se veía: el PDF no agrega skills al perfil (Decisión 31).
+6. Sin el PDF de LinkedIn, toda skill salía «LinkedIn ✗» con el consejo «Agregá X a LinkedIn», como si fuera una brecha y no una comparación que todavía no se pudo hacer.
+7. El endpoint pedía `select("*")`, que trae el vector de 1536 números de cada skill.
+8. El `parsed_data.skills` del CV es la suma de todas las skills guardadas de la persona, no lo que dice ese CV.
+
+**Elegido.**
+- **Cada documento dice lo suyo.** Del CV, la clave nueva `extracted_skills` de su `parsed_data` (solo lo que nombró esa lectura, sin las guardadas de otras cargas); de LinkedIn, las `skills` de su PDF. A eso se suma el texto del documento (experiencias, formación, certificaciones y resumen), buscado por palabra completa con la misma regla del ATS: una skill que el CV nombra en una frase sin listarla cuenta. «Microsoft Excel» se busca también como «excel»; una forma común de varias palabras («api rest») no se busca suelta.
+- **Qué se compara.** Las skills guardadas (confirmadas o no: son las que usa el motor de comparación) y las que nombra algún documento aunque no estén guardadas, como las que solo figuran en LinkedIn. Se agrupan por `skill_key`. Nombre, categoría e id los da la fila confirmada, o el nombre más corto.
+- **Las marcas de las filas no se leen**, salvo en un CV leído antes de este cambio (sin `extracted_skills`): ahí no hay otra cosa, y la API lo dice (`skills_source: "saved"`) y la pantalla pide volver a subirlo. Las marcas se siguen escribiendo igual: las leen el porcentaje del perfil y el MatchScore, y no se tocan.
+- **Rechazada** solo si no está confirmada, y los nombres se comparan por su forma común.
+- **Sin un documento leído** (falta, está pendiente o falló): sin puntaje ni consejo, la marca de ese documento es nula y el resumen dice `comparable: false`. La pantalla explica qué falta, con un enlace a Mi perfil.
+- **Puntaje** por skill igual que antes (40 CV + 40 LinkedIn + 20 no rechazada). El resumen es el promedio y la cuenta de las que están en los dos, solo en el CV, solo en LinkedIn y solo en el perfil.
+- **API:** `GET /profiles/reality-gap` devuelve además `summary`, `cv` y `linkedin` (archivo, fecha, estado y `skills_source`) y, por skill, `saved` y `confirmed`. `in_cv`, `in_linkedin` y `coherence_score` pueden ser nulos. Se piden columnas explícitas: sin vectores.
+- **Pantalla:** tarjeta de coherencia general, avisos, la línea «Comparado con tu CV «x.pdf» (fecha)…», filtros por grupo con su cantidad (reemplazan a `technical`, `soft`, `language` y `domain`, que no coincidían con las categorías libres que devuelve la IA) y la etiqueta «Perfil activa / sin confirmar / no guardada / rechazada».
+- **Dashboard:** la pista ya no dice «Reality Gap (+18 pts)». Esos 18 eran los puntos de completitud del perfil (12 del PDF de LinkedIn y 6 del enlace) con el rótulo equivocado, y se mostraban enteros aunque la persona ya tuviera uno de los dos. Ahora pide el PDF (el que usa Reality Gap) y, si ya está, el enlace, con los puntos tomados de `WEIGHTS`.
+
+**Medido** (2026-11-02, el comparador sobre la cuenta real del autor, solo lectura): antes 4 skills; ahora 39, con 15 en los dos, 22 solo en el CV y 2 solo en LinkedIn, y coherencia general 75. Linux y Microsoft Excel pasan a figurar en LinkedIn por el texto (la certificación «Tools of the Trade: Linux and SQL» y «datos desde Excel»), algo que las marcas no veían. El CV de esa cuenta se leyó antes del cambio: su lado del CV usa las marcas guardadas hasta que lo vuelva a subir.
+
+**Límites que quedan abiertos.**
+- La forma común es conservadora a propósito: «Git & GitHub» y «GitHub», «HTML & CSS» y «HTML», «Salesforce CRM» y «Salesforce», o «Salesforce REST API» y «Salesforce» no se agrupan y salen como diferencia aunque no lo sean. Unirlas por significado necesita embeddings (un costo mínimo, pero una decisión aparte).
+- La IA decide qué skills lista cada documento: una omisión aparece como diferencia. Buscar en el texto la reduce, no la elimina.
+- LinkedIn se conoce solo por el PDF que se subió: si se edita el perfil y no se vuelve a subir, se compara con una foto vieja (la pantalla muestra la fecha).
+- Los CV leídos antes de este cambio siguen con las marcas guardadas, que nunca se apagaban, hasta que se vuelvan a subir.
+- El «+12 pts» de la experiencia, en la misma pista del dashboard, es el peso real de `WEIGHTS["experience"]`: no se tocó.
+- No se probó en producción ni con un CV nuevo subido: la verificación son los tests y los datos reales.
+
+**Pruebas.** `tests/unit/test_reality_gap.py` (52 casos: agrupación, rechazadas, orden, lo que dice cada documento, el texto, CV viejos, documentos que faltan, resumen y datos con otra forma), `test_reality_gap_endpoint.py` (4), `test_cv_extracted_skills.py` (3), `test_dashboard_tips.py` (5) y el caso del endpoint en `test_ats_reality.py`. En la web, `lib/reality-gap/` (estado del perfil, filtros y avisos) y `page.test.tsx` (la pantalla en cada estado).
+
+**Reversión.** Deshacer el merge: Reality Gap vuelve a leer solo las confirmadas con las marcas guardadas. La clave `extracted_skills` queda en los CV ya leídos y nada la lee.

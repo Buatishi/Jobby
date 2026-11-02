@@ -30,7 +30,7 @@ from app.models.profiles import (
     UploadedDocument,
     UploadedDocumentCreate,
 )
-from app.models.reality_gap import RealityGapReport, RealityGapSkill
+from app.models.reality_gap import RealityGapReport
 from app.services.account_deletion import capture_exception, remove_storage_objects
 from app.services.cv_parser.merge_logic import normalize_skill_key
 from app.services.printable_cv import build_printable_cv
@@ -40,7 +40,7 @@ from app.services.rate_limits import (
     RateLimitKind,
     increment_rate_limit,
 )
-from app.services.reality_gap import score_reality_gap
+from app.services.reality_gap import build_reality_gap, pick_documents
 from app.tasks import parsing as parsing_tasks
 
 logger = logging.getLogger("jobmatch.api")
@@ -810,30 +810,29 @@ async def get_reality_gap(
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> RealityGapReport:
     profile = await _fetch_profile(supabase, current_user.id)
-    skills_response = (
-        await supabase.table("skills")
-        .select("*")
-        .eq("profile_id", profile["id"])
-        .eq("confirmed", True)
-        .execute()
+    profile_id = str(profile["id"])
+    # Columnas explícitas: `select("*")` trae el vector de cada skill, y se leen todas
+    # las guardadas, no solo las confirmadas.
+    skills, rejected, documents = await asyncio.gather(
+        _profile_rows(
+            supabase,
+            "skills",
+            "id,name,category,in_cv,in_linkedin,confirmed",
+            profile_id,
+        ),
+        _profile_rows(supabase, "rejected_skills", "name", profile_id),
+        _profile_rows(
+            supabase,
+            "uploaded_documents",
+            "id,type,status,is_primary,original_filename,created_at,parsed_data",
+            profile_id,
+            newest_first=True,
+        ),
     )
-    rejected_response = (
-        await supabase.table("rejected_skills")
-        .select("*")
-        .eq("profile_id", profile["id"])
-        .execute()
-    )
-    skills_data = getattr(skills_response, "data", [])
-    rejected_data = getattr(rejected_response, "data", [])
-    scored = score_reality_gap(
-        [skill for skill in skills_data if isinstance(skill, dict)]
-        if isinstance(skills_data, list)
-        else [],
-        [skill for skill in rejected_data if isinstance(skill, dict)]
-        if isinstance(rejected_data, list)
-        else [],
-    )
-    return RealityGapReport(
-        profile_id=str(profile["id"]),
-        skills=[RealityGapSkill.model_validate(skill) for skill in scored],
+    cv, linkedin = pick_documents(documents)
+    return RealityGapReport.model_validate(
+        {
+            "profile_id": profile_id,
+            **build_reality_gap(skills, rejected, cv, linkedin),
+        }
     )

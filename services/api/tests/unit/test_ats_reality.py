@@ -187,6 +187,29 @@ def test_reality_gap_endpoint_returns_lowest_coherence_first(
             },
         ]
     )
+    # La coherencia sale de lo que dicen el CV y el PDF de LinkedIn, no de las marcas.
+    fake_supabase.tables["uploaded_documents"].extend(
+        [
+            {
+                "id": "doc-cv",
+                "profile_id": "profile-1",
+                "type": "cv",
+                "status": "done",
+                "is_primary": True,
+                "created_at": "2026-11-02T10:00:00+00:00",
+                "parsed_data": {"extracted_skills": [{"name": "Python"}]},
+            },
+            {
+                "id": "doc-linkedin",
+                "profile_id": "profile-1",
+                "type": "linkedin",
+                "status": "done",
+                "is_primary": False,
+                "created_at": "2026-11-01T10:00:00+00:00",
+                "parsed_data": {"skills": [{"name": "Python"}]},
+            },
+        ]
+    )
 
     async def fake_client() -> FakeSupabase:
         return fake_supabase
