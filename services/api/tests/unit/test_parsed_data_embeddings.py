@@ -43,6 +43,7 @@ class CapturingKitGateway:
         prompt: str,
         system: str | None = None,
         json_mode: bool = False,
+        fallback: bool = False,
     ) -> str:
         self.prompts.append(prompt)
         return json.dumps({"overall_summary": "Buen fit."})

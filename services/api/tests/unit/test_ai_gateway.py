@@ -127,6 +127,24 @@ async def test_interview_kits_use_claude_and_only_for_premium() -> None:
         await gateway.generate("interview_kit", "free", "kit")
 
 
+@pytest.mark.asyncio
+async def test_the_interview_kit_fallback_uses_deepseek_but_stays_premium() -> None:
+    claude = MockProvider("claude")
+    gateway = AIGateway(
+        deepseek=MockProvider("deepseek"),
+        claude=claude,
+        embeddings=MockEmbeddingsProvider(),
+    )
+
+    result = await gateway.generate("interview_kit", "premium", "kit", fallback=True)
+
+    assert result == "deepseek"
+    assert claude.calls == []
+    # El respaldo cambia el modelo, no abre el kit al plan gratis.
+    with pytest.raises(PremiumRequiredError):
+        await gateway.generate("interview_kit", "free", "kit", fallback=True)
+
+
 def test_openai_embeddings_api_key_is_normalized() -> None:
     provider = OpenAIEmbeddingsProvider(' "sk-test" ')
 

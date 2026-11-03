@@ -28,14 +28,21 @@ class AIGateway:
         self.claude = claude or ClaudeProvider()
         self.embeddings = embeddings or OpenAIEmbeddingsProvider()
 
-    def select_provider(self, task_type: TaskType, user_tier: UserTier) -> AIProvider:
+    def select_provider(
+        self,
+        task_type: TaskType,
+        user_tier: UserTier,
+        fallback: bool = False,
+    ) -> AIProvider:
         if task_type == "cv_parsing":
             return self.deepseek
 
         if task_type == "interview_kit":
             if user_tier != "premium":
                 raise PremiumRequiredError(task_type)
-            return self.claude
+            # El kit es premium aunque lo escriba DeepSeek: `fallback` solo cambia el
+            # modelo, nunca abre la función al plan gratis.
+            return self.deepseek if fallback else self.claude
 
         # El plan gratis optimiza con DeepSeek: la verificación (Decisión 24) no
         # depende del modelo, así que el texto barato tampoco puede inventar sin aviso.
@@ -51,8 +58,9 @@ class AIGateway:
         prompt: str,
         system: str | None = None,
         json_mode: bool = False,
+        fallback: bool = False,
     ) -> str:
-        provider = self.select_provider(task_type, user_tier)
+        provider = self.select_provider(task_type, user_tier, fallback)
         try:
             return await provider.generate(prompt, system, json_mode)
         except Exception as exc:

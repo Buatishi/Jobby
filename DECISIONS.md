@@ -3056,3 +3056,51 @@ Las palabras que más pesan en el aviso de JPMorgan («Software design», «Soft
 **Pruebas.** `tests/unit/test_reality_gap.py` (52 casos: agrupación, rechazadas, orden, lo que dice cada documento, el texto, CV viejos, documentos que faltan, resumen y datos con otra forma), `test_reality_gap_endpoint.py` (4), `test_cv_extracted_skills.py` (3), `test_dashboard_tips.py` (5) y el caso del endpoint en `test_ats_reality.py`. En la web, `lib/reality-gap/` (estado del perfil, filtros y avisos) y `page.test.tsx` (la pantalla en cada estado).
 
 **Reversión.** Deshacer el merge: Reality Gap vuelve a leer solo las confirmadas con las marcas guardadas. La clave `extracted_skills` queda en los CV ya leídos y nada la lee.
+
+## Actualización — Decisión 25 (2026-11-02): el Interview Kit también cae a DeepSeek si Claude no responde
+
+**Estado:** Pedida por el autor el 2026-11-02. Cambio en la rama `fix/interview-kit-deepseek-fallback`,
+**sin mergear**. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Hallazgo.** Una cuenta premium vio «No pudimos completar la tarea. Probá de nuevo en unos minutos.» en el
+paso «Generando tu kit personalizado»; los tres pasos anteriores (puesto, LinkedIn de la empresa y del
+entrevistador) terminaron bien. El log de Render (2026-11-03 02:07 UTC) muestra
+`Anthropic respondió HTTP 400: invalid_request_error: Your credit balance is too low to access the Anthropic API`
+y enseguida `La tarea run_interview_kit falló: HTTPStatusError`. Es la misma causa que ya vimos en el match
+y en el optimizador (la cuenta de Anthropic no tiene saldo), confirmada con el cuerpo de la respuesta. El
+kit era el único uso de Claude sin respaldo: `AIGateway.select_provider("interview_kit", ...)` devolvía
+siempre Claude y `run_interview_kit` dejaba el kit en `failed`.
+
+**Elegido.**
+
+- **El kit prueba con Claude y, si falla, con DeepSeek**: sin saldo, caído o con un JSON que no se puede
+  leer. Es la misma regla del match y del optimizador y no cambia a quién corresponde Claude.
+- **El respaldo no abre el kit al plan gratis.** `AIGateway.generate(..., fallback=True)` solo cambia el
+  modelo del kit premium: `interview_kit` con plan gratis sigue lanzando `PremiumRequiredError`, con o sin
+  `fallback`.
+- **`interview_kits.ai_model_used` guarda el modelo que de verdad lo escribió** (`claude-sonnet-4-5` o
+  `deepseek-chat`), no el primero que se intentó.
+- **Si ninguno sirve**, el kit queda `failed` con el texto de IA no disponible («El servicio de IA no está
+  disponible en este momento…») en lugar del genérico; el detalle del proveedor queda en los logs.
+- Un 400 de Anthropic no se reintenta (el reintento cubre solo 408, 429, 5xx y fallas de red), así que
+  la caída a DeepSeek es inmediata. Ante un 5xx de Claude se agotan antes sus reintentos (30 y 60 s), igual
+  que en los otros usos.
+
+**Límites.**
+
+- No se probó contra la API real de DeepSeek, solo con respuestas simuladas. El prompt ya pide el JSON con su
+  esquema (lo que exige el modo `json_object`), pero un kit largo podría cortarse en el máximo de salida por
+  defecto del proveedor: el JSON quedaría roto y el kit fallaría con el mensaje de IA no disponible. Se
+  confirma generando un kit en producción.
+- El kit escrito por DeepSeek puede ser de menor calidad que el de Claude; `ai_model_used` lo deja a la
+  vista.
+- Un kit fallido sigue contando en el cupo mensual (10 en premium): el contador se descuenta antes de llamar
+  a la IA. Con el respaldo, el caso queda reservado a que fallen los dos modelos.
+- Cargar saldo en Anthropic sigue siendo decisión del autor (cuenta contra el tope de USD 20 por mes): con
+  saldo, el kit vuelve a escribirlo Claude sin tocar código.
+
+**Pruebas.** `tests/unit/test_interview_kits.py` (4 casos nuevos: Claude sin saldo, Claude con JSON roto,
+Claude responde y DeepSeek no se llama, ninguno sirve) y `test_ai_gateway.py` (el respaldo rutea a DeepSeek
+y sigue siendo solo premium). Tres de ellos (sin saldo, JSON roto y ninguno sirve) fallan contra el `analysis.py` anterior.
+
+**Reversión.** Deshacer el merge: el kit vuelve a usar solo Claude y a fallar sin saldo.
