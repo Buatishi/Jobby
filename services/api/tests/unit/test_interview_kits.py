@@ -1,6 +1,7 @@
 import json
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,6 +9,7 @@ from app.database import get_supabase_client
 from app.dependencies import get_current_user
 from app.main import app
 from app.models.auth import CurrentUser
+from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.scraper import linkedin_scraper
 from app.tasks import analysis
 from tests.fakes import FakeSupabase
@@ -31,6 +33,28 @@ async def _fake_premium_user() -> CurrentUser:
     )
 
 
+KIT_JSON = json.dumps(
+    {
+        "overall_summary": "Buen fit para backend.",
+        "compatibility_areas": [
+            {"name": "Skills", "score": 88, "notes": "Python fuerte."}
+        ],
+        "strengths": [{"title": "Backend", "evidence": "Experiencia con FastAPI."}],
+        "risks": [{"title": "Producto", "mitigation": "Preparar casos de impacto."}],
+        "argumentario": ["Conectar experiencia backend con métricas."],
+        "model_answers": [
+            {
+                "question": "Contame de un proyecto difícil.",
+                "answer": "Elegiría el parser de CVs.",
+                "evaluation_criteria": ["claridad", "impacto"],
+            }
+        ],
+        "candidate_questions": ["Cómo mide éxito el equipo?"],
+        "action_plan": {"title": "48 horas previas", "steps": ["Repasar CV"]},
+    }
+)
+
+
 class FakeInterviewGateway:
     async def generate(
         self,
@@ -39,34 +63,38 @@ class FakeInterviewGateway:
         prompt: str,
         system: str | None = None,
         json_mode: bool = False,
+        fallback: bool = False,
     ) -> str:
         assert task_type == "interview_kit"
         assert user_tier == "premium"
         assert json_mode is True
-        return json.dumps(
-            {
-                "overall_summary": "Buen fit para backend.",
-                "compatibility_areas": [
-                    {"name": "Skills", "score": 88, "notes": "Python fuerte."}
-                ],
-                "strengths": [
-                    {"title": "Backend", "evidence": "Experiencia con FastAPI."}
-                ],
-                "risks": [
-                    {"title": "Producto", "mitigation": "Preparar casos de impacto."}
-                ],
-                "argumentario": ["Conectar experiencia backend con métricas."],
-                "model_answers": [
-                    {
-                        "question": "Contame de un proyecto difícil.",
-                        "answer": "Elegiría el parser de CVs.",
-                        "evaluation_criteria": ["claridad", "impacto"],
-                    }
-                ],
-                "candidate_questions": ["Cómo mide éxito el equipo?"],
-                "action_plan": {"title": "48 horas previas", "steps": ["Repasar CV"]},
-            }
-        )
+        return KIT_JSON
+
+
+class ScriptedKitGateway:
+    """Responde por modelo: Claude (`fallback=False`) y DeepSeek (`fallback=True`)."""
+
+    def __init__(self, claude: str | Exception, deepseek: str | Exception) -> None:
+        self.replies = {False: claude, True: deepseek}
+        self.calls: list[bool] = []
+
+    async def generate(
+        self,
+        task_type: str,
+        user_tier: str,
+        prompt: str,
+        system: str | None = None,
+        json_mode: bool = False,
+        fallback: bool = False,
+    ) -> str:
+        assert task_type == "interview_kit"
+        assert user_tier == "premium"
+        assert json_mode is True
+        self.calls.append(fallback)
+        reply = self.replies[fallback]
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
 
 
 def _seed_premium_kit(fake_supabase: FakeSupabase) -> None:
@@ -184,6 +212,112 @@ async def test_interview_kit_task_with_scraping_failed(
     assert result["status"] == "done"
     assert result["prep_notes"]["company_data"]["scraping_failed"] is True
     assert result["prep_notes"]["interviewer_data"]["scraping_failed"] is True
+
+
+def _no_credit_error() -> httpx.HTTPStatusError:
+    """El 400 que Anthropic devuelve cuando la cuenta no tiene saldo."""
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    response = httpx.Response(400, request=request)
+    return httpx.HTTPStatusError(
+        "Client error '400 Bad Request'", request=request, response=response
+    )
+
+
+def _seed_kit_without_linkedin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> FakeSupabase:
+    fake_supabase = FakeSupabase()
+    _seed_premium_kit(fake_supabase)
+
+    async def failed_scrape(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {"scraping_failed": True, "reason": "linkedin_authwall"}
+
+    monkeypatch.setattr(linkedin_scraper, "scrape_company", failed_scrape)
+    monkeypatch.setattr(linkedin_scraper, "scrape_person", failed_scrape)
+    return fake_supabase
+
+
+@pytest.mark.asyncio
+async def test_interview_kit_falls_back_to_deepseek_when_claude_has_no_credit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = _seed_kit_without_linkedin(monkeypatch)
+    gateway = ScriptedKitGateway(claude=_no_credit_error(), deepseek=KIT_JSON)
+
+    result = await analysis.run_interview_kit(
+        "kit-1",
+        "user-1",
+        supabase=fake_supabase,
+        gateway=gateway,  # type: ignore[arg-type]
+    )
+
+    assert gateway.calls == [False, True]
+    assert result["status"] == "done"
+    assert result["ai_model_used"] == "deepseek-chat"
+    assert result["prep_notes"]["overall_summary"] == "Buen fit para backend."
+    assert fake_supabase.tables["interview_kits"][0]["status"] == "done"
+
+
+@pytest.mark.asyncio
+async def test_interview_kit_falls_back_to_deepseek_when_claude_returns_broken_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = _seed_kit_without_linkedin(monkeypatch)
+    gateway = ScriptedKitGateway(claude="no es json", deepseek=KIT_JSON)
+
+    result = await analysis.run_interview_kit(
+        "kit-1",
+        "user-1",
+        supabase=fake_supabase,
+        gateway=gateway,  # type: ignore[arg-type]
+    )
+
+    assert gateway.calls == [False, True]
+    assert result["status"] == "done"
+    assert result["ai_model_used"] == "deepseek-chat"
+
+
+@pytest.mark.asyncio
+async def test_interview_kit_does_not_call_deepseek_when_claude_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = _seed_kit_without_linkedin(monkeypatch)
+    gateway = ScriptedKitGateway(claude=KIT_JSON, deepseek=_no_credit_error())
+
+    result = await analysis.run_interview_kit(
+        "kit-1",
+        "user-1",
+        supabase=fake_supabase,
+        gateway=gateway,  # type: ignore[arg-type]
+    )
+
+    assert gateway.calls == [False]
+    assert result["ai_model_used"] == "claude-sonnet-4-5"
+
+
+@pytest.mark.asyncio
+async def test_interview_kit_fails_with_a_clear_message_when_no_model_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_supabase = _seed_kit_without_linkedin(monkeypatch)
+    gateway = ScriptedKitGateway(claude=_no_credit_error(), deepseek="tampoco es json")
+
+    with pytest.raises(ProviderUnavailableError):
+        await analysis.run_interview_kit(
+            "kit-1",
+            "user-1",
+            supabase=fake_supabase,
+            gateway=gateway,  # type: ignore[arg-type]
+        )
+
+    kit = fake_supabase.tables["interview_kits"][0]
+    assert gateway.calls == [False, True]
+    assert kit["status"] == "failed"
+    # El detalle del proveedor (HTTP, saldo) queda en los logs, no en la respuesta.
+    assert kit["error_msg"] == (
+        "El servicio de IA no está disponible en este momento. "
+        "Probá de nuevo más tarde."
+    )
 
 
 def test_create_interview_kit_requires_premium(client: TestClient) -> None:

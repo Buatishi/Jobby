@@ -15,6 +15,7 @@ from app.models.interview_kits import InterviewKitContent
 from app.models.jobs import StructuredJobDescription
 from app.services.account_deletion import capture_exception
 from app.services.ai_gateway import AIGateway, PremiumRequiredError, UserTier
+from app.services.ai_gateway.errors import ProviderUnavailableError
 from app.services.ai_gateway.prompts.interview_kit_v1 import (
     SYSTEM_PROMPT as INTERVIEW_KIT_SYSTEM_PROMPT,
 )
@@ -40,6 +41,12 @@ MATCH_REASONING_MODEL: dict[UserTier, str] = {
     "premium": "claude-sonnet-4-5",
     "free": "deepseek-chat",
 }
+# Modelos que redactan el Interview Kit, en el orden en que se prueban; el segundo es
+# el respaldo (gateway `fallback=True`). Se guarda en interview_kits.ai_model_used.
+INTERVIEW_KIT_MODELS: tuple[tuple[str, bool], ...] = (
+    ("claude-sonnet-4-5", False),
+    ("deepseek-chat", True),
+)
 
 
 async def _execute(query: Any) -> Any:
@@ -220,7 +227,7 @@ def _parse_interview_kit(content: str) -> InterviewKitContent:
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError as exc:
-        raise ValueError("Claude returned invalid interview kit JSON.") from exc
+        raise ValueError("The model returned invalid interview kit JSON.") from exc
     try:
         return InterviewKitContent.model_validate(parsed)
     except ValidationError as exc:
@@ -288,6 +295,41 @@ async def _write_match_reasoning(
             continue
         return reasoning, MATCH_REASONING_MODEL[tier]
     return "", None
+
+
+async def _write_interview_kit(
+    ai_gateway: AIGateway,
+    prompt: str,
+) -> tuple[InterviewKitContent, str]:
+    """Contenido del kit y modelo que lo redactó; Claude primero, DeepSeek si falla.
+
+    Que Claude no responda (sin saldo, caído) o devuelva un JSON roto no debe dejar a
+    quien paga sin su kit: se prueba con DeepSeek, que ya redacta el match y el
+    optimizador. Si ninguno sirve, se avisa con un error de IA no disponible en vez de
+    dejar escapar la excepción del proveedor.
+    """
+    last_error: Exception | None = None
+    for model, fallback in INTERVIEW_KIT_MODELS:
+        try:
+            content = await ai_gateway.generate(
+                "interview_kit",
+                "premium",
+                prompt,
+                system=INTERVIEW_KIT_SYSTEM_PROMPT,
+                json_mode=True,
+                fallback=fallback,
+            )
+            return _parse_interview_kit(content), model
+        except Exception as exc:
+            logger.warning(
+                "No se pudo generar el Interview Kit con %s: %s",
+                model,
+                _error_summary(exc),
+            )
+            last_error = exc
+    raise ProviderUnavailableError(
+        "interview_kit", "Ningún modelo de IA devolvió un kit utilizable."
+    ) from last_error
 
 
 async def run_match(
@@ -560,14 +602,7 @@ async def run_interview_kit(
             role_type=str(person_data.get("role_type") or "Hiring Manager"),
             background_summary=str(person_data.get("background_summary") or ""),
         )
-        content = await ai_gateway.generate(
-            "interview_kit",
-            "premium",
-            prompt,
-            system=INTERVIEW_KIT_SYSTEM_PROMPT,
-            json_mode=True,
-        )
-        kit_content = _parse_interview_kit(content)
+        kit_content, model_used = await _write_interview_kit(ai_gateway, prompt)
         payload: dict[str, Any] = {
             "title": f"Interview Kit - {job.get('job_title') or 'Puesto'}",
             "questions": {
@@ -584,7 +619,7 @@ async def run_interview_kit(
             },
             "status": "done",
             "error_msg": None,
-            "ai_model_used": "claude-sonnet-4-5",
+            "ai_model_used": model_used,
         }
         data = await _execute(
             supabase_client.table("interview_kits").update(payload).eq("id", kit_id)
