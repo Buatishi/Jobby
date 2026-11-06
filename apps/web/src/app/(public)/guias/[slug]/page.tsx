@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { formatGuideDate } from "@/lib/guides/dates";
 import { GUIDES, getGuide } from "@/lib/guides/guides";
 import { buildShareMetadata } from "@/lib/seo/share";
-import { buildArticleStructuredData, serializeJsonLd } from "@/lib/seo/structured-data";
+import { GuideArticleMarkup } from "@/src/components/guides/guide-article-markup";
 import { GuideBlocks } from "@/src/components/guides/guide-blocks";
 import { GuideBreadcrumbs } from "@/src/components/guides/guide-breadcrumbs";
 import { GuideShell } from "@/src/components/guides/guide-shell";
@@ -58,19 +58,14 @@ export default async function GuidePage({ params }: GuidePageProps) {
           { name: guide.title, path: `/guias/${guide.slug}` }
         ]}
       />
-      <script
-        dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(
-            buildArticleStructuredData({
-              headline: guide.title,
-              description: guide.description,
-              path: `/guias/${guide.slug}`,
-              publishedAt: guide.publishedAt,
-              updatedAt: guide.updatedAt
-            })
-          )
+      <GuideArticleMarkup
+        article={{
+          headline: guide.title,
+          description: guide.description,
+          path: `/guias/${guide.slug}`,
+          publishedAt: guide.publishedAt,
+          updatedAt: guide.updatedAt
         }}
-        type="application/ld+json"
       />
       <article>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
