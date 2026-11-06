@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { formatGuideDate } from "@/lib/guides/dates";
 import { GUIDES, getGuide } from "@/lib/guides/guides";
 import { SITE_URL } from "@/lib/seo/site";
 import GuidePage, {
@@ -161,6 +162,35 @@ describe("guide pages", () => {
         { text: "Guías", href: "/guias", current: false },
         { text: guide.title, href: null, current: true }
       ]);
+    }
+  );
+
+  it.each(GUIDES.map((guide) => guide.slug))(
+    "%s: declares itself as an Article with the days the page shows",
+    async (slug) => {
+      const guide = getGuide(slug)!;
+      const html = await renderGuide(slug);
+      const nodes = [
+        ...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)
+      ].flatMap((match) => JSON.parse(match[1]) as Record<string, unknown>[]);
+      const articles = nodes.filter((node) => node["@type"] === "Article");
+
+      expect(articles).toHaveLength(1);
+      expect(articles[0]).toMatchObject({
+        headline: guide.title,
+        datePublished: guide.publishedAt,
+        dateModified: guide.updatedAt,
+        mainEntityOfPage: { "@id": `${SITE_URL}/guias/${slug}` }
+      });
+      // Lo declarado tiene que verse en la página.
+      expect(html).toContain(`<time dateTime="${guide.publishedAt}">`);
+      expect(html).toContain(formatGuideDate(guide.publishedAt));
+      if (guide.updatedAt !== guide.publishedAt) {
+        expect(html).toContain(`<time dateTime="${guide.updatedAt}">`);
+        expect(html).toContain(`Actualizada el`);
+      } else {
+        expect(html).not.toContain("Actualizada el");
+      }
     }
   );
 

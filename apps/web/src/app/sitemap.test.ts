@@ -49,9 +49,15 @@ describe("sitemap", () => {
     }
   });
 
-  it("does not publish a modification date it cannot vouch for", () => {
+  it("dates only the guides, with the day their content last changed", () => {
+    const guideUrls = new Map(
+      GUIDES.map((guide) => [`${SITE_URL}/guias/${guide.slug}`, guide.updatedAt])
+    );
+
     for (const entry of entries) {
-      expect(entry.lastModified).toBeUndefined();
+      expect(entry.lastModified, entry.url).toBe(guideUrls.get(entry.url));
     }
+    // Las demás páginas no tienen una fecha de contenido registrada: una fecha del build no es fiable.
+    expect(entries.filter((entry) => entry.lastModified)).toHaveLength(GUIDES.length);
   });
 });

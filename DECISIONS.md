@@ -2483,6 +2483,41 @@ y el README del repositorio pasaron a enlazar la home y las guías (PR #145).
 **Límites.** Es una pista más para el rastreador, no una orden: los buscadores deciden cuándo volver
 y no hay posición garantizada. No cambia nada de lo que hace el producto.
 
+---
+
+## Actualización — Decisión 30 (2026-11-06): fechas reales en las guías, `Article` y `lastmod`
+
+**Estado:** Pedido por el autor, con el cambio descrito antes de implementarlo; la aprobación final
+es la revisión del PR. Apilado sobre el PR de enlaces en la home: se mergea después de ese. El texto
+es un borrador redactado con asistencia de IA que el autor revisa y hace suyo.
+
+**Medición (2026-11-06).** Las guías no tenían ninguna fecha: ni visible, ni en datos estructurados,
+ni en el sitemap, que además no llevaba `lastmod` en ninguna URL a propósito (una fecha del build es
+falsa para las páginas que no cambiaron). Google usa `lastmod` solo si es verificablemente exacto e
+ignora `changefreq` y `priority`, que son lo único que el sitemap traía.
+
+**Elegido.**
+- Cada guía lleva `publishedAt` y `updatedAt` (AAAA-MM-DD) en `guides.ts`. Son fechas de contenido,
+  no del código: el día en que la guía llegó a producción y el del último cambio de su texto o de una
+  cifra que muestra (las de `facts.ts` cuentan).
+- Se calcularon repasando los commits de `main` y comparando, en cada uno, el texto de cada guía y la
+  definición de las constantes que usa. Las fechas son las del merge, en hora de Buenos Aires: las
+  primeras cuatro guías el 2026-10-18 (PR #98) y las otras cuatro el 2026-10-19 (PR #100). Las
+  últimas actualizaciones son el 2026-11-02 (ATS, CV compatible y optimizador), el 2026-10-30
+  (match score) y el 2026-10-19 (las tres restantes).
+- La página muestra «Publicada el … · Actualizada el …» con `<time>` (solo la primera si coinciden), y
+  declara las mismas fechas en un `Article`: Google pide que lo declarado se vea en la página. Autor y
+  editor son la organización; no se nombra una persona que la página no pueda respaldar.
+- El sitemap lleva `lastmod` solo en las guías, con su `updatedAt`. Las demás páginas siguen sin fecha:
+  no hay una fecha de contenido registrada y una del build no es fiable.
+- Tests: formato y orden de las fechas, que ninguna esté en el futuro ni antes del 2026-10-18, el
+  `Article` de cada guía, que lo declarado se vea en la página y el `lastmod` del sitemap.
+
+**Límites.** Hay que acordarse de subir `updatedAt` al cambiar el texto o una cifra de una guía: ningún
+test puede saber si el contenido cambió. Si se olvida, la fecha miente por defecto (parece más vieja),
+y un buscador deja de fiarse de ella. No mejora la posición por sí misma ni hace que Google rastree
+antes: le da una señal de frescura exacta cuando vuelva a pasar.
+
 
 ## Decisión 38 — Chromium en la imagen de la API, un navegador a la vez y el aviso de pegar el texto cuando un sitio bloquea
 

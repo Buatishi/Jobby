@@ -21,6 +21,8 @@ const topWeights = MATCH_SCORE_WEIGHTS[0].percent + MATCH_SCORE_WEIGHTS[1].perce
 
 const queEsUnAts: Guide = {
   slug: "que-es-un-ats",
+  publishedAt: "2026-10-18",
+  updatedAt: "2026-11-02",
   title: "Qué es un ATS y cómo lee tu CV",
   seoTitle: "Qué es un ATS y cómo lee tu CV | Jobby",
   description:
@@ -153,6 +155,8 @@ const queEsUnAts: Guide = {
 
 const queEsElMatchScore: Guide = {
   slug: "que-es-el-match-score",
+  publishedAt: "2026-10-18",
+  updatedAt: "2026-10-30",
   title: "Qué es el match score y cómo se calcula",
   seoTitle: "Qué es el match score de un CV y cómo se calcula | Jobby",
   description:
@@ -262,6 +266,8 @@ const queEsElMatchScore: Guide = {
 
 const comoAdaptarTuCv: Guide = {
   slug: "como-adaptar-tu-cv-a-una-oferta",
+  publishedAt: "2026-10-18",
+  updatedAt: "2026-10-19",
   title: "Cómo adaptar tu CV a cada oferta",
   seoTitle: "Cómo adaptar tu CV a una oferta de trabajo | Jobby",
   description:
@@ -350,6 +356,8 @@ const comoAdaptarTuCv: Guide = {
 
 const palabrasClave: Guide = {
   slug: "palabras-clave-del-cv",
+  publishedAt: "2026-10-18",
+  updatedAt: "2026-10-19",
   title: "Palabras clave del CV: cómo elegirlas y dónde usarlas",
   seoTitle: "Palabras clave para el CV: cómo elegirlas | Jobby",
   description:
@@ -457,6 +465,8 @@ const palabrasClave: Guide = {
 
 const cvCompatibleConAts: Guide = {
   slug: "cv-compatible-con-ats",
+  publishedAt: "2026-10-19",
+  updatedAt: "2026-11-02",
   title: "Cómo hacer un CV compatible con ATS",
   seoTitle: "CV compatible con ATS: lista de control | Jobby",
   description:
@@ -552,6 +562,8 @@ const cvCompatibleConAts: Guide = {
 
 const analizarCvConIa: Guide = {
   slug: "analizar-cv-con-ia",
+  publishedAt: "2026-10-19",
+  updatedAt: "2026-10-19",
   title: "Analizar tu CV con IA: qué puede decirte y qué no",
   seoTitle: "Analizar tu CV con IA: qué esperar | Jobby",
   description:
@@ -644,6 +656,8 @@ const analizarCvConIa: Guide = {
 
 const optimizarCvConIa: Guide = {
   slug: "optimizar-cv-con-ia",
+  publishedAt: "2026-10-19",
+  updatedAt: "2026-11-02",
   title: "Optimizar el CV con IA sin inventar experiencia",
   seoTitle: "Optimizar el CV con IA sin inventar | Jobby",
   description:
@@ -752,6 +766,8 @@ const optimizarCvConIa: Guide = {
 
 const habilidadesParaElCv: Guide = {
   slug: "habilidades-para-poner-en-el-cv",
+  publishedAt: "2026-10-19",
+  updatedAt: "2026-10-19",
   title: "Qué habilidades poner en el CV y cómo ordenarlas",
   seoTitle: "Qué habilidades poner en el CV | Jobby",
   description:
