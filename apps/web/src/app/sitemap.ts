@@ -3,8 +3,10 @@ import type { MetadataRoute } from "next";
 import { GUIDES } from "@/lib/guides/guides";
 import { SITE_URL } from "@/lib/seo/site";
 
-// Sin `lastModified`: con `new Date()` valdría la fecha del build para todas las URLs aunque
-// no hayan cambiado, y los buscadores descartan una fecha que no es fiable.
+// `lastModified` solo en las guías, y con la fecha de su último cambio de contenido
+// (`updatedAt`). Con `new Date()` valdría la del build para todas las URLs aunque no hayan
+// cambiado, y los buscadores descartan una fecha que no es fiable: las demás páginas no tienen
+// una fecha de contenido registrada, así que no llevan ninguna.
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
@@ -24,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     ...GUIDES.map((guide) => ({
       url: `${SITE_URL}/guias/${guide.slug}`,
+      lastModified: guide.updatedAt,
       changeFrequency: "monthly" as const,
       priority: 0.6
     })),

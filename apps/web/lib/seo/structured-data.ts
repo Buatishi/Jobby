@@ -71,6 +71,37 @@ export function buildBreadcrumbStructuredData(
   ];
 }
 
+export type ArticleInput = {
+  headline: string;
+  description: string;
+  path: string;
+  // AAAA-MM-DD, las mismas que la página muestra.
+  publishedAt: string;
+  updatedAt: string;
+};
+
+// Marcado `Article` de una guía. Autor y editor son la organización: no hay una persona que la
+// página pueda declarar como autora sin inventarlo. Las fechas son las visibles en la página.
+export function buildArticleStructuredData(article: ArticleInput): JsonLdNode[] {
+  const organization = { "@type": "Organization", name: SITE_NAME, url: SITE_URL };
+
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: article.headline,
+      description: article.description,
+      inLanguage: "es",
+      datePublished: article.publishedAt,
+      dateModified: article.updatedAt,
+      mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}${article.path}` },
+      image: `${SITE_URL}/og-image.png`,
+      author: organization,
+      publisher: organization
+    }
+  ];
+}
+
 // `<` se escapa para que ningún valor pueda cerrar la etiqueta <script> donde se inserta.
 export function serializeJsonLd(nodes: JsonLdNode[]): string {
   return JSON.stringify(nodes).replace(/</g, "\\u003c");

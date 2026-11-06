@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { formatGuideDate } from "@/lib/guides/dates";
 import { GUIDES, getGuide } from "@/lib/guides/guides";
 import { buildShareMetadata } from "@/lib/seo/share";
+import { GuideArticleMarkup } from "@/src/components/guides/guide-article-markup";
 import { GuideBlocks } from "@/src/components/guides/guide-blocks";
 import { GuideBreadcrumbs } from "@/src/components/guides/guide-breadcrumbs";
 import { GuideShell } from "@/src/components/guides/guide-shell";
@@ -56,10 +58,29 @@ export default async function GuidePage({ params }: GuidePageProps) {
           { name: guide.title, path: `/guias/${guide.slug}` }
         ]}
       />
+      <GuideArticleMarkup
+        article={{
+          headline: guide.title,
+          description: guide.description,
+          path: `/guias/${guide.slug}`,
+          publishedAt: guide.publishedAt,
+          updatedAt: guide.updatedAt
+        }}
+      />
       <article>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
           {guide.title}
         </h1>
+        <p className="mt-3 text-sm font-medium text-neutral-600">
+          Publicada el{" "}
+          <time dateTime={guide.publishedAt}>{formatGuideDate(guide.publishedAt)}</time>
+          {guide.updatedAt !== guide.publishedAt ? (
+            <>
+              {" · "}Actualizada el{" "}
+              <time dateTime={guide.updatedAt}>{formatGuideDate(guide.updatedAt)}</time>
+            </>
+          ) : null}
+        </p>
         <p className="mt-4 text-lg leading-8 text-neutral-700">{guide.intro}</p>
 
         {guide.sections.map((section) => (

@@ -135,6 +135,41 @@ describe("guides content", () => {
   });
 });
 
+describe("guide dates", () => {
+  const day = /^\d{4}-\d{2}-\d{2}$/;
+
+  it("gives every guide a real publication and update day", () => {
+    for (const guide of GUIDES) {
+      for (const value of [guide.publishedAt, guide.updatedAt]) {
+        expect(value, guide.slug).toMatch(day);
+        expect(new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10), guide.slug).toBe(value);
+      }
+    }
+  });
+
+  it("never updates a guide before it was published", () => {
+    for (const guide of GUIDES) {
+      expect(guide.updatedAt >= guide.publishedAt, guide.slug).toBe(true);
+    }
+  });
+
+  it("does not date a guide in the future", () => {
+    // Un día de margen por la zona horaria de quien corre el test.
+    const limit = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    for (const guide of GUIDES) {
+      expect(guide.updatedAt <= limit, guide.slug).toBe(true);
+    }
+  });
+
+  it("starts after the first guide went live", () => {
+    // El 2026-10-18 se publicaron las primeras cuatro: ninguna fecha puede ser anterior.
+    for (const guide of GUIDES) {
+      expect(guide.publishedAt >= "2026-10-18", guide.slug).toBe(true);
+    }
+  });
+});
+
 describe("guide figures match the backend code", () => {
   it("uses the weights of the match score formula", () => {
     const source = readService("match_engine/formula.py");

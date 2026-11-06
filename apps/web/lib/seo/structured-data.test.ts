@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { GUIDES } from "@/lib/guides/guides";
 import {
   SITE_ALTERNATE_NAMES,
   SITE_NAME,
@@ -7,6 +8,7 @@ import {
   SITE_URL
 } from "@/lib/seo/site";
 import {
+  buildArticleStructuredData,
   buildBreadcrumbStructuredData,
   buildHomeStructuredData,
   serializeJsonLd
@@ -128,6 +130,54 @@ describe("breadcrumb structured data", () => {
   it("serializes to JSON that round-trips", () => {
     const nodes = buildBreadcrumbStructuredData(steps);
 
+    expect(JSON.parse(serializeJsonLd(nodes))).toEqual(nodes);
+  });
+});
+
+describe("article structured data", () => {
+  const article = {
+    headline: "Qué es un ATS y cómo lee tu CV",
+    description: "Qué es un ATS.",
+    path: "/guias/que-es-un-ats",
+    publishedAt: "2026-10-18",
+    updatedAt: "2026-11-02"
+  };
+
+  it("describes the guide with its address, headline and the days the page shows", () => {
+    const [node] = buildArticleStructuredData(article);
+
+    expect(node["@context"]).toBe("https://schema.org");
+    expect(node["@type"]).toBe("Article");
+    expect(node.headline).toBe(article.headline);
+    expect(node.description).toBe(article.description);
+    expect(node.inLanguage).toBe("es");
+    expect(node.datePublished).toBe("2026-10-18");
+    expect(node.dateModified).toBe("2026-11-02");
+    expect(node.mainEntityOfPage).toEqual({
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/guias/que-es-un-ats`
+    });
+    expect(node.image).toBe(`${SITE_URL}/og-image.png`);
+  });
+
+  it("credits the organization, not a person the page cannot name", () => {
+    const [node] = buildArticleStructuredData(article);
+    const organization = { "@type": "Organization", name: SITE_NAME, url: SITE_URL };
+
+    expect(node.author).toEqual(organization);
+    expect(node.publisher).toEqual(organization);
+  });
+
+  it("keeps the headline within the 110 characters search engines read", () => {
+    for (const guide of GUIDES) {
+      expect(guide.title.length, guide.slug).toBeLessThanOrEqual(110);
+    }
+  });
+
+  it("does not claim ratings or reviews, and round-trips as JSON", () => {
+    const nodes = buildArticleStructuredData(article);
+
+    expect(serializeJsonLd(nodes)).not.toContain("aggregateRating");
     expect(JSON.parse(serializeJsonLd(nodes))).toEqual(nodes);
   });
 });
