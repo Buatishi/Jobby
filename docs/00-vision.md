@@ -21,7 +21,7 @@ agregadas, nunca datos personales ni CVs.
 | Cliente | Navegador | Vercel; Supabase Auth y Storage (login, OAuth y subida de CV) | HTTPS 443 | Sí |
 | Frontend Next.js 15 | Vercel (`jobbyweb.vercel.app`) | API, mediante el rewrite `/api/backend/*` | HTTPS 443 | Sí |
 | API FastAPI | Render, Docker (servicio `jobmatch-api`) | Supabase (PostgREST), Redis, proveedores de IA, Resend | HTTPS 443; rediss 6379 | Sí |
-| Workers Celery | Render (a confirmar, ver sección 10) | Redis, Supabase, proveedores de IA | rediss 6379; HTTPS 443 | Sí |
+| Workers Celery | Declarados en `render.yaml`, nunca desplegados: las tareas corren dentro de la API (Decisiones 15 y 17, secciones 5 y 10) | Redis, Supabase, proveedores de IA | rediss 6379; HTTPS 443 | Sí |
 | Datos | Supabase: Postgres 17 + pgvector, Auth y Storage (`cv-documents`) | — | 443 | Sí |
 | Cola y límites de uso | Upstash Redis | — | 6379 (TLS) | Sí |
 | Pagos | LemonSqueezy, webhook firmado con HMAC hacia la API | API | HTTPS 443 | Sí |
@@ -116,18 +116,25 @@ IA). Diagramas como código con PlantUML (Decisión 10).
 
 ## 9. Decisiones aprobadas
 
-Ver [`DECISIONS.md`](../DECISIONS.md): decisiones 1 a 12.
+Ver [`DECISIONS.md`](../DECISIONS.md): las decisiones 1 a 12 son las aprobadas al 2026-09-20 y el
+registro llega hoy a la 42.
 
 ## 10. Pendientes conocidos
 
-- **CI/CD:** activar GitHub Actions con cobertura mínima y un job de despliegue que
-  dependa de los tests (Decisión 6).
+Hechos desde que se escribió esta visión:
+
+- **CI/CD** con cobertura mínima y un trabajo de despliegue que depende de los tests (Decisión 6,
+  2026-09-24).
 - **Protección de `main`:** pull request obligatorio (Decisión 12).
-- **Cola de tareas:** producción usa el modo local por ahora (Decisión 15); el worker de
-  Celery (USD 7/mes) o Render Starter quedan para evaluar más adelante.
-- **Frontend:** el dominio público pasó al despliegue actual el 2026-09-21. Pendientes
-  de producto y frontend en `docs/05-pendientes-producto.md`.
-- **Disponibilidad:** el plan gratuito de Render duerme el servicio tras un rato sin
-  tráfico. Mitigado con el pre-calentamiento al abrir la web y el reintento de los GET
-  (Decisión 14); una primera petición en frío sin visita previa sigue tardando unos 42 s.
 - **Tests de integración** contra una base de pruebas separada (Decisión 4).
+- **Frontend:** el dominio público pasó al despliegue actual el 2026-09-21.
+
+Siguen vigentes:
+
+- **Cola de tareas:** producción usa el modo local (Decisión 15); el worker de Celery
+  (USD 7/mes) o Render Starter quedan para evaluar más adelante.
+- **Disponibilidad:** el plan gratuito de Render duerme el servicio tras 15 minutos sin
+  tráfico. Se mitiga con el pre-calentamiento al abrir la web, el reintento de los GET y la
+  consulta periódica de `pg_cron` a `/health` de 8 a 24 h (Decisión 14); fuera de ese horario y sin
+  una visita previa a la web, la primera petición en frío sigue tardando unos 42 s.
+- **Producto y frontend:** `docs/05-pendientes-producto.md`.

@@ -2,6 +2,10 @@
 
 Estado: Etapa 1. Descompone los procesos 2 y 4 del [nivel 1](01-dfd.md). Verificado el
 2026-09-21 contra el código de `apps/web` y `services/api`, no contra documentación previa.
+Actualizado el 2026-11-02 contra `origin/main` (PR #138): los pesos del MatchScore, los umbrales de
+similitud (0,82 y 0,75), la regla de relevancia, el reporte ATS y los límites por plan se
+cotejaron con `services/api/app/services/` y `rate_limits.py`, y se agregaron los endpoints que
+faltaban (elegir el CV principal y eliminar un documento).
 
 ## Convenciones
 
@@ -32,7 +36,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-2.pdf](pdf/laminas
 
 | N.º | Subproceso | Qué hace | Dónde está en el código |
 |---|---|---|---|
-| 2.1 | Registrar el CV y encolar el análisis | Recibe el PDF ya subido al almacén privado, guarda el documento como «pendiente» con su ruta, encola la tarea y devuelve su identificador. | `wizard/step-2`; `POST /profiles/documents` |
+| 2.1 | Registrar el CV y encolar el análisis | Recibe el PDF ya subido al almacén privado, guarda el documento como «pendiente» con su ruta, encola la tarea y devuelve su identificador. | `wizard/step-2`; `POST /profiles/documents`. También permite elegir cuál es el CV principal (`PATCH /profiles/documents/{id}/set-primary`) y eliminar un documento con su archivo (`DELETE /profiles/documents/{id}`), que recalcula el porcentaje de perfil |
 | 2.2 | Extraer el texto del PDF | Descarga el archivo y extrae el texto en orden de lectura (una columna después de la otra, si la hoja tiene varias) y anota el formato del PDF (tablas, varias columnas, imágenes y títulos de sección) para el reporte ATS (Decisión 34); si el PDF no tiene texto seleccionable, marca «fallido» con un mensaje apto para mostrar. | `tasks/parsing.py`; `cv_parser/pdf_extractor.py` |
 | 2.3 | Estructurar el CV con IA | Pide a DeepSeek que ordene el texto en datos de contacto, resumen, habilidades, experiencia, estudios, idiomas y certificaciones, y valida el JSON recibido. | `cv_parser/ai_structurer.py` |
 | 2.4 | Generar los vectores de las habilidades | Convierte cada habilidad en un vector de significado de 1536 números con OpenAI. | `ai_gateway/openai_embeddings.py` |
@@ -70,7 +74,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-2-proceso-4.pdf](pdf/laminas
 
 | N.º | Subproceso | Qué hace | Dónde está en el código |
 |---|---|---|---|
-| 4.1 | Calcular los puntajes de compatibilidad | Cruza perfil y puesto en seis criterios (habilidades 35 %, seniority 25 %, empresa 15 %, estudios 10 %, idiomas 10 %, blandas 5 %) y calcula el MatchScore, el potencial, la representación y el origen de la brecha. La similitud de habilidades usa vectores (coseno desde 0,82). El puntaje se multiplica por la relevancia del puesto para el área de la persona: sin ninguna skill en común queda en 0,15 de su valor (Decisión 29). | `services/match_engine/`; `tasks/analysis.py` |
+| 4.1 | Calcular los puntajes de compatibilidad | Cruza perfil y puesto en seis criterios (habilidades 35 %, seniority 25 %, empresa 15 %, estudios 10 %, idiomas 10 %, blandas 5 %) y calcula el MatchScore, el potencial, la representación y el origen de la brecha. La similitud de habilidades usa vectores (coseno desde 0,82). El puntaje se multiplica por la relevancia del puesto para el área de la persona: sin ninguna skill en común queda en 0,15 de su valor y con la cuarta parte de las skills pedidas el puntaje no cambia (Decisión 29). Las tecnologías del puesto (`tech_stack`) cuentan como skills pedidas. | `services/match_engine/`; `tasks/analysis.py` |
 | 4.2 | Explicar el resultado con IA y guardarlo | Pide una explicación y de 3 a 5 recomendaciones (DeepSeek en el plan gratuito, Claude en premium) y guarda el resultado. | `tasks/analysis.py`; `services/ai_gateway/` |
 | 4.3 | Entregar el reporte y registrar la valoración | Devuelve el reporte de compatibilidad y guarda la valoración de 1 a 5 de la persona. | `GET /matches/{id}`; `PATCH /matches/{id}/rating` |
 | 4.4 | Armar el reporte ATS | Si el puesto ya tiene un reporte guardado para el CV principal de hoy, lo devuelve sin más: no usa IA ni vectores y no gasta el límite. Si no (primera vez, o cambió el CV principal), verifica el límite del plan (10 reportes nuevos por día en el gratuito), toma las palabras clave del puesto (las del último reporte, o las extrae con IA la primera vez) y deja solo las habilidades (sin título, nivel, modalidad, ciudad, idiomas ni tareas escritas como frase) y marca cuáles el aviso presenta como deseables (valen la mitad), las compara con el CV, incluidas sus certificaciones y su resumen para la palabra literal (palabra completa, por significado desde 0,75 o faltante) reutilizando los vectores que ya guardan las habilidades, revisa el formato que se anotó al leer el CV y le pone hasta 10 puntos (varias columnas −4, imágenes −3, tablas −3; una estimación propia, no el puntaje de un ATS real; si el CV se leyó antes de que existiera esa anotación, el reporte avisa que no se pudo evaluar y el formato no cuenta), evalúa los requisitos del puesto (años de experiencia directa, formación e idiomas) con el perfil, el CV y el PDF de LinkedIn, calcula el puntaje (con todo pedido: palabras clave 54 %, años 18 %, formación 9 %, idiomas 9 % y formato 10 %) y guarda el reporte (Decisiones 33, 34, 35 y 42). | `GET /ats/{job_id}`; `services/ats_analyzer/` |

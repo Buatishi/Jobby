@@ -10,6 +10,10 @@ clave pública y los roles con sus permisos (dos tablas nuevas y la columna `use
 Actualizado el 2026-10-20 con la tabla `ats_reports` de la migración 031 (Decisión 33): aplicada y
 verificada ese día en el proyecto de pruebas y en producción (columnas, claves, política y
 privilegios contra su catálogo), antes de desplegar el cambio.
+Actualizado el 2026-11-02 con las migraciones 028 a 030 (un disparador, los trabajos de `pg_cron`
+y la ubicación de `pg_net`; ninguna cambia tablas ni columnas). Ese día, sobre el catálogo de la
+base de producción (solo metadatos): 16 tablas en `public`, las 16 con RLS, `pgvector` 0.8.0, y la
+última migración registrada es la 031; no hay migraciones posteriores en `origin/main`.
 
 ![Modelo entidad-relación de Jobby](diagramas/modelo-entidad-relacion.svg)
 
@@ -94,6 +98,13 @@ comparaciones (`job_matches`) o kits (`interview_kits`), para que nadie pierda r
 - **Claves foráneas indexadas:** desde la migración 024 (2026-09-23) cada una tiene su índice.
   La API filtra por esas columnas en casi todas las consultas y los borrados en cascada las
   recorren; antes, 15 no tenían índice y cada una de esas operaciones leía la tabla entera.
+- **Disparadores:** al registrarse una persona en Supabase Auth, `on_auth_user_created`
+  (migración 015) crea su fila en `users` y su perfil; `on_public_user_created` (migración 028)
+  garantiza el perfil maestro con cualquier alta en `users`, también la que hace la API cuando el
+  token trae una persona sin fila. Así la API ya no consulta el perfil en cada pedido (Decisión 23).
+- **Trabajos programados:** `pg_cron` con `pg_net` (migraciones 029 y 030) llama a `/health` de la
+  API cada 10 minutos de 8 a 24 h y borra a diario los registros de ejecución de más de 7 días.
+  No leen ni escriben tablas de la aplicación.
 
 El esquema no declara restricciones `CHECK`: los valores permitidos de `tier`, `status`, `type`,
 `cv_slot`, `user_rating` y similares los valida la API con modelos Pydantic.
@@ -102,8 +113,11 @@ El esquema no declara restricciones `CHECK`: los valores permitidos de `tier`, `
 
 - La función `set_primary_uploaded_document` de la migración 018 no había quedado aplicada en
   producción, aunque `PATCH /profiles/documents/{id}/set-primary` la invoca. Se restauró el
-  2026-09-22 con la migración 023, probada antes en el proyecto de pruebas: las tres funciones
-  del esquema son `SECURITY DEFINER` y solo las ejecuta la clave de servicio.
+  2026-09-22 con la migración 023, probada antes en el proyecto de pruebas. Las seis funciones del
+  esquema son `SECURITY DEFINER` y ninguna la puede ejecutar `public`, `anon` ni `authenticated`;
+  las tres que llama la API (`set_primary_uploaded_document`, `admin_metrics` y
+  `session_is_active`) las ejecuta solo la clave de servicio, y las otras tres son de los
+  disparadores y del cálculo de completitud.
 - Desde el 2026-09-22 hay un segundo proyecto de Supabase (plan gratuito) dedicado a las
   pruebas, con las mismas migraciones y sin datos de personas (Decisión 4).
 - Hasta la 022, las migraciones se aplicaron desde el editor SQL y Supabase no las registró;
