@@ -21,6 +21,23 @@ pedido puede tardar unos 40 segundos. De 8 a 24 (hora de Buenos Aires) la base d
 despierta al abrirse. Más detalle en
 [docs/operacion/arranque-en-frio.md](docs/operacion/arranque-en-frio.md).
 
+## Guías públicas
+
+La web publica guías en español, sin iniciar sesión, sobre cómo lee un CV un sistema de
+selección y cómo se calcula el Match Score. Índice: <https://jobbyweb.vercel.app/guias>
+
+- [Qué es un ATS y cómo lee tu CV](https://jobbyweb.vercel.app/guias/que-es-un-ats)
+- [Qué es el match score y cómo se calcula](https://jobbyweb.vercel.app/guias/que-es-el-match-score)
+- [Cómo adaptar tu CV a cada oferta](https://jobbyweb.vercel.app/guias/como-adaptar-tu-cv-a-una-oferta)
+- [Palabras clave del CV: cómo elegirlas y dónde usarlas](https://jobbyweb.vercel.app/guias/palabras-clave-del-cv)
+- [Cómo hacer un CV compatible con ATS](https://jobbyweb.vercel.app/guias/cv-compatible-con-ats)
+- [Analizar tu CV con IA: qué puede decirte y qué no](https://jobbyweb.vercel.app/guias/analizar-cv-con-ia)
+- [Optimizar el CV con IA sin inventar experiencia](https://jobbyweb.vercel.app/guias/optimizar-cv-con-ia)
+- [Qué habilidades poner en el CV y cómo ordenarlas](https://jobbyweb.vercel.app/guias/habilidades-para-poner-en-el-cv)
+
+El texto vive en `apps/web/lib/guides/guides.ts`. Las cifras que citan salen de
+`apps/web/lib/guides/facts.ts`, y `guides.test.ts` las compara con el código del backend.
+
 ## Estructura del proyecto
 
 - `apps/web`: frontend (Next.js 15).
