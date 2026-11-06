@@ -2,9 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { GUIDE_LINKS } from "@/lib/guides/links";
+import { dictionaries } from "@/lib/i18n/dictionaries";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { Closing } from "@/src/components/landing/closing";
 import { Features } from "@/src/components/landing/features";
+import { GuidesSection } from "@/src/components/landing/guides-section";
 import { JobNetwork } from "@/src/components/landing/job-network";
 import { Plans } from "@/src/components/landing/plans";
 import { Promises } from "@/src/components/landing/promises";
@@ -66,6 +68,30 @@ describe("landing sections", () => {
       expect(html).toContain(`>${guide.label}<`);
     }
     expect(html.match(/href="\/guias\//g)).toHaveLength(GUIDE_LINKS.length);
+  });
+
+  it("links every guide by name from its own section in the body of the page", () => {
+    const html = render(<GuidesSection />);
+
+    for (const guide of GUIDE_LINKS) {
+      expect(html).toContain(`href="/guias/${guide.slug}"`);
+      expect(html).toContain(`>${guide.label}<`);
+    }
+    // Las ocho guías más el enlace al índice, y nada más.
+    expect(html.match(/<a /g)).toHaveLength(GUIDE_LINKS.length + 1);
+    expect(html).toContain('href="/guias"');
+    expect(html).toContain("Ver todas las guías");
+    expect(html.match(/<h2/g)).toHaveLength(1);
+  });
+
+  it("tells English readers the guides are in Spanish", () => {
+    // El proveedor lee el idioma del navegador al montarse: en el servidor siempre es español.
+    const en = dictionaries.en.landing as Record<string, string>;
+    const es = dictionaries.es.landing as Record<string, string>;
+
+    expect(en.guides).toBe("Guides (in Spanish)");
+    expect(en.guidesAll).toBe("See all guides");
+    expect(en.guidesTitle).not.toBe(es.guidesTitle);
   });
 
   it("says in the footer what Jobby web is, with the words people search for", () => {

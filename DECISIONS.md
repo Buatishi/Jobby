@@ -2457,6 +2457,32 @@ otras 12 URLs como «Descubierta, sin indexar»: este cambio no resuelve eso.
 en el resultado cuando una guía esté indexada, y Google decide si la muestra. No se agregó `Article`:
 pide fechas de publicación que las guías no guardan, y no se inventan.
 
+---
+
+## Actualización — Decisión 30 (2026-11-06): enlaces a las guías en el cuerpo de la home
+
+**Estado:** Pedido por el autor, con el cambio descrito antes de implementarlo; la aprobación final
+es la revisión del PR. El texto es un borrador redactado con asistencia de IA que el autor revisa y
+hace suyo.
+
+**Medición (2026-11-06).** Search Console: la home se rastreó por última vez el 15-oct y las ocho
+guías siguen «Descubierta, sin indexar»; Google las conoce solo por el sitemap. Dentro del sitio, las
+guías se enlazaban desde el pie de la home y entre ellas, nada más. En paralelo, el perfil de GitHub
+y el README del repositorio pasaron a enlazar la home y las guías (PR #145).
+
+**Elegido.**
+- Una sección «Guías» (`GuidesSection`, `id="guias"`) entre los planes y el cierre, con los ocho
+  enlaces por nombre (`GUIDE_LINKS`) y uno al índice. Usa los mismos tokens y la misma tarjeta que
+  el resto de la home: una columna en celular, dos desde `sm` y cuatro desde `lg`.
+- Los textos van en `dictionaries.ts`, en español e inglés. En inglés el rótulo avisa que las guías
+  están en español, igual que el pie.
+- El pie conserva su lista: cada guía queda con dos enlaces desde la home.
+- Tests: la sección sola, la página completa (enlaces antes del pie y dos por guía) y la paridad
+  español-inglés del diccionario.
+
+**Límites.** Es una pista más para el rastreador, no una orden: los buscadores deciden cuándo volver
+y no hay posición garantizada. No cambia nada de lo que hace el producto.
+
 
 ## Decisión 38 — Chromium en la imagen de la API, un navegador a la vez y el aviso de pegar el texto cuando un sitio bloquea
 
