@@ -7,6 +7,7 @@ import {
 import { Closing } from "@/src/components/landing/closing";
 import { CompareCard } from "@/src/components/landing/compare-card";
 import { Features } from "@/src/components/landing/features";
+import { GuidesSection } from "@/src/components/landing/guides-section";
 import { Hero } from "@/src/components/landing/hero";
 import { JobNetwork } from "@/src/components/landing/job-network";
 import { LandingNav } from "@/src/components/landing/landing-nav";
@@ -42,6 +43,7 @@ export default function LandingPage() {
       <Promises />
       <ManifestoStats />
       <Plans />
+      <GuidesSection />
       <Closing />
     </main>
   );

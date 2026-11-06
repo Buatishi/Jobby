@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { GUIDE_LINKS } from "@/lib/guides/links";
 import { I18nProvider } from "@/lib/i18n/provider";
 
 const session = vi.hoisted(() => ({ hasSession: null as boolean | null }));
@@ -41,6 +42,29 @@ describe("LandingPage header", () => {
 
     expect(html).toContain("Iniciar sesión");
     expect(html).not.toContain("Ir al dashboard");
+  });
+});
+
+describe("LandingPage guide links", () => {
+  it("links every guide from the body of the page, before the footer", () => {
+    const html = render(false);
+    // El último <footer> es el del cierre de la página (las tarjetas de promesas traen los suyos).
+    const body = html.slice(0, html.lastIndexOf("<footer"));
+
+    for (const guide of GUIDE_LINKS) {
+      expect(body, guide.slug).toContain(`href="/guias/${guide.slug}"`);
+    }
+    expect(body).toContain('id="guias"');
+  });
+
+  it("still lists them in the footer, so each guide has two links from the home", () => {
+    const html = render(false);
+
+    for (const guide of GUIDE_LINKS) {
+      const links = html.match(new RegExp(`href="/guias/${guide.slug}"`, "g"));
+
+      expect(links, guide.slug).toHaveLength(2);
+    }
   });
 });
 
