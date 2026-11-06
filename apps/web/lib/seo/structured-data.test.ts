@@ -7,6 +7,7 @@ import {
   SITE_URL
 } from "@/lib/seo/site";
 import {
+  buildBreadcrumbStructuredData,
   buildHomeStructuredData,
   serializeJsonLd
 } from "@/lib/seo/structured-data";
@@ -89,5 +90,44 @@ describe("home structured data", () => {
 
     expect(serialized).not.toContain("<");
     expect(JSON.parse(serialized)).toEqual([{ name: "</script><b>" }]);
+  });
+});
+
+describe("breadcrumb structured data", () => {
+  const steps = [
+    { name: "Jobby", path: "/" },
+    { name: "Guías", path: "/guias" },
+    { name: "Qué es un ATS", path: "/guias/que-es-un-ats" }
+  ];
+
+  it("lists each step in order with its absolute address", () => {
+    const [list] = buildBreadcrumbStructuredData(steps);
+
+    expect(list["@context"]).toBe("https://schema.org");
+    expect(list["@type"]).toBe("BreadcrumbList");
+    expect(list.itemListElement).toEqual([
+      { "@type": "ListItem", position: 1, name: "Jobby", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Guías", item: `${SITE_URL}/guias` },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: "Qué es un ATS",
+        item: `${SITE_URL}/guias/que-es-un-ats`
+      }
+    ]);
+  });
+
+  it("writes the root without a trailing slash, like the site url and the sitemap", () => {
+    const [list] = buildBreadcrumbStructuredData([{ name: "Jobby", path: "/" }]);
+    const [root] = list.itemListElement as { item: string }[];
+
+    expect(root.item).toBe(SITE_URL);
+    expect(root.item.endsWith("/")).toBe(false);
+  });
+
+  it("serializes to JSON that round-trips", () => {
+    const nodes = buildBreadcrumbStructuredData(steps);
+
+    expect(JSON.parse(serializeJsonLd(nodes))).toEqual(nodes);
   });
 });

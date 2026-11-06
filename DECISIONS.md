@@ -2429,6 +2429,34 @@ saliendo, y si Bing la saca antes de elegir la home, «jobbyweb» puede perder u
 lugar. No garantiza que la home ocupe ese lugar. Quien llega con el enlace directo a una de estas
 pantallas no nota ningún cambio.
 
+---
+
+## Actualización — Decisión 30 (2026-11-06): migas de pan en las guías
+
+**Estado:** Pedido por el autor, con Requisito, Impacto, Riesgo y Prueba mostrados antes de
+implementarlo; la aprobación final es la revisión del PR. El texto es un borrador redactado con
+asistencia de IA que el autor revisa y hace suyo.
+
+**Medición (2026-11-06).** En producción la home declara `Organization`, `WebSite`,
+`WebApplication` y `Offer`, pero las ocho guías, `/guias` y `/pricing` no declaraban ningún dato
+estructurado. Search Console sigue mostrando solo la home indexada (último rastreo el 15-oct) y las
+otras 12 URLs como «Descubierta, sin indexar»: este cambio no resuelve eso.
+
+**Elegido.**
+- `buildBreadcrumbStructuredData` (`lib/seo/structured-data.ts`) arma un `BreadcrumbList` con la URL
+  absoluta de cada paso. La raíz va sin barra final, igual que `SITE_URL` y el sitemap.
+- `GuideBreadcrumbs` pinta las migas visibles y el marcado desde el mismo arreglo, porque Google
+  pide que el marcado coincida con lo que la persona ve. El último paso es la página actual y no es
+  un enlace.
+- `/guias` muestra «Jobby › Guías» y cada guía «Jobby › Guías › título de la guía». Reemplaza al
+  enlace «← Todas las guías»: el paso «Guías» lleva al mismo lugar.
+- Los tests comprueban el marcado de cada guía y del índice, y que el texto y el enlace visibles de
+  cada paso coincidan con él.
+
+**Límites.** No hace que Google rastree las guías ni mejora su posición: cambia cómo se ve la ruta
+en el resultado cuando una guía esté indexada, y Google decide si la muestra. No se agregó `Article`:
+pide fechas de publicación que las guías no guardan, y no se inventan.
+
 
 ## Decisión 38 — Chromium en la imagen de la API, un navegador a la vez y el aviso de pegar el texto cuando un sitio bloquea
 

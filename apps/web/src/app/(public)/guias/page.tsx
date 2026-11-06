@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { GUIDES } from "@/lib/guides/guides";
 import { buildShareMetadata } from "@/lib/seo/share";
+import { GuideBreadcrumbs } from "@/src/components/guides/guide-breadcrumbs";
 import { GuideShell } from "@/src/components/guides/guide-shell";
 
 const title = "Guías para tu CV y tus postulaciones | Jobby";
@@ -19,7 +20,13 @@ export const metadata: Metadata = {
 export default function GuidesIndexPage() {
   return (
     <GuideShell>
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <GuideBreadcrumbs
+        steps={[
+          { name: "Jobby", path: "/" },
+          { name: "Guías", path: "/guias" }
+        ]}
+      />
+      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
         Guías para tu CV y tus postulaciones
       </h1>
       <p className="mt-4 text-lg leading-8 text-neutral-700">

@@ -16,6 +16,31 @@ async function renderGuide(slug: string) {
   return renderToStaticMarkup(await GuidePage({ params: Promise.resolve({ slug }) }));
 }
 
+type Crumb = { position: number; name: string; item: string };
+
+// Lee el marcado de migas de pan del HTML: es lo que recibe el buscador.
+function breadcrumbMarkup(html: string): Crumb[] {
+  const scripts = [
+    ...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)
+  ].map((match) => JSON.parse(match[1]) as { "@type": string; itemListElement: Crumb[] }[]);
+  const lists = scripts.flat().filter((node) => node["@type"] === "BreadcrumbList");
+
+  expect(lists).toHaveLength(1);
+  return lists[0].itemListElement;
+}
+
+// Lo que la persona ve: el contenido de la lista dentro de la navegación de migas.
+function visibleBreadcrumb(html: string) {
+  const nav = html.match(/<nav aria-label="Migas de pan">(.*?)<\/nav>/)?.[1] ?? "";
+  const items = [...nav.matchAll(/<li[^>]*>(.*?)<\/li>/g)].map((match) => match[1]);
+
+  return items.map((item) => ({
+    text: item.replace(/<[^>]+>/g, "").replace("›", "").trim(),
+    href: item.match(/href="([^"]+)"/)?.[1] ?? null,
+    current: item.includes('aria-current="page"')
+  }));
+}
+
 describe("guides index", () => {
   const html = renderToStaticMarkup(<GuidesIndexPage />);
 
@@ -43,6 +68,17 @@ describe("guides index", () => {
       title: indexMetadata.title,
       images: ["/og-image.png"]
     });
+  });
+
+  it("declares its path as Jobby › Guías, and shows the same path", () => {
+    expect(breadcrumbMarkup(html)).toEqual([
+      { "@type": "ListItem", position: 1, name: "Jobby", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Guías", item: `${SITE_URL}/guias` }
+    ]);
+    expect(visibleBreadcrumb(html)).toEqual([
+      { text: "Jobby", href: "/", current: false },
+      { text: "Guías", href: null, current: true }
+    ]);
   });
 });
 
@@ -100,6 +136,31 @@ describe("guide pages", () => {
         images: ["/og-image.png"]
       });
       expect(metadata.twitter).toMatchObject({ images: ["/og-image.png"] });
+    }
+  );
+
+  it.each(GUIDES.map((guide) => guide.slug))(
+    "%s: declares Jobby › Guías › its title and shows exactly that path",
+    async (slug) => {
+      const guide = getGuide(slug)!;
+      const html = await renderGuide(slug);
+
+      expect(breadcrumbMarkup(html)).toEqual([
+        { "@type": "ListItem", position: 1, name: "Jobby", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name: "Guías", item: `${SITE_URL}/guias` },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: guide.title,
+          item: `${SITE_URL}/guias/${slug}`
+        }
+      ]);
+      // El texto de cada paso visible es el mismo que el del marcado, y el último no es enlace.
+      expect(visibleBreadcrumb(html)).toEqual([
+        { text: "Jobby", href: "/", current: false },
+        { text: "Guías", href: "/guias", current: false },
+        { text: guide.title, href: null, current: true }
+      ]);
     }
   );
 

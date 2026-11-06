@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { GUIDES, getGuide } from "@/lib/guides/guides";
 import { buildShareMetadata } from "@/lib/seo/share";
 import { GuideBlocks } from "@/src/components/guides/guide-blocks";
+import { GuideBreadcrumbs } from "@/src/components/guides/guide-breadcrumbs";
 import { GuideShell } from "@/src/components/guides/guide-shell";
 
 type GuidePageProps = { params: Promise<{ slug: string }> };
@@ -48,12 +49,13 @@ export default async function GuidePage({ params }: GuidePageProps) {
 
   return (
     <GuideShell>
-      <Link
-        className="text-sm font-medium text-brand-green hover:underline"
-        href="/guias"
-      >
-        ← Todas las guías
-      </Link>
+      <GuideBreadcrumbs
+        steps={[
+          { name: "Jobby", path: "/" },
+          { name: "Guías", path: "/guias" },
+          { name: guide.title, path: `/guias/${guide.slug}` }
+        ]}
+      />
       <article>
         <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
           {guide.title}

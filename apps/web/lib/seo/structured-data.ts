@@ -48,6 +48,29 @@ export function buildHomeStructuredData(): JsonLdNode[] {
   ];
 }
 
+export type BreadcrumbStep = { name: string; path: string };
+
+// Ruta de una página dentro del sitio (Jobby › Guías › título) para el buscador. El marcado
+// tiene que coincidir con las migas que la persona ve: por eso `GuideBreadcrumbs` pinta la
+// lista y genera esto desde el mismo arreglo. La raíz se escribe sin barra final, igual que
+// `SITE_URL` y el sitemap.
+export function buildBreadcrumbStructuredData(
+  steps: BreadcrumbStep[]
+): JsonLdNode[] {
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: steps.map((step, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: step.name,
+        item: step.path === "/" ? SITE_URL : `${SITE_URL}${step.path}`
+      }))
+    }
+  ];
+}
+
 // `<` se escapa para que ningún valor pueda cerrar la etiqueta <script> donde se inserta.
 export function serializeJsonLd(nodes: JsonLdNode[]): string {
   return JSON.stringify(nodes).replace(/</g, "\\u003c");
