@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
     frontend_origin_regex: str = Field(default="", alias="FRONTEND_ORIGIN_REGEX")
     environment: str = Field(default="development", alias="ENVIRONMENT")
+    # Interruptor del tope por IP a los pedidos sin sesión (Decisión 46): con `false`
+    # no se cuenta nada. Vale prendido; existe para apagarlo sin tocar el código si
+    # molestara.
+    ip_rate_limit_enabled: bool = Field(default=True, alias="IP_RATE_LIMIT_ENABLED")
 
     @property
     def is_production(self) -> bool:

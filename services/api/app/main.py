@@ -20,6 +20,7 @@ from app.core.errors import (
     supabase_error_handler,
     validation_error_handler,
 )
+from app.core.ip_rate_limit import IpRateLimitMiddleware
 
 logger = logging.getLogger("jobmatch.api")
 
@@ -47,6 +48,9 @@ allowed_origin_regex = (
     or r"https://(jobbyweb|jobby-[a-z0-9-]+-jobbydev)\.vercel\.app"
 )
 
+# Se agrega antes que CORS para quedar adentro: el 429 sale con los encabezados de CORS
+# y de seguridad, y el preflight de un navegador lo contesta CORS sin llegar acá.
+app.add_middleware(IpRateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
