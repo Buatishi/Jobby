@@ -39,6 +39,11 @@ const content = {
           "Podemos usar cookies, tokens de sesión y localStorage para mantener tu sesión, recordar preferencias como idioma y guardar progreso de onboarding."
       },
       {
+        title: "Medición de visitas",
+        body:
+          "En las páginas públicas (inicio, precios y guías) medimos las visitas con Vercel Web Analytics para saber de dónde llega la gente y qué páginas lee. Guarda datos agregados, como la página, el sitio de origen, el país y el tipo de dispositivo y de navegador, sin usar cookies de terceros ni guardar datos que te identifiquen. No medimos lo que hacés dentro de tu cuenta."
+      },
+      {
         title: "Tus derechos",
         body:
           "Podés solicitar acceso, corrección o eliminación de tus datos. La eliminación de cuenta intenta borrar documentos, registros asociados y datos vinculados según las capacidades técnicas del sistema."
@@ -82,6 +87,11 @@ const content = {
         title: "Cookies and localStorage",
         body:
           "We may use cookies, session tokens, and localStorage to keep you signed in, remember preferences such as language, and save onboarding progress."
+      },
+      {
+        title: "Visit measurement",
+        body:
+          "On the public pages (home, pricing, and guides) we measure visits with Vercel Web Analytics to learn where people come from and which pages they read. It stores aggregated data, such as the page, the referring site, the country, and the device and browser type, without third-party cookies and without data that identifies you. We do not measure what you do inside your account."
       },
       {
         title: "Your rights",
