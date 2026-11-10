@@ -1,11 +1,35 @@
 # Jobby
 
+> Jobby web (https://jobbyweb.vercel.app) is a web app, in Spanish and English, that compares a
+> person's CV with a job posting. It returns a match score, an ATS report (keywords found and
+> missing, and format checks) and concrete recommendations, and it can rewrite sections of the
+> CV for a posting without inventing experience. It has a free plan and a paid plan.
+
 Jobby lets AI search and answer engines read, index and cite its public pages with a link
 back, and does not authorize any other automated reuse.
 
+## Main pages
+
+- [Home](https://jobbyweb.vercel.app): what Jobby does and how it works.
+- [Pricing](https://jobbyweb.vercel.app/pricing): the free and the premium plan and their limits.
+- [Guides](https://jobbyweb.vercel.app/guias): the guides below, in Spanish.
+
+## Guides (Spanish)
+
+- [Qué es un ATS y cómo lee tu CV](https://jobbyweb.vercel.app/guias/que-es-un-ats): what an applicant tracking system is, what it does with a CV and which format makes it easy to read.
+- [Qué es el match score y cómo se calcula](https://jobbyweb.vercel.app/guias/que-es-el-match-score): how Jobby computes the match score from six weighted components and how to improve it.
+- [Cómo adaptar tu CV a cada oferta](https://jobbyweb.vercel.app/guias/como-adaptar-tu-cv-a-una-oferta): step by step, what to read in the posting, what to rewrite and what not to invent.
+- [Palabras clave del CV: cómo elegirlas y dónde usarlas](https://jobbyweb.vercel.app/guias/palabras-clave-del-cv): how to find the keywords of a posting and how each match counts in Jobby.
+- [Cómo hacer un CV compatible con ATS](https://jobbyweb.vercel.app/guias/cv-compatible-con-ats): a checklist on format, headings, dates, file and templates.
+- [Analizar tu CV con IA: qué puede decirte y qué no](https://jobbyweb.vercel.app/guias/analizar-cv-con-ia): what an AI tool can analyze in a CV and its limits.
+- [Optimizar el CV con IA sin inventar experiencia](https://jobbyweb.vercel.app/guias/optimizar-cv-con-ia): how to rewrite a CV with AI for a posting without adding experience the person lacks.
+- [Qué habilidades poner en el CV y cómo ordenarlas](https://jobbyweb.vercel.app/guias/habilidades-para-poner-en-el-cv): which skills to include, technical versus soft, and how much they weigh in the match score.
+
+## What AI agents may do
+
 Allowed, on public pages that need no sign-in:
-- Search crawlers that surface the site in their results: OAI-SearchBot and PerplexityBot.
-- Fetches a person asks for in the moment: ChatGPT-User.
+- Search crawlers that surface the site in their results: OAI-SearchBot, PerplexityBot and Claude-SearchBot.
+- Fetches a person asks for in the moment: ChatGPT-User, Claude-User and Perplexity-User.
 
 Not allowed anywhere in the product:
 - Model training, model evaluation, dataset creation, synthetic data generation, bulk

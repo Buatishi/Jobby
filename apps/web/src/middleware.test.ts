@@ -6,12 +6,16 @@ import { middleware } from "@/src/middleware";
 const aiSearchAgents = [
   "Mozilla/5.0 (compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot)",
   "Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)",
-  "Mozilla/5.0 AppleWebKit/537.36 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)"
+  "Mozilla/5.0 AppleWebKit/537.36 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)",
+  "Mozilla/5.0 AppleWebKit/537.36 (compatible; Claude-SearchBot/1.0; +searchbot@anthropic.com)",
+  "Mozilla/5.0 AppleWebKit/537.36 (compatible; Claude-User/1.0; +Claude-User@anthropic.com)",
+  "Mozilla/5.0 AppleWebKit/537.36 (compatible; Perplexity-User/1.0; +https://perplexity.ai/perplexity-user)"
 ];
 
 const trainingAgents = [
   "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)",
-  "CCBot/2.0 (https://commoncrawl.org/faq/)"
+  "CCBot/2.0 (https://commoncrawl.org/faq/)",
+  "Mozilla/5.0 AppleWebKit/537.36 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)"
 ];
 
 const privatePaths = [

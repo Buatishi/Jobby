@@ -3255,6 +3255,63 @@ solo en el fragmento del layout público del build, no en el del panel.
 
 ---
 
+## Actualización — Decisión 30 (2026-11-10): `Claude-User`, `Claude-SearchBot` y `Perplexity-User`
+
+**Estado:** Pedido por el autor: seguir con lo que ayude a que distintas IAs recomienden Jobby. Cambio
+listo para revisión en un PR abierto; **no está mergeado**. Cambia una regla de `robots.txt` y del
+middleware, que el autor aprobó el 2026-10-19. El texto es un borrador redactado con asistencia de IA que
+el autor revisa y hace suyo.
+
+**Hallazgo (2026-11-10).** `robots.txt` bloqueaba a `Claude-User` en todo el sitio, mientras que la regla del
+2026-10-19 había dejado afuera del bloqueo a `ChatGPT-User`, que es su equivalente. Según Anthropic, tiene
+tres rastreadores: `ClaudeBot` (reúne contenido que puede servir para entrenar; bloquearlo no afecta la
+visibilidad en búsquedas), `Claude-User` (abre un sitio cuando alguien le pide algo a Claude; si se
+bloquea, Claude no puede traer el contenido y «puede reducir la visibilidad» del sitio en las búsquedas
+dirigidas por la persona) y `Claude-SearchBot` (arma el índice de búsqueda de Claude; si se bloquea, el
+contenido no se indexa). Con la regla anterior, quien le pedía a Claude que leyera Jobby no obtenía la
+página. `Claude-SearchBot` ya estaba permitido por `*`, pero no figuraba en `llms.txt` ni en el middleware.
+
+**Qué dice cada proveedor** (documentación leída el 2026-11-10):
+- **OpenAI:** `OAI-SearchBot` es «para búsqueda» y hay que permitirlo para aparecer en la búsqueda de ChatGPT
+  (los cambios tardan hasta 24 horas); `GPTBot` es de entrenamiento; `ChatGPT-User` actúa a pedido de una
+  persona y puede no seguir `robots.txt`. La página no menciona a Bing.
+- **Perplexity:** `PerplexityBot` busca y enlaza sitios y no se usa para entrenar; hay que permitirlo.
+  `Perplexity-User` actúa a pedido y en general ignora `robots.txt`.
+- **Anthropic:** ver arriba. Sus rastreadores respetan `robots.txt`.
+- **Google:** la página consultada no cubre `Google-Extended` ni cómo Gemini elige sus fuentes: no se pudo
+  verificar. `Google-Extended` sigue bloqueado.
+
+**Elegido.**
+- Se **quita el grupo `Claude-User`** de `robots.txt`: sigue las reglas de `*` (páginas públicas sí, rutas
+  privadas no), igual que `ChatGPT-User`. Siguen bloqueados `ClaudeBot` y `Anthropic-ai` (entrenamiento) y el
+  resto de la lista.
+- **El middleware** responde 403 en las rutas privadas también a `Claude-SearchBot` y `Perplexity-User`
+  (`Claude-User` ya estaba en la lista). El cambio abre las páginas públicas, no las de la cuenta.
+- **`llms.txt`** pasa al formato de llmstxt.org: nombre, resumen en una cita y las páginas que vale la pena
+  leer (inicio, precios, `/guias` y las 8 guías con su descripción), más las reglas de uso de antes, que
+  ahora nombran a `Claude-SearchBot`, `Claude-User` y `Perplexity-User`. Un test exige un enlace por cada
+  guía, así que una guía nueva sin entrada en `llms.txt` falla.
+
+**Qué no cambia.** `GPTBot`, `ClaudeBot`, `CCBot`, `Google-Extended`, `Applebot-Extended` y los demás de la lista
+siguen bloqueados en todo el sitio; las rutas privadas siguen cerradas a todos los agentes automáticos; el
+contenido de las cuentas no se expone.
+
+**Límites conocidos.**
+- **Esto abre la puerta, no garantiza que una IA nos recomiende.** Depende de estar en el índice del que
+  cada una se alimenta y de que otros sitios nos mencionen. Al 2026-11-06 Bing tenía la home, `/pricing` y
+  `/guias`, y Google 1 de 13 URLs: los asistentes que se apoyan en Google (Gemini, el modo IA) tienen poco que leer.
+- Los efectos tardan días o semanas y no hay una forma directa de medirlos hoy: la analítica de visitas
+  (Decisión 44) mostrará las que lleguen desde `chatgpt.com`, `perplexity.ai` o `claude.ai` cuando se active.
+- No se verificó qué Claude, ChatGPT o Perplexity responden hoy a «mejor analizador de CV»: la búsqueda
+  que tengo disponible es de Estados Unidos y no representa lo que ven en Argentina.
+
+**Decisión del autor.** Mergear (cambia `robots.txt`, que rastreadores y cachés leen en horas).
+
+**Pruebas.** `lib/seo/robots.test.ts` (`Claude-User` y `Perplexity-User` sin grupo propio; `Claude-SearchBot`,
+`Claude-User` y `Perplexity-User` nombrados en `llms.txt`; formato llmstxt.org; un enlace por guía),
+`src/middleware.test.ts` (403 en las rutas privadas y paso libre en las públicas para los tres, y 403 para
+`ClaudeBot`). Se verificó que 8 de ellos fallaban antes del cambio; 716 tests de la web, typecheck, lint y
+build en verde.
 ## Decisión 45 — Una página «Qué es Jobby» para buscadores y asistentes de IA
 
 **Estado:** Pedida por el autor (2026-11-10: «Armar la página»). Cambio listo para revisión en un PR

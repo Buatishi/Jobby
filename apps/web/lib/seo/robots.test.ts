@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { GUIDE_LINKS } from "@/lib/guides/links";
+import { SITE_URL } from "@/lib/seo/site";
+
 const publicDir = new URL("../../public/", import.meta.url);
 
 function readPublic(name: string) {
@@ -48,7 +51,6 @@ function groupFor(agent: string) {
 const blockedEverywhere = [
   "GPTBot",
   "ClaudeBot",
-  "Claude-User",
   "Google-Extended",
   "Amazonbot",
   "Bytespider",
@@ -59,8 +61,16 @@ const blockedEverywhere = [
   "Anthropic-ai"
 ];
 
-// Búsqueda de IA y consultas a pedido de una persona: leen las páginas públicas.
-const aiSearchAgents = ["OAI-SearchBot", "PerplexityBot", "ChatGPT-User"];
+// Búsqueda de IA y consultas a pedido de una persona: leen las páginas públicas. Claude-User
+// y Perplexity-User son lo mismo que ChatGPT-User: abren la página cuando alguien se lo pide.
+const aiSearchAgents = [
+  "OAI-SearchBot",
+  "PerplexityBot",
+  "ChatGPT-User",
+  "Claude-SearchBot",
+  "Claude-User",
+  "Perplexity-User"
+];
 
 describe("robots.txt for AI crawlers", () => {
   it.each(blockedEverywhere)("keeps %s blocked on the whole site", (agent) => {
@@ -107,6 +117,25 @@ describe("llms.txt", () => {
 
   it.each(aiSearchAgents)("names %s as allowed on public pages", (agent) => {
     expect(llms).toContain(agent);
+  });
+
+  // Formato de llmstxt.org: nombre, resumen en una cita y las páginas que vale la pena leer.
+  it("starts with the name and a summary, as llmstxt.org asks", () => {
+    const lines = readPublic("llms.txt").split(/\r?\n/);
+
+    expect(lines[0]).toBe("# Jobby");
+    expect(lines.find((line) => line.startsWith("> "))).toBeDefined();
+  });
+
+  it("links the home, the pricing and every guide", () => {
+    const text = readPublic("llms.txt");
+
+    for (const path of ["/", "/pricing", "/guias"]) {
+      expect(text).toContain(`](${SITE_URL}${path === "/" ? "" : path})`);
+    }
+    for (const { slug } of GUIDE_LINKS) {
+      expect(text, slug).toContain(`](${SITE_URL}/guias/${slug})`);
+    }
   });
 
   it("still forbids training and bulk extraction", () => {
