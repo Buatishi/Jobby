@@ -3193,3 +3193,62 @@ Claude responde y DeepSeek no se llama, ninguno sirve) y `test_ai_gateway.py` (e
 y sigue siendo solo premium). Tres de ellos (sin saldo, JSON roto y ninguno sirve) fallan contra el `analysis.py` anterior.
 
 **Reversión.** Deshacer el merge: el kit vuelve a usar solo Claude y a fallar sin saldo.
+
+---
+
+## Decisión 44 — Se miden las visitas de las páginas públicas con Vercel Web Analytics
+
+**Estado:** Aprobada por el autor (2026-11-10): «si no tiene un costo mensual sobre alguna tarjeta o algo,
+integralo». Cambio en un PR abierto; **no está mergeado**. Para que mida hay que **activar «Web Analytics»
+en el panel del proyecto `jobby-web` de Vercel** después del despliegue: sin ese paso el script no manda
+nada. Ese ajuste solo lo puede hacer el autor. El texto es un borrador redactado con asistencia de IA que
+el autor revisa y hace suyo.
+
+**Para qué.** Hasta ahora no había forma de saber cuánta gente entra, de dónde llega ni qué páginas lee: solo
+las consolas de Google y Bing, con pocos datos y con días de atraso. Se necesita para decidir con datos
+qué hacer con el posicionamiento (Decisión 30), y en particular para ver si llega gente desde buscadores de
+IA como ChatGPT o Perplexity, que es lo que cuenta el post que motivó el pedido (una experiencia ajena,
+con cifras que no se pueden verificar).
+
+**Costo (verificado el 2026-11-10 en la documentación de Vercel, página actualizada el 2026-08-25).** En el
+plan Hobby, Web Analytics es gratis con 50.000 eventos por mes y **no se paga nada por pasarse**: pasado
+el límite hay tres días de gracia y después Vercel deja de recolectar hasta el ciclo siguiente. En el plan
+Pro costaría 0,03 USD cada 1.000 eventos (el complemento «Plus» suma 10 USD por mes). El equipo `jobbydev`
+no tiene ningún cargo de facturación registrado (la API de Vercel responde «costs not found»), lo que
+indica plan Hobby, pero **el plan no figura en la respuesta de la API: conviene mirarlo en Settings →
+Billing antes de activarlo**. Con el tráfico actual (35 impresiones en 28 días en Google) el uso real
+queda lejos del límite.
+
+**Elegido.**
+- **Dependencia nueva `@vercel/analytics` 2.0.1** (MIT, de Vercel, sin dependencias propias: el lock suma
+  37 líneas y no cambia ninguna otra). Cubre un único requisito: medir visitas.
+- **Solo las páginas públicas.** `apps/web/src/app/(public)/layout.tsx` agrega `<Analytics />` a la home,
+  precios y guías. El panel, los puestos, los reportes y el acceso no se miden: ahí hay datos de la
+  persona, y las rutas llevan identificadores. Un test impide que el componente aparezca en cualquier
+  otro archivo de `src/app`.
+- **Política de privacidad** con una sección «Medición de visitas» en español e inglés. Según la
+  documentación de Vercel, no usa cookies de terceros, identifica al visitante con un hash de la solicitud
+  que se descarta a las 24 horas y guarda datos agregados (página, sitio de origen, país, dispositivo y
+  navegador), sin datos que identifiquen a la persona.
+- Sin `beforeSend`: en las páginas públicas no hay identificadores en la ruta.
+
+**Qué se va a poder ver y qué no.** Visitas por página y por sitio de origen (`chatgpt.com`, `bing.com`,
+`google.com`…), por país y por dispositivo. En Hobby no hay **parámetros UTM** (solo en Pro con Plus), no hay
+eventos propios y la ventana de consulta es de un mes. Algunas visitas desde IA llegan sin sitio de origen
+(aplicaciones móviles, enlaces copiados) y figurarán como directas. No hay historia: se mide desde la
+activación.
+
+**Qué cambia para la persona.** Nada a la vista. Quien visita las páginas públicas carga un script de
+unos pocos KB desde el mismo dominio, que la política de seguridad de contenido actual (todavía en modo
+informe) permite.
+
+**Decisiones que quedan en manos del autor.**
+- **Mergear** (despliega la web) y **activar Web Analytics** en el panel de Vercel, tras comprobar el plan.
+- Subir a **Pro** más adelante si hiciera falta UTM o eventos propios: no se recomienda por ahora.
+- Medir **las guías por separado** de la home: se puede ver con la dimensión de ruta, sin cambios de código.
+
+**Pruebas.** `src/app/(public)/layout.test.tsx` (el layout público renderiza su contenido y el componente de
+medición; ningún otro archivo de `src/app` lo importa) y `src/app/privacy/page.test.tsx` (la política dice que
+las públicas se miden y la cuenta no, en español, y el texto en inglés existe). Verificado además: 702
+tests de la web, typecheck, lint, `pnpm build` y Trivy local (0 hallazgos); la ruta del script aparece
+solo en el fragmento del layout público del build, no en el del panel.
