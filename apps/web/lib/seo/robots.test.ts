@@ -127,10 +127,10 @@ describe("llms.txt", () => {
     expect(lines.find((line) => line.startsWith("> "))).toBeDefined();
   });
 
-  it("links the home, the pricing and every guide", () => {
+  it("links the home, the pricing, «Qué es Jobby» and every guide", () => {
     const text = readPublic("llms.txt");
 
-    for (const path of ["/", "/pricing", "/guias"]) {
+    for (const path of ["/", "/pricing", "/que-es-jobby", "/guias"]) {
       expect(text).toContain(`](${SITE_URL}${path === "/" ? "" : path})`);
     }
     for (const { slug } of GUIDE_LINKS) {

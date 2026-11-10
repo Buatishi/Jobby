@@ -3360,8 +3360,8 @@ con otras herramientas, cifras de usuarios ni resultados.
 - Hay que subir `ABOUT_UPDATED_AT` cuando cambie el texto o una cifra: alimenta la fecha visible, el marcado
   y el `lastmod`. Un buscador descarta una fecha que no se corresponde con los cambios reales.
 - La página está solo en español, como las guías.
-- **Falta sumarla a `llms.txt`**: se hace cuando se mergee el PR que lo reescribe (actualización de la
-  Decisión 30 del 2026-11-10), para no pisar ese cambio.
+- Está en `llms.txt` (el PR que lo reescribió, actualización de la Decisión 30 del 2026-11-10, ya está
+  mergeado) y un test exige su enlace.
 
 **Decisiones que quedan en manos del autor.**
 - **Leer el texto** y corregir lo que no diga como lo diría él.
