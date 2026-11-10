@@ -3312,3 +3312,66 @@ contenido de las cuentas no se expone.
 `src/middleware.test.ts` (403 en las rutas privadas y paso libre en las públicas para los tres, y 403 para
 `ClaudeBot`). Se verificó que 8 de ellos fallaban antes del cambio; 716 tests de la web, typecheck, lint y
 build en verde.
+## Decisión 45 — Una página «Qué es Jobby» para buscadores y asistentes de IA
+
+**Estado:** Pedida por el autor (2026-11-10: «Armar la página»). Cambio listo para revisión en un PR
+abierto; **no está mergeado**. El texto es un borrador redactado con asistencia de IA que el autor
+**tiene que leer** y hacer suyo antes de mergear: afirma cosas del producto.
+
+**Por qué.** Un buscador o un asistente de IA que quiera contar qué es Jobby hoy tiene que juntar la
+respuesta de la home (el lema), las guías, los planes y la política de privacidad. Falta un lugar único,
+claro y completo, con las preguntas como la gente las hace («¿qué es?», «¿es gratis?», «¿qué pasa con mi
+CV?», «¿garantiza una entrevista?»). Es la pieza de contenido que más puede servir para que distintas IAs
+describan bien a Jobby; no garantiza que lo recomienden (ver la actualización de la Decisión 30 del
+2026-11-10).
+
+**Elegido.**
+- **`/que-es-jobby`**, página estática en español con el marco de las guías (`GuideShell`): definición,
+  qué hace, cómo funciona, cómo se calcula el match score, qué mide el análisis ATS, planes, qué no hace
+  Jobby y 10 preguntas frecuentes. Sin dependencias nuevas.
+- **El contenido vive en `lib/about/about.ts`** y las cifras salen de `lib/guides/facts.ts`, que
+  `guides.test.ts` compara con el código del backend (pesos del match score, partes del puntaje ATS,
+  cupos de cada plan). `lib/about/about.test.ts` exige los seis pesos y los cupos tal como figuran ahí, así
+  que si el producto cambia la página no puede quedar con un número viejo.
+- **Marcado para el buscador:** `AboutPage`, `FAQPage` (las mismas preguntas y respuestas que la página
+  muestra, palabra por palabra; un test lo comprueba) y `BreadcrumbList` (Jobby › Qué es Jobby).
+- **Enlaces:** en el pie de la home («Qué es Jobby», con «(in Spanish)» en inglés, como las guías) y en el
+  sitemap, con `lastmod` de su fecha de contenido (`ABOUT_UPDATED_AT`). La página enlaza a planes,
+  privacidad y tres guías.
+
+**Qué afirma y de dónde sale.**
+- El flujo (subir el CV, confirmar habilidades, pegar un puesto, recibir los resultados) y las funciones
+  (match score, reporte ATS, Reality Gap, CV Optimizer, Interview Kit premium): el producto actual y las
+  Decisiones 39 a 43.
+- Los seis pesos del match score y el reparto del puntaje ATS: `facts.ts`.
+- Los cupos del plan gratuito y del premium: `facts.ts`, que compara `rate_limits.py`.
+- «No vende tu CV ni tus datos profesionales como una base de datos pública», y los derechos de acceso,
+  corrección y eliminación: la política de privacidad.
+- «No garantiza entrevistas ni contrataciones» y «no es el puntaje de ningún ATS real»: ya lo dicen las
+  guías y `facts.ts`.
+
+**Qué NO afirma.** Precios, ni que los pagos estén disponibles (remite a la página de planes), comparaciones
+con otras herramientas, cifras de usuarios ni resultados.
+
+**Límites conocidos.**
+- Google restringió desde 2023 los resultados enriquecidos de preguntas frecuentes a sitios conocidos
+  de gobierno y salud (no se verificó hoy): **no se espera un resultado enriquecido**. El marcado `FAQPage`
+  sirve para que las máquinas lean las preguntas.
+- Hay que subir `ABOUT_UPDATED_AT` cuando cambie el texto o una cifra: alimenta la fecha visible, el marcado
+  y el `lastmod`. Un buscador descarta una fecha que no se corresponde con los cambios reales.
+- La página está solo en español, como las guías.
+- Está en `llms.txt` (el PR que lo reescribió, actualización de la Decisión 30 del 2026-11-10, ya está
+  mergeado) y un test exige su enlace.
+
+**Decisiones que quedan en manos del autor.**
+- **Leer el texto** y corregir lo que no diga como lo diría él.
+- **Mergear** (despliega la web) y, después, enviar la URL nueva por «URL Submission» de Bing; Google la
+  descubre por el sitemap.
+- Si conviene sumar una pregunta sobre cómo se compara con otras herramientas: no se incluyó porque exige
+  datos de terceros verificados.
+
+**Pruebas.** `lib/about/about.test.ts` (títulos y descripción de largo útil, los seis pesos y los cupos desde
+`facts.ts`, lo que no promete, preguntas y respuestas en texto plano, enlaces a páginas que existen),
+`src/app/(public)/que-es-jobby/page.test.tsx` (un solo h1, cada pregunta con su respuesta, el marcado igual al
+texto visible, migas, enlaces y metadatos indexables), el sitemap y el pie de la home. Verificado además: 717
+tests de la web, typecheck, lint y `pnpm build` (página prerenderizada, 1 h1, canónica correcta, sin `robots`).

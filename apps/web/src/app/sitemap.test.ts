@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ABOUT_UPDATED_AT } from "@/lib/about/about";
 import { GUIDES } from "@/lib/guides/guides";
 import { SITE_URL } from "@/lib/seo/site";
 import sitemap from "@/src/app/sitemap";
@@ -24,6 +25,7 @@ describe("sitemap", () => {
     expect(entries.map((entry) => entry.url)).toEqual([
       SITE_URL,
       `${SITE_URL}/pricing`,
+      `${SITE_URL}/que-es-jobby`,
       `${SITE_URL}/guias`,
       ...GUIDES.map((guide) => `${SITE_URL}/guias/${guide.slug}`),
       `${SITE_URL}/terms`,
@@ -49,15 +51,16 @@ describe("sitemap", () => {
     }
   });
 
-  it("dates only the guides, with the day their content last changed", () => {
-    const guideUrls = new Map(
-      GUIDES.map((guide) => [`${SITE_URL}/guias/${guide.slug}`, guide.updatedAt])
-    );
+  it("dates only the guides and «Qué es Jobby», with the day their content last changed", () => {
+    const datedUrls = new Map<string, string>([
+      ...GUIDES.map((guide) => [`${SITE_URL}/guias/${guide.slug}`, guide.updatedAt] as const),
+      [`${SITE_URL}/que-es-jobby`, ABOUT_UPDATED_AT] as const
+    ]);
 
     for (const entry of entries) {
-      expect(entry.lastModified, entry.url).toBe(guideUrls.get(entry.url));
+      expect(entry.lastModified, entry.url).toBe(datedUrls.get(entry.url));
     }
     // Las demás páginas no tienen una fecha de contenido registrada: una fecha del build no es fiable.
-    expect(entries.filter((entry) => entry.lastModified)).toHaveLength(GUIDES.length);
+    expect(entries.filter((entry) => entry.lastModified)).toHaveLength(GUIDES.length + 1);
   });
 });

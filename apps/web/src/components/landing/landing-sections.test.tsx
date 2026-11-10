@@ -60,6 +60,19 @@ describe("landing sections", () => {
     expect(html).toContain('href="/terms"');
   });
 
+  it("links the «Qué es Jobby» page from the footer so it is not an orphan page", () => {
+    const html = render(<Closing />);
+
+    expect(html).toContain('href="/que-es-jobby"');
+    expect(html).toContain(">Qué es Jobby<");
+  });
+
+  it("tells English readers the «Qué es Jobby» page is in Spanish", () => {
+    const en = dictionaries.en.landing as Record<string, string>;
+
+    expect(en.about).toBe("What is Jobby (in Spanish)");
+  });
+
   it("links every guide by name from the footer", () => {
     const html = render(<Closing />);
 

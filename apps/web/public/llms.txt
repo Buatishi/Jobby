@@ -12,6 +12,7 @@ back, and does not authorize any other automated reuse.
 
 - [Home](https://jobbyweb.vercel.app): what Jobby does and how it works.
 - [Pricing](https://jobbyweb.vercel.app/pricing): the free and the premium plan and their limits.
+- [What is Jobby](https://jobbyweb.vercel.app/que-es-jobby): what Jobby is, how it works, what the plans include and the most common questions, in Spanish.
 - [Guides](https://jobbyweb.vercel.app/guias): the guides below, in Spanish.
 
 ## Guides (Spanish)
