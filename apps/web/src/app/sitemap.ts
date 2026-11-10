@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
 
+import { ABOUT_SLUG, ABOUT_UPDATED_AT } from "@/lib/about/about";
 import { GUIDES } from "@/lib/guides/guides";
 import { SITE_URL } from "@/lib/seo/site";
 
-// `lastModified` solo en las guías, y con la fecha de su último cambio de contenido
-// (`updatedAt`). Con `new Date()` valdría la del build para todas las URLs aunque no hayan
+// `lastModified` solo en las guías y en «Qué es Jobby», y con la fecha de su último cambio de
+// contenido (`updatedAt`). Con `new Date()` valdría la del build para todas las URLs aunque no hayan
 // cambiado, y los buscadores descartan una fecha que no es fiable: las demás páginas no tienen
 // una fecha de contenido registrada, así que no llevan ninguna.
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -16,6 +17,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${SITE_URL}/pricing`,
+      changeFrequency: "monthly",
+      priority: 0.8
+    },
+    {
+      url: `${SITE_URL}/${ABOUT_SLUG}`,
+      lastModified: ABOUT_UPDATED_AT,
       changeFrequency: "monthly",
       priority: 0.8
     },

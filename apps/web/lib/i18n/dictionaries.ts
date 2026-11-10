@@ -225,6 +225,7 @@ export const dictionaries: Record<Language, TranslationTree> = {
       footerDescription:
         "Jobby web: analizador de CV con IA para entender mejor cada postulación antes de aplicar.",
       guides: "Guías",
+      about: "Qué es Jobby",
       guidesTitle: "Cómo lee tu CV un sistema de selección",
       guidesSubtitle:
         "Guías cortas sobre ATS, palabras clave y match score, sin iniciar sesión.",
@@ -666,6 +667,7 @@ export const dictionaries: Record<Language, TranslationTree> = {
         "Jobby web: AI CV analyzer to understand each application better before you apply.",
       // Las guías están solo en español: la etiqueta lo avisa en inglés.
       guides: "Guides (in Spanish)",
+      about: "What is Jobby (in Spanish)",
       guidesTitle: "How a hiring system reads your CV",
       guidesSubtitle:
         "Short guides on ATS, keywords and match score. No sign-up needed.",

@@ -102,6 +102,51 @@ export function buildArticleStructuredData(article: ArticleInput): JsonLdNode[] 
   ];
 }
 
+export type FaqItem = { question: string; answer: string };
+
+// Preguntas frecuentes de una página. Las preguntas y las respuestas son las mismas que la
+// página muestra, palabra por palabra: un marcado que dice otra cosa que el texto visible no
+// sirve y puede penalizarse.
+export function buildFaqStructuredData(items: FaqItem[]): JsonLdNode[] {
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      inLanguage: "es",
+      mainEntity: items.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: { "@type": "Answer", text: item.answer }
+      }))
+    }
+  ];
+}
+
+export type AboutPageInput = {
+  name: string;
+  description: string;
+  path: string;
+  // AAAA-MM-DD, la misma que la página muestra.
+  updatedAt: string;
+};
+
+// Marcado `AboutPage` de la página «Qué es Jobby»: de qué trata (la aplicación) y cuándo se
+// actualizó por última vez.
+export function buildAboutPageStructuredData(page: AboutPageInput): JsonLdNode[] {
+  return [
+    {
+      "@context": "https://schema.org",
+      "@type": "AboutPage",
+      name: page.name,
+      description: page.description,
+      url: `${SITE_URL}${page.path}`,
+      inLanguage: "es",
+      dateModified: page.updatedAt,
+      about: { "@type": "WebApplication", name: SITE_NAME, url: SITE_URL }
+    }
+  ];
+}
+
 // `<` se escapa para que ningún valor pueda cerrar la etiqueta <script> donde se inserta.
 export function serializeJsonLd(nodes: JsonLdNode[]): string {
   return JSON.stringify(nodes).replace(/</g, "\\u003c");
