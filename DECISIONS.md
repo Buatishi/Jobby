@@ -3375,3 +3375,81 @@ con otras herramientas, cifras de usuarios ni resultados.
 `src/app/(public)/que-es-jobby/page.test.tsx` (un solo h1, cada pregunta con su respuesta, el marcado igual al
 texto visible, migas, enlaces y metadatos indexables), el sitemap y el pie de la home. Verificado además: 717
 tests de la web, typecheck, lint y `pnpm build` (página prerenderizada, 1 h1, canónica correcta, sin `robots`).
+---
+
+## Decisión 46 — La API limita por IP los pedidos sin sesión
+
+**Estado:** Pedida por el autor (2026-11-10: «Armar el PR»). Cambio listo para revisión en un PR
+abierto; **no está mergeado**. Mergearlo despliega la API en Render (el servicio se reinicia) y deja el
+tope **prendido**. El texto es un borrador redactado con asistencia de IA que el autor revisa y hace
+suyo.
+
+**Hallazgo (2026-11-10).** El Firewall de Vercel del proyecto no tiene ninguna regla propia, y la API en
+Render tiene su propia dirección pública (`jobmatch-api-9xel.onrender.com`): quien le pega directo se
+saltea cualquier regla de Vercel. Hasta ahora la API limitaba solo por usuario con sesión (Redis, los
+topes de análisis, ATS, optimizador y cargas): un pedido sin sesión no tenía freno. De las 41 rutas de la
+API, solo tres responden sin sesión (`/health`, `/api/v1/health` y el aviso de pago de LemonSqueezy,
+`/api/v1/webhooks/lemonsqueezy`); las demás contestan 401. Quien insiste sin sesión es un escáner o un
+bucle, no una persona.
+
+**Qué se averiguó de la IP del cliente, y qué no se pudo confirmar.**
+- `uvicorn` corre sin confiar en ningún proxy: `request.client.host` es la dirección interna del
+  balanceador de Render (10.x) para todas las visitas.
+- **Render** no documenta cómo entrega la IP (la página de servicios web no la menciona). Los reportes de su
+  comunidad dicen que conserva el `X-Forwarded-For` que mande el cliente y le agrega el suyo, así que se
+  puede falsear al pegarle directo; una respuesta de su personal dice que la primera entrada es la IP
+  real. No se pudo confirmar.
+- **Vercel** sobrescribe `X-Forwarded-For` con la IP pública del cliente y no reenvía IPs externas
+  (documentación de Vercel).
+- No se pudo medir qué llega por la reescritura de Vercel a Render: Render no guarda registros de
+  pedidos de este servicio.
+
+**Elegido.** Un middleware (`app/core/ip_rate_limit.py`, adentro de CORS para que el 429 lleve sus
+encabezados):
+- **Solo cuenta pedidos sin encabezado `Authorization`.** Una persona con sesión nunca entra en este
+  contador, aunque su IP se identificara mal: lo peor que puede pasar con una IP mal leída es frenar
+  pedidos basura juntos. Para el mismo caso, alguien que falsee el encabezado con la IP de otra persona
+  solo la afecta en pedidos sin sesión, que ella no hace.
+- **60 pedidos por minuto por IP** (ventana fija en Redis, clave `rate:ip:{ip}:{minuto}` con vencimiento de
+  2 minutos). El pedido 61 recibe 429 con el esquema de error estándar (`IP_RATE_LIMIT_EXCEEDED`) y
+  `Retry-After`.
+- **La IP es la primera entrada de `X-Forwarded-For`, y solo si es pública**; una dirección interna, de
+  documentación o reservada es la de un proxy y se descarta. Una IPv6 cuenta como su red /64. **La
+  dirección de la conexión no se usa nunca.** Sin una IP usable, no se limita.
+- **Exentos:** `/health`, `/api/v1/health`, `/api/v1/webhooks/*` (el aviso de pago de LemonSqueezy no puede
+  recibir un 429) y el preflight de CORS.
+- **Falla abierta:** si Redis no responde (con tiempo máximo de 1 segundo), el pedido pasa.
+- **Interruptor:** `IP_RATE_LIMIT_ENABLED=false` lo apaga sin tocar el código. Por defecto está prendido.
+- La IP no se escribe en los registros ni se guarda más de 2 minutos; el aviso del registro (una vez por
+  minuto) lleva solo el número de pedidos.
+
+**Qué NO hace.**
+- **No frena un ataque decidido:** quien le pegue directo a Render puede falsear el encabezado y rotar
+  direcciones. Eso exige un firewall delante, que con las direcciones `vercel.app` y `onrender.com` no
+  tenemos (Cloudflare pide dominio propio; el autor decidió no comprarlo, 2026-10-21).
+- No limita pedidos con sesión: los cubren los topes por usuario ya existentes.
+- No reemplaza la regla de límite del Firewall de Vercel, que solo cubre el tráfico que pasa por Vercel y
+  se crea desde el panel (la API de Vercel no la puede crear: el proyecto no tiene configuración de
+  firewall todavía).
+
+**Verificación local.** Con la app real y un Redis en memoria: un escáner con 70 pedidos sin sesión
+recibe 60 respuestas 401 y 10 respuestas 429; 70 pedidos de la misma IP con encabezado de sesión dan 70
+respuestas 401 y ninguna 429; `/health` y `/api/v1/health` dan 200 en 80 pedidos.
+
+**Después del despliegue, a comprobar.** El mismo experimento contra producción: más de 60 pedidos sin
+sesión a una ruta protegida desde una IP deben pasar de 401 a 429, y `/health` debe seguir en 200. Si
+sale 401 siempre, la IP no llega (el tope no actúa, sin daño); si saliera 429 para personas con sesión, no
+debería poder pasar (no se cuentan), y se apaga con el interruptor.
+
+**Decisiones que quedan en manos del autor.**
+- **Mergear** (reinicia la API en Render).
+- **El umbral** de 60 por minuto (`IP_LIMIT_PER_MINUTE`).
+- **Crear la regla del Firewall de Vercel** desde el panel (pasos en el chat del 2026-11-10).
+- Un tope general **por usuario con sesión** (con el token ya verificado, sin depender de la IP): no se
+  incluyó porque no se pidió y toca a las personas reales.
+
+**Pruebas.** `tests/unit/test_ip_rate_limit.py` (26 casos): elección de la IP (primera entrada, vacía,
+inválida, interna, de documentación, IPv6 como /64, la conexión nunca), el 429 y su forma, un contador por IP,
+reinicio al minuto siguiente, vencimiento del contador, nunca cuenta pedidos con encabezado de sesión, las
+tres rutas sin sesión y el preflight exentos, sin IP no limita, interruptor, Redis caído, y CORS y seguridad
+en el 429. 1932 tests del backend, `ruff check app/ tests/` y `mypy app/` en verde.
