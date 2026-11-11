@@ -117,7 +117,7 @@ IA). Diagramas como código con PlantUML (Decisión 10).
 ## 9. Decisiones aprobadas
 
 Ver [`DECISIONS.md`](../DECISIONS.md): las decisiones 1 a 12 son las aprobadas al 2026-09-20 y el
-registro llega hoy a la 42.
+registro llega, al 2026-11-11, a la 46.
 
 ## 10. Pendientes conocidos
 
