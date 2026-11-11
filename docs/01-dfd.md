@@ -15,6 +15,15 @@ nivel 0 no cambia porque `F25` y `F27` ya estaban.
 proceso 3 pasa a llamarse «Analizar y gestionar puestos». `F39` también cubre la lista de puestos
 guardados (`GET /jobs`), que la pantalla Jobs ya mostraba y este diagrama no dibujaba.
 
+**Actualización del 2026-11-02.** Se contrastó con `origin/main` (PR #138): los siete procesos, los
+ocho almacenes y los flujos siguen siendo los del código. De las 40 operaciones bajo `/api/v1`, 39
+son de negocio y los procesos 1 a 7 las cubren (se agregaron a las tablas `PATCH` y `DELETE
+/profiles/documents/{id}` y `POST /interview-kits/{id}/regenerate`, que faltaban); la otra es la
+consulta de salud. Se corrigió dónde vive físicamente el almacén
+`D8`: el estado de las tareas no está en Redis sino en la memoria de la API; Redis guarda los
+límites de uso y los eventos de pago ya procesados. Los diagramas no cambian: el almacén lógico y
+sus flujos son los mismos.
+
 ## Convenciones
 
 | Símbolo | Significa |
@@ -128,10 +137,10 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-1-vista-c.pdf](pdf/laminas/d
 | N.º | Proceso | Qué hace | Se apoya en |
 |---|---|---|---|
 | 1 | Gestionar cuenta y acceso | Registro, inicio y cierre de sesión (con Supabase Auth; cada pedido verifica que la sesión siga abierta) y baja de cuenta: borra archivos, caché, claves, el usuario (los datos personales se eliminan en cascada) y la identidad | `DELETE /users/me` |
-| 2 | Procesar CV y perfil | Recibe el PDF, extrae su texto, lo estructura con IA, genera vectores y arma el perfil maestro; permite confirmar o rechazar habilidades y completar experiencia, educación e idiomas | `POST /profiles/documents`, `/profiles/*` |
+| 2 | Procesar CV y perfil | Recibe el PDF, extrae su texto, lo estructura con IA, genera vectores y arma el perfil maestro; permite confirmar o rechazar habilidades y completar experiencia, educación e idiomas | `POST /profiles/documents`, `PATCH` y `DELETE /profiles/documents/{id}`, `/profiles/*` |
 | 3 | Analizar y gestionar puestos | Valida la URL o el texto, obtiene el contenido de la página, lo estructura con IA, genera vectores y guarda el puesto. Lista los puestos guardados, corrige sus datos (sin volver a analizarlos) y elimina los que no tienen comparaciones ni kits | `POST /jobs/analyze`, `GET /jobs`, `PATCH` y `DELETE /jobs/{id}` |
 | 4 | Evaluar compatibilidad | Calcula el Match Score, el reporte ATS y el Reality Gap, arma el resumen del panel y optimiza el CV con IA (3 por mes en el plan gratuito y 30 en premium) | `/matches`, `/ats`, `/dashboard`, `/profiles/reality-gap` |
-| 5 | Generar kit de entrevista | Solo plan premium: arma el kit con IA a partir del perfil, el puesto y, si se indican, perfiles de LinkedIn | `/interview-kits` |
+| 5 | Generar kit de entrevista | Solo plan premium: arma el kit con IA a partir del perfil, el puesto y, si se indican, perfiles de LinkedIn; puede volver a generarlo | `/interview-kits`, incluido `POST /interview-kits/{id}/regenerate` |
 | 6 | Gestionar suscripción | Crea el checkout, recibe los eventos firmados de LemonSqueezy, actualiza el plan y avisa por email | `POST /billing/checkout`, `POST /webhooks/lemonsqueezy` |
 | 7 | Consultar métricas agregadas | Verifica el permiso de métricas del rol y devuelve conteos y promedios de personas, CV, puestos, matches y kits, sin datos personales ni CV | `GET /admin/metrics` |
 
@@ -146,7 +155,7 @@ Para imprimir: lámina A3 en [pdf/laminas/dfd-nivel-1-vista-c.pdf](pdf/laminas/d
 | D5 | Resultados de compatibilidad | Match Score y detalle por puesto, y el último reporte ATS de cada puesto | `job_matches`, `ats_reports` |
 | D6 | Kits de entrevista | Kits generados y su valoración | `interview_kits` |
 | D7 | Caché de LinkedIn | Perfiles ya leídos, para no repetir la lectura | `linkedin_scrape_cache` |
-| D8 | Estado de tareas y límites | Estado de las tareas, límites de uso y eventos de pago ya procesados | Redis (Upstash) |
+| D8 | Estado de tareas y límites | Estado de las tareas, límites de uso y eventos de pago ya procesados | Redis (Upstash) guarda los límites de uso y los eventos de pago ya procesados; el estado de las tareas vive en la memoria de la API (modo local, sin cola: `tasks/local_fallback.py`) |
 
 ## 3. Correspondencia entre el nivel 0 y el nivel 1
 

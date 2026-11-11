@@ -1,6 +1,8 @@
 @startuml
 ' Arquitectura lógica de Jobby. Verificado contra apps/web (next.config.ts, lib/api/client.ts, lib/supabase),
 ' services/api (main.py, dependencies.py, tasks/, services/), render.yaml y README.md (sección En producción).
+' Actualizado el 2026-11-02: endpoints contados en el OpenAPI de la API (41), tablas contadas en las
+' migraciones (16) y la consulta periódica de pg_cron a /health (migración 029), conexión 13.
 !pragma layout smetana
 top to bottom direction
 skinparam shadowing false
@@ -18,13 +20,13 @@ actor "Persona usuaria\n(navegador web)" as U #D5EBE3
 
 rectangle "Web · Next.js 15 y React 19\nVercel · jobbyweb.vercel.app\n\n• Pantallas, asistente y reportes\n• Guarda la sesión de Supabase\n• Reenvía /api/backend/* a la API\n• Reintenta y avisa si la API arranca en frío" as WEB #D6E2F3
 
-rectangle "API · FastAPI (Python 3.13)\nRender · jobmatch-api-9xel.onrender.com\n\n• 30 endpoints bajo /api/v1 (y /health)\n• Valida el token de cada pedido\n• Reglas de negocio y límites por plan\n• Errores con formato único" as API #D6E2F3
+rectangle "API · FastAPI (Python 3.13)\nRender · jobmatch-api-9xel.onrender.com\n\n• 41 endpoints: 40 bajo /api/v1 y /health\n• Valida el token de cada pedido\n• Reglas de negocio y límites por plan\n• Errores con formato único" as API #D6E2F3
 
 rectangle "Tareas en segundo plano\n(dentro del proceso de la API)\n\n• Analizar CV y puesto, calcular match,\n  generar kits de entrevista\n• Estado consultable por SSE" as TASK #D6E2F3
 
 rectangle "Worker Celery\n(declarado en render.yaml,\nno desplegado)" as WORK #F1F1F1
 
-rectangle "Supabase (sa-east-1)\n\n• Auth: registro, login, Google, JWT\n• Postgres 17 + pgvector: 13 tablas con RLS\n• Storage: bucket privado cv-documents" as SUP #E3F1EC
+rectangle "Supabase (sa-east-1)\n\n• Auth: registro, login, Google, JWT\n• Postgres 17 + pgvector: 16 tablas con RLS\n• pg_cron: consulta /health de la API\n• Storage: bucket privado cv-documents" as SUP #E3F1EC
 
 rectangle "Redis · Upstash\n\n• Contadores de límites por plan\n• Firmas de pago ya procesadas\n• Cola de Celery (si hubiera worker)" as RED #EDEFF2
 
@@ -50,6 +52,7 @@ API --> SEN : 12 · HTTPS
 WEB --> SEN : 12 · HTTPS
 API ..> WORK : Redis (no activo)
 WORK ..> RED
+SUP --> API : 13 · HTTPS 443\n/health cada 10 min
 
 legend right
   |<#D6E2F3>      | Código propio de Jobby |

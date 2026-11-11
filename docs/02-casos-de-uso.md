@@ -1,7 +1,9 @@
 # Casos de uso
 
 Estado: Etapa 1. Todo se verificó contra el código: endpoints de `services/api/app/api/v1/`,
-tareas de `services/api/app/tasks/` y pantallas de `apps/web`.
+tareas de `services/api/app/tasks/` y pantallas de `apps/web`. Actualizado el 2026-11-02 contra
+`origin/main` (PR #138): los 28 casos de uso, sus rutas, los códigos de estado y los límites por
+plan siguen siendo los del código.
 
 ## 1. Diagrama
 
@@ -24,8 +26,10 @@ lámina A3 en [pdf/laminas/casos-de-uso.pdf](pdf/laminas/casos-de-uso.pdf).
 | LemonSqueezy | Sistema | Cobra la suscripción y avisa los cambios con eventos firmados |
 | Servicio de email | Sistema | Resend, envía los avisos de suscripción |
 
-No hay procesos programados: las tareas de segundo plano se disparan siempre por una acción de
-la persona o por un evento de LemonSqueezy.
+Las tareas de segundo plano se disparan siempre por una acción de la persona o por un evento de
+LemonSqueezy. El único proceso programado es la consulta periódica a `/health` que mantiene
+despierta la API gratuita (`pg_cron` de Supabase y el workflow `keep-alive.yml`, Decisión 14): no
+lo inicia ningún actor ni forma parte de un caso de uso.
 
 ### Relaciones `include` y `extend`
 
@@ -48,7 +52,7 @@ la persona o por un evento de LemonSqueezy.
 | CU02 | Iniciar sesión | Visitante | `/login` |
 | CU03 | Recuperar contraseña | Visitante | `/forgot-password`, `/reset-password` |
 | CU04 | Autenticar con Google | Visitante | Botones de `/login` y `/register` |
-| CU05 | Cargar CV | Persona usuaria | Asistente, paso 2 y tarjeta «Tu CV» de «Mi perfil» (para reemplazarlo); `POST /profiles/documents` |
+| CU05 | Cargar CV | Persona usuaria | Asistente, paso 2 y tarjeta «Tu CV» de «Mi perfil» (para reemplazarlo); `POST /profiles/documents`; `PATCH /profiles/documents/{id}/set-primary` (elegir el CV principal) y `DELETE /profiles/documents/{id}` |
 | CU06 | Estructurar CV con IA | Proveedores de IA | Tarea `parse_cv` |
 | CU07 | Confirmar perfil | Persona usuaria | Asistente, paso 3; `/profiles/skills`, `/profiles/experiences` y afines |
 | CU08 | Analizar puesto | Persona usuaria | `POST /jobs/analyze`; pantalla Jobs |
@@ -58,7 +62,7 @@ la persona o por un evento de LemonSqueezy.
 | CU12 | Consultar reporte ATS | Persona usuaria | `GET /ats/{job_id}`; pantalla ATS |
 | CU13 | Ver Reality Gap | Persona usuaria | `GET /profiles/reality-gap` |
 | CU14 | Optimizar CV | Persona usuaria | `POST /ats/optimize` |
-| CU15 | Generar kit de entrevista | Persona usuaria premium | `/interview-kits` |
+| CU15 | Generar kit de entrevista | Persona usuaria premium | `/interview-kits`; `POST /interview-kits/{id}/regenerate` lo vuelve a generar |
 | CU16 | Verificar plan premium | Sistema | Comprobación del plan en los casos premium |
 | CU17 | Ver resumen del panel | Persona usuaria | `GET /dashboard/summary` |
 | CU18 | Valorar resultado | Persona usuaria | `PATCH /matches/{id}/rating`, `PATCH /interview-kits/{id}/rating` |
@@ -190,6 +194,3 @@ guardado y el contador del límite mensual queda actualizado.
 
 **Postcondiciones:** el plan premium queda registrado con el estado y el fin de período; el
 evento queda marcado como procesado.
-
-**Nota:** hoy la interfaz muestra siempre el plan gratuito aunque la base registre premium: es el
-pendiente P2 de [05-pendientes-producto.md](05-pendientes-producto.md).

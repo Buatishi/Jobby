@@ -33,8 +33,8 @@
 - **Alternativas evaluadas:** (a) MongoDB Atlas; (b) MySQL gestionado (PlanetScale);
   (c) Firebase Firestore.
 - **Fundamento:** los datos son relacionales: una persona tiene un perfil, el perfil tiene
-  habilidades, experiencia y estudios, y cada puesto produce un resultado. Trece tablas con claves
-  foráneas y borrado en cascada lo modelan sin esfuerzo. Los vectores de significado se guardan
+  habilidades, experiencia y estudios, y cada puesto produce un resultado. Dieciséis tablas con
+  claves foráneas y borrado en cascada lo modelan sin esfuerzo. Los vectores de significado se guardan
   con pgvector en el mismo motor, sin sumar otra base. Supabase agrega autenticación y
   almacenamiento de archivos con seguridad por fila, todo en el plan gratuito. Mongo no encaja con
   datos tan relacionales, MySQL no tiene un equivalente maduro a pgvector y Firestore ataría el
@@ -79,19 +79,21 @@
 
 Bautista Giraud estuvo a cargo del análisis, el diseño, el backend, el frontend, la base de datos,
 el despliegue y la documentación. Natalia Blanco participó en parte de la documentación, en las
-ideas y en la solución de problemas del proyecto. Al 2026-09-21 el repositorio tenía 102 commits
-desde el 2026-06-27, todos de Bautista Giraud: los 42 de septiembre corresponden a este trimestre
-y los anteriores, a la base preexistente del proyecto.
+ideas y en la solución de problemas del proyecto. Al 2026-11-02 el repositorio tiene 294 commits
+propios (más 148 merges) desde el 2026-06-27, todos de Bautista Giraud: 60 de la base preexistente
+y 234 de este trimestre.
 
 ## Uso de herramientas de inteligencia artificial
 
-Se utilizaron dos herramientas. **Codex** (OpenAI) ayudó a construir las bases del proyecto:
-generación y revisión de código e interpretación de errores. **Claude** (Anthropic) acompañó todo
-el proyecto como ayuda de código (generación, revisión y pruebas) y como compañero de intercambio
-de ideas; con él también se elaboró la documentación, verificando cada afirmación contra el código,
-las migraciones, las pruebas y producción. Las decisiones de diseño, la arquitectura y el alcance
-son propias; el resultado de las herramientas se revisó antes de incorporarse. Se comprende la
-totalidad del código entregado y no se usarán asistentes durante la defensa individual.
+Para el código y la documentación se utilizaron dos herramientas. **Codex** (OpenAI) ayudó a
+construir las bases del proyecto: generación y revisión de código e interpretación de errores.
+**Claude** (Anthropic) acompañó todo el proyecto como ayuda de código y de ideas; con él también
+se elaboró la documentación, verificando cada afirmación contra el código, las migraciones, las
+pruebas y producción. Para las presentaciones se sumaron **NotebookLM** (borrador de los mazos a
+partir de los documentos), **Canva** (diseño) y **Gemini** (revisión cruzada de textos). Las
+decisiones de diseño, la arquitectura y el alcance son propias; el resultado de las herramientas se
+revisó antes de incorporarse y cada cifra se cotejó con su fuente. Se comprende la totalidad del
+código entregado y no se usarán asistentes durante la defensa individual.
 
 *El registro completo de decisiones operativas, que crece durante el trimestre, está en
 `DECISIONS.md`; este documento resume las cinco decisiones estructurales que pide la consigna.*
