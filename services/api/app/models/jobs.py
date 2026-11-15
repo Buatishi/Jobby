@@ -61,7 +61,6 @@ class JobUpdateRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    job_title: JobText | None = None
     job_title: JobTitle | None = None
     company_name: JobText | None = None
     required_seniority: JobSeniority | None = None
