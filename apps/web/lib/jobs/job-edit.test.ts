@@ -100,7 +100,8 @@ describe("buildJobUpdate", () => {
     [{ salaryMin: "3000" }, "El salario mínimo no puede superar al máximo."],
     [{ currency: "dólares" }, "Moneda: usá el código de tres letras"],
     [{ seniority: "semi senior" }, "Seniority: elegí una opción de la lista."],
-    [{ jobTitle: "x".repeat(201) }, "Puesto: admite hasta 200 caracteres."]
+    [{ jobTitle: "x".repeat(201) }, "Puesto: admite hasta 200 caracteres."],
+    [{ jobTitle: "ab" }, "Puesto: escribí al menos 3 caracteres."]
   ])("rejects %o before calling the API", (change, message) => {
     const result = buildJobUpdate(initial, { ...initial, ...change });
 
