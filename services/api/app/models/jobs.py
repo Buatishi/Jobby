@@ -10,6 +10,9 @@ JobModality = Literal["remote", "hybrid", "onsite"]
 JobText = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
 ]
+JobTitle = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=3, max_length=200)
+]
 JobSalary = Annotated[int, Field(ge=0, le=100_000_000)]
 JobCurrency = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 
@@ -58,7 +61,7 @@ class JobUpdateRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    job_title: JobText | None = None
+    job_title: JobTitle | None = None
     company_name: JobText | None = None
     required_seniority: JobSeniority | None = None
     required_modality: JobModality | None = None

@@ -144,6 +144,7 @@ def test_patch_rejects_fields_that_are_not_editable(
         {"currency": "usd"},
         {"salary_min": -1},
         {"job_title": "   "},
+        {"job_title": "ab"},
         {"job_title": "x" * 201},
     ],
 )

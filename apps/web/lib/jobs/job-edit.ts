@@ -17,6 +17,7 @@ const MODALITY_VALUES: readonly string[] = JOB_MODALITIES.map(
   (modality) => modality.value
 );
 const MAX_TEXT_LENGTH = 200;
+const MIN_TITLE_LENGTH = 3;
 const MAX_SALARY = 100_000_000;
 
 export type JobSummary = {
@@ -130,7 +131,14 @@ export function buildJobUpdate(
   if (!title.ok) {
     return title;
   }
+
   if (title.value !== (initial.jobTitle.trim() || null)) {
+    if (title.value !== null && title.value.length < MIN_TITLE_LENGTH) {
+      return {
+        ok: false,
+        error: `Puesto: escribí al menos ${MIN_TITLE_LENGTH} caracteres.`
+      };
+    }
     payload.job_title = title.value;
   }
 
