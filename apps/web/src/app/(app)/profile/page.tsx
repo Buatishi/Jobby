@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/card";
 import { fetchAndRemember, useApiResource } from "@/lib/api/use-api-resource";
 
+import { ChangePasswordCard } from "./change-password-card";
+
 type Profile = {
   headline?: string | null;
   summary?: string | null;
@@ -125,6 +127,8 @@ export default function ProfilePage() {
                 </p>
               </CardContent>
             </Card>
+            
+            <ChangePasswordCard />
           </div>
         ) : null}
       </div>
