@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { ProgressSteps } from "@/components/progress-steps";
 import { TaskPoller } from "@/components/task-poller";
 import { PageBanner } from "@/components/page-banner";
+import { PremiumGate } from "@/components/premium-gate";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +17,8 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
+import { planOf } from "@/lib/auth/permissions";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 type JobHistoryItem = {
   id: string;
@@ -58,12 +61,19 @@ export default function NewInterviewKitPage() {
   const [createdKitId, setCreatedKitId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [failed, setFailed] = useState(false);
+  // Sin plan todavía (perfil cargando) no se muestra el aviso.
+  const plan = planOf(useCurrentUser());
 
   useEffect(() => {
     async function loadJobs() {
       try {
         const response = await apiClient<JobHistoryItem[]>("/api/v1/jobs");
         setJobs(response);
+        // Si se llegó desde "Preparar entrevista", el puesto ya queda elegido.
+        const requestedJobId = new URLSearchParams(window.location.search).get("job");
+        if (requestedJobId && response.some((job) => job.id === requestedJobId)) {
+          setSelectedJobId(requestedJobId);
+        }
       } catch {
         setJobs([]);
       }
@@ -195,6 +205,8 @@ export default function NewInterviewKitPage() {
         eyebrow="Nuevo Interview Kit"
         title="Generá tu preparación personalizada"
       />
+
+      {plan === "free" ? <PremiumGate className="mb-6" /> : null}
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>

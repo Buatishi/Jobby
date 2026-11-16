@@ -46,4 +46,11 @@ describe("JobCard", () => {
     expect(html).not.toContain("<form");
     expect(html).not.toContain("No se puede deshacer");
   });
+
+  it("links each job to a new interview kit with that job chosen", () => {
+    const html = render({ id: "job-4", job_title: "Data Analyst" });
+
+    expect(html).toContain("Preparar entrevista");
+    expect(html).toContain('href="/interview-kits/new?job=job-4"');
+  });
 });
