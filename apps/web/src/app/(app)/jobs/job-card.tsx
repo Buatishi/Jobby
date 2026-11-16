@@ -279,6 +279,11 @@ export function JobCard({ job, onUpdated, onDeleted }: JobCardProps) {
                 <Button asChild variant="secondary">
                   <Link href={`/jobs/${job.id}`}>Ver reporte</Link>
                 </Button>
+                <Button asChild variant="secondary">
+                  <Link href={`/interview-kits/new?job=${job.id}`}>
+                    Preparar entrevista
+                  </Link>
+                </Button>
                 <Button
                   aria-label={`Editar ${title}`}
                   leftIcon={<Pencil aria-hidden="true" className="h-4 w-4" />}
