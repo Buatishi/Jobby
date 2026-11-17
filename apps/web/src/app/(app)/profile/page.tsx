@@ -25,6 +25,7 @@ type Profile = {
   target_seniority?: string | null;
   work_modality?: string | null;
   completeness_pct?: number | null;
+  has_primary_cv?: boolean;
 };
 
 export default function ProfilePage() {
@@ -55,7 +56,7 @@ export default function ProfilePage() {
       <div className="mt-5 space-y-5">
         <DownloadCVPanel />
 
-        <CvPanel onProfileChange={reloadProfile} />
+        <CvPanel hasPrimaryCv={profile?.has_primary_cv ?? true} onProfileChange={reloadProfile} />
 
         <LinkedInPanel onProfileChange={reloadProfile} />
 
