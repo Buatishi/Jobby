@@ -365,6 +365,8 @@ export const dictionaries: Record<Language, TranslationTree> = {
       cvCardProcessing: "Procesando...",
       cvCardPickFirst: "Elegí el PDF de tu CV antes de subirlo.",
       cvCardUploadError: "No se pudo subir el CV.",
+      cvCardConfirmReplace:
+        "Vas a reemplazar tu CV principal y no se puede deshacer. ¿Querés continuar?",
       cvCardDone: "CV subido y leído: ya es tu CV principal.",
       cvCardStillReading:
         "Tu CV ya está subido y lo seguimos leyendo. Volvé a revisar en un momento.",
@@ -804,6 +806,8 @@ export const dictionaries: Record<Language, TranslationTree> = {
       cvCardProcessing: "Processing...",
       cvCardPickFirst: "Choose your CV PDF before uploading it.",
       cvCardUploadError: "Could not upload the CV.",
+      cvCardConfirmReplace:
+        "You are about to replace your main CV. This cannot be undone. Continue?",
       cvCardDone: "CV uploaded and read: it is now your main CV.",
       cvCardStillReading:
         "Your CV is uploaded and we are still reading it. Check again in a moment.",

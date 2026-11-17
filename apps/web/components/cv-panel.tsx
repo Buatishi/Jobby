@@ -108,8 +108,11 @@ export function CvPanelView({
  * bloqueados: no se puede empezar otra subida desde esta pestaña.
  */
 export function CvPanel({
+  hasPrimaryCv = true,
   onProfileChange
 }: {
+  // Si ya hay un CV principal, subir otro lo reemplaza: se pide confirmación.
+  hasPrimaryCv?: boolean;
   // Se llama al terminar, salga como salga: el porcentaje del perfil puede haber cambiado.
   onProfileChange?: () => void;
 }) {
@@ -124,6 +127,11 @@ export function CvPanel({
   async function handleUpload() {
     if (!file) {
       setError(t("app.cvCardPickFirst"));
+      return;
+    }
+
+    // Reemplazar el CV principal no se puede deshacer: se confirma solo si ya hay uno.
+    if (hasPrimaryCv && !window.confirm(t("app.cvCardConfirmReplace"))) {
       return;
     }
 

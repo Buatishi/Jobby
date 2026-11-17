@@ -29,6 +29,25 @@ def test_get_my_profile(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json()["id"] == "profile-1"
     assert response.json()["headline"] == "Backend Engineer"
+    assert response.json()["has_primary_cv"] is False
+
+
+def test_get_my_profile_says_if_there_is_a_primary_cv(client: TestClient) -> None:
+    fake_supabase = FakeSupabase()
+    fake_supabase.tables["uploaded_documents"].append(
+        {"id": "doc-1", "user_id": "user-1", "type": "cv", "is_primary": True}
+    )
+
+    async def fake_client() -> FakeSupabase:
+        return fake_supabase
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    app.dependency_overrides[get_supabase_client] = fake_client
+
+    response = client.get("/api/v1/profiles/me")
+
+    assert response.status_code == 200
+    assert response.json()["has_primary_cv"] is True
 
 
 def test_patch_my_profile_updates_and_recomputes_completeness(

@@ -277,6 +277,9 @@ async def get_my_profile(
     supabase: Annotated[Any, Depends(get_supabase_client)],
 ) -> MasterProfile:
     profile = await _fetch_profile(supabase, current_user.id)
+    # La pantalla lo usa para pedir confirmación solo si hay un CV que reemplazar.
+    primary_cv = await _primary_cv(supabase, current_user.id)
+    profile["has_primary_cv"] = primary_cv is not None
     return MasterProfile.model_validate(profile)
 
 
