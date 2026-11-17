@@ -72,6 +72,7 @@ describe("app dictionary", () => {
       "cvCardProcessing",
       "cvCardPickFirst",
       "cvCardUploadError",
+      "cvCardConfirmReplace",
       "cvCardDone",
       "cvCardStillReading",
       "cvStageUploading",

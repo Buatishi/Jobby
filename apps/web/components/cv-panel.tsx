@@ -127,6 +127,11 @@ export function CvPanel({
       return;
     }
 
+    // Reemplazar el CV principal no se puede deshacer: se confirma antes de subir.
+    if (!window.confirm(t("app.cvCardConfirmReplace"))) {
+      return;
+    }
+
     setError(null);
     setNotice(null);
     setBusy(true);
