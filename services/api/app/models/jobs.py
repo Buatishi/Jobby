@@ -16,6 +16,8 @@ JobTitle = Annotated[
 JobSalary = Annotated[int, Field(ge=0, le=100_000_000)]
 JobCurrency = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 
+# Estado de postulación (migración 032): códigos en inglés, traducidos en la pantalla.
+JobApplicationStatus = Literal["saved", "applied", "interview", "offer", "rejected"]
 
 class JobAnalysisRequest(BaseModel):
     source: Literal["url", "text"]
@@ -68,6 +70,7 @@ class JobUpdateRequest(BaseModel):
     salary_min: JobSalary | None = None
     salary_max: JobSalary | None = None
     currency: JobCurrency | None = None
+    application_status: JobApplicationStatus = "saved"
 
 
 # La IA no siempre respeta la forma pedida (una lista en null, un idioma como objeto,

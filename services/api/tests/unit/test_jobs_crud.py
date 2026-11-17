@@ -146,6 +146,8 @@ def test_patch_rejects_fields_that_are_not_editable(
         {"job_title": "   "},
         {"job_title": "ab"},
         {"job_title": "x" * 201},
+        {"application_status": "ganado"},
+        {"application_status": None},
     ],
 )
 def test_patch_validates_each_value(
@@ -154,6 +156,19 @@ def test_patch_validates_each_value(
     response = client.patch(f"/api/v1/jobs/{JOB_ID}", json=payload)
 
     _assert_error(response, 400, "VALIDATION_ERROR")
+
+
+def test_patch_changes_the_application_status(
+    client: TestClient, fake_supabase: FakeSupabase
+) -> None:
+    response = client.patch(
+        f"/api/v1/jobs/{JOB_ID}", json={"application_status": "applied"}
+    )
+
+    assert response.status_code == 200
+    stored = _job(fake_supabase, JOB_ID)
+    assert stored is not None
+    assert stored["application_status"] == "applied"
 
 
 def test_patch_without_fields_is_rejected(
