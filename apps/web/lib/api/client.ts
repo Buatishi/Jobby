@@ -24,6 +24,9 @@ export class ApiForbiddenError extends Error {
   }
 }
 
+
+/*Se lanza cuando fetch falla del todo, por ejemplo si no hay internet. El hueco está en el caso más común en producción: Render está dormido o caído, y Vercel*/
+/* lo expone use-api-resource.ts */
 export class ApiConnectionError extends Error {
   constructor(
     message = "No pudimos conectar con el servidor. Revisá la configuración y volvé a intentar."
@@ -93,6 +96,8 @@ async function redirectToLoginAfterAuthFailure() {
   }
 }
 
+//Este es el error generico que tiraba siempre que surgia un error de comunicacion con la Api, surgia en escenarios comunes
+//Con la agregacion en la linea 178, se agrega un error personalizado en caso de caidas en render con errores 502,503 y 504.
 async function parseApiError(response: Response) {
   const errorPayload = (await response.json().catch(() => null)) as {
     error?: string;
@@ -169,6 +174,17 @@ export async function apiClient<TResponse>(
       ? new ApiForbiddenError()
       : new ApiForbiddenError(payload);
   }
+
+  /* Se agrega aca porque el orden de apiClient ya es 401, 403, error generico, exito.*/
+  // Si Render esta dormido o caido, Vercel responde 502/503/504. Se avisa con un mensaje claro en vez del error tecnico en ingles, y todas las pantallas lo muestran igual
+  // Solo se va a producir en caso de que todo el servidor de Render este caigo
+  //Lo hice solo aca y no en cada pantalla, ya que las pantallas llaman a la misma funcion, de esta forma se optimiza una agregacion como esta
+  if ([502, 503, 504].includes(response.status)) {
+    throw new ApiConnectionError(
+      "El servidor no responde en este momento. Proba de nuevo en unos segundos."
+  );
+}
+//Se usan esos errores ya que demuestran que el error es debido a quien esta en el medio (vercel) no pudo hablar con render
 
   if (!response.ok) {
     throw new Error(await parseApiError(response));
