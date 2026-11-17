@@ -32,6 +32,7 @@ class MasterProfile(BaseModel):
     target_industry: list[str] | None = None
     linkedin_url: str | None = None
     completeness_pct: int = 0
+    has_primary_cv: bool = False
     inferred_soft_skills: list[str] = Field(default_factory=list)
     soft_skills_computed_at: str | None = None
     created_at: str | None = None
