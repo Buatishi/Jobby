@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/client", () => ({
   })
 }));
 
-import { ApiForbiddenError, apiClient } from "@/lib/api/client";
+import { ApiConnectionError, ApiForbiddenError, apiClient } from "@/lib/api/client";
 
 function respondWith(status: number, body: string) {
   vi.stubGlobal(
@@ -84,9 +84,10 @@ describe("apiClient with a gateway error on a write", () => {
     const fetchMock = vi.fn(async () => new Response("", { status: 502 }));
     vi.stubGlobal("fetch", fetchMock);
 
+    // E4-20: ahora un 502 sale como ApiConnectionError, ya no como "status 502".
     await expect(
       apiClient("/api/v1/profiles/me", { method: "PATCH", body: "{}" })
-    ).rejects.toThrow("status 502");
+    ).rejects.toBeInstanceOf(ApiConnectionError);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -112,5 +113,22 @@ describe("apiClient with a gateway error on a write", () => {
     const init = fetchMock.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(init).not.toHaveProperty("idempotent");
     expect(init.method).toBe("PATCH");
+  });
+});
+
+// E4-20: si el servidor no responde (Render dormido o caido), Vercel contesta 503.
+// Se comprueba que eso se convierta en un error de conexion claro para la persona.
+// Se usa POST para que no se activen los reintentos y el test no espere segundos.
+describe("apiClient with an unreachable server", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("raises ApiConnectionError when the server answers 503", async () => {
+    respondWith(503, "");
+
+    await expect(
+      apiClient("/api/v1/jobs", { method: "POST" })
+    ).rejects.toBeInstanceOf(ApiConnectionError);
   });
 });
