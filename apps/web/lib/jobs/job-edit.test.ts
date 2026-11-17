@@ -41,13 +41,21 @@ describe("toJobFormValues", () => {
       modality: "",
       salaryMin: "",
       salaryMax: "",
-      currency: ""
+      currency: "",
+      applicationStatus: "saved"
     });
   });
 });
 
 describe("buildJobUpdate", () => {
   const initial = toJobFormValues(job);
+
+  it("sends the new application status", () => {
+    expect(buildJobUpdate(initial, { ...initial, applicationStatus: "applied" })).toEqual({
+      ok: true,
+      payload: { application_status: "applied" }
+    });
+  });
 
   it("sends only the fields that changed, trimmed", () => {
     const result = buildJobUpdate(initial, {

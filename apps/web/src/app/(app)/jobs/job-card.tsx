@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiClient } from "@/lib/api/client";
 import {
+  APPLICATION_STATUSES,
   JOB_MODALITIES,
   JOB_SENIORITIES,
   buildJobUpdate,
@@ -172,6 +173,23 @@ export function JobCard({ job, onUpdated, onDeleted }: JobCardProps) {
                     </option>
                   ) : null}
                   {JOB_MODALITIES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor={fieldId("status")}>
+                  Estado
+                </label>
+                <select
+                  className={fieldClassName}
+                  id={fieldId("status")}
+                  onChange={(event) => setField("applicationStatus", event.target.value)}
+                  value={values.applicationStatus}
+                >
+                  {APPLICATION_STATUSES.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
