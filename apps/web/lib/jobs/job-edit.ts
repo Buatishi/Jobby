@@ -13,6 +13,14 @@ export const JOB_MODALITIES = [
   { value: "onsite", label: "Presencial" }
 ] as const;
 
+export const APPLICATION_STATUSES = [
+  { value: "saved", label: "Guardado" },
+  { value: "applied", label: "Postulado" },
+  { value: "interview", label: "Entrevista" },
+  { value: "offer", label: "Oferta" },
+  { value: "rejected", label: "Descartado" }
+] as const;
+
 const MODALITY_VALUES: readonly string[] = JOB_MODALITIES.map(
   (modality) => modality.value
 );
@@ -30,6 +38,7 @@ export type JobSummary = {
   salary_max?: number | null;
   currency?: string | null;
   created_at?: string | null;
+  application_status?: string | null;
 };
 
 export type JobFormValues = {
@@ -40,6 +49,7 @@ export type JobFormValues = {
   salaryMin: string;
   salaryMax: string;
   currency: string;
+  applicationStatus: string;
 };
 
 export type JobUpdatePayload = {
@@ -50,6 +60,7 @@ export type JobUpdatePayload = {
   salary_min?: number | null;
   salary_max?: number | null;
   currency?: string | null;
+  application_status?: string;
 };
 
 export type JobUpdateResult =
@@ -74,7 +85,8 @@ export function toJobFormValues(job: JobSummary): JobFormValues {
     modality: toKnownValue(job.required_modality, MODALITY_VALUES),
     salaryMin: job.salary_min == null ? "" : String(job.salary_min),
     salaryMax: job.salary_max == null ? "" : String(job.salary_max),
-    currency: job.currency ?? ""
+    currency: job.currency ?? "",
+    applicationStatus: job.application_status ?? "saved"
   };
 }
 
@@ -216,6 +228,10 @@ export function buildJobUpdate(
     payload.currency = currency || null;
   }
 
+  if (current.applicationStatus !== initial.applicationStatus) {
+    payload.application_status = current.applicationStatus;
+  }
+
   if (Object.keys(payload).length === 0) {
     return { ok: false, error: "No cambiaste ningún dato." };
   }
@@ -245,7 +261,11 @@ export function describeJobDetails(job: JobSummary) {
   const modality = toKnownValue(job.required_modality, MODALITY_VALUES);
   const modalityLabel =
     JOB_MODALITIES.find((option) => option.value === modality)?.label ?? modality;
+  const statusLabel = APPLICATION_STATUSES.find(
+    (option) => option.value === job.application_status
+  )?.label;
   return [
+    statusLabel,
     toKnownValue(job.required_seniority, JOB_SENIORITIES),
     modalityLabel,
     describeSalary(job)
